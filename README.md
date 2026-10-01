@@ -1,0 +1,54 @@
+# Racha
+
+Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en el navegador de la computadora o del celular, y se puede instalar en la pantalla de inicio.
+
+## Qué tiene
+
+- Cuenta de Racha y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
+- Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
+- Materias, con las tareas de cada una.
+- XP para subir de nivel. Cada nivel pide 10 XP más que el anterior, hasta un tope de 400.
+- Puntos, aparte de la XP. Una tirada de la máquina cuesta 50 puntos.
+- Máquina: común 60 %, raro 32 %, súper raro 8 %.
+- Logros, racha por entrar, ranking y un chat para dudas.
+- Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
+
+## Cómo correrla
+
+```bash
+npm install
+npm run dev
+```
+
+Abrí [http://127.0.0.1:43123](http://127.0.0.1:43123).
+
+Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejemplo**.
+
+## Educamos
+
+Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la contraseña de Educamos. La contraseña de Racha se guarda hasheada y la de Educamos, cifrada. No se muestran de nuevo y no se mandan al chat.
+
+Educamos no publica una API para alumnos. Racha entra a la web del colegio con tus datos. Si el colegio cambia la página o no deja el acceso automático, la cuenta queda creada, ves el error y podés reintentar con **Buscar en Educamos**.
+
+## Chat
+
+Sin configuración, el chat responde con tus tareas, materias, fechas y misiones. Para usar el modelo gratuito Gemini Flash, creá un archivo `.env.local` con:
+
+```bash
+GEMINI_API_KEY=tu_clave
+```
+
+El ejemplo está en `.env.example`. La clave sale del plan gratuito de Google AI Studio.
+
+## Avisos
+
+En Inicio hay un interruptor y un botón **Probar aviso**. Hace falta dar permiso en el navegador. En Android Chrome funcionan en la web y en la app instalada. En iPhone, el aviso push llega cuando el sitio está agregado a la pantalla de inicio.
+
+## Economía
+
+- Tarea a tiempo: 50 XP y 25 puntos.
+- Tarea tarde: 15 XP y 8 puntos. No llena las barras.
+- Día: si completás a tiempo al menos el 60 % de lo que vence hoy, 40 XP y 40 puntos.
+- Semana: si completás a tiempo todo lo que vence esa semana, 120 XP y 100 puntos.
+- Combo, si además cada día con tareas llegó al 60 %: 80 XP y 60 puntos.
+- Entrar un día nuevo: 10 XP y un día de racha.
