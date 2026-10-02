@@ -317,17 +317,17 @@
 
 .gacha {
   margin-inline: auto;
-  width: min(100%, 320px);
+  width: min(100%, 340px);
   border-radius: 28px;
-  background: linear-gradient(180deg, #d9d6d1, #8f8c88 38%, #5e5b58);
+  background: linear-gradient(180deg, #f7f4ef, #e7e2da 55%, #d4cec6);
   padding: 12px;
-  box-shadow: 0 16px 0 #3f3d3b, inset 0 0 0 3px #eeeae4;
+  box-shadow: 0 14px 0 #b7b0a6, inset 0 0 0 3px #fff;
 }
 
 .gacha-lights {
   display: flex;
   justify-content: space-between;
-  padding: 2px 4px 8px;
+  padding: 2px 2px 8px;
 }
 
 .bulb {
@@ -341,98 +341,149 @@
 
 .gacha-globe {
   position: relative;
-  height: 176px;
-  margin: 0 18px;
+  height: 210px;
+  margin: 0 10px;
   overflow: hidden;
-  border: 7px solid #c8c4be;
+  border: 8px solid #f3f0ea;
   border-bottom: none;
-  border-radius: 120px 120px 10px 10px;
+  border-radius: 130px 130px 12px 12px;
   background:
-    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.85), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.08));
+    radial-gradient(circle at 28% 16%, rgba(255, 255, 255, 0.95), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2));
+  box-shadow: inset 0 -18px 0 #efeae3;
 }
 
-.gacha-ball {
+.cap {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  animation: jiggle 2.4s ease-in-out infinite;
+}
+
+.cap.hot {
+  animation: jiggle-hard 0.22s ease-in-out infinite;
+}
+
+.cap-shell {
   position: absolute;
-  width: 28px;
-  height: 28px;
+  inset: 0;
   border-radius: 999px;
-  box-shadow: inset -4px -4px 0 rgba(0, 0, 0, 0.12), inset 4px 4px 0 rgba(255, 255, 255, 0.45);
-  transition: left 0.16s linear, top 0.16s linear;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08) 48%, rgba(255, 255, 255, 0.28) 52%, rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 8px 10px rgba(255, 255, 255, 0.65), inset 0 -8px 8px rgba(80, 60, 40, 0.08);
+}
+
+.cap-shell::after {
+  content: "";
+  position: absolute;
+  top: 47%;
+  right: 4px;
+  left: 4px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.cap-prize {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.out-ball {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin-inline: auto;
+  animation: drop-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .gacha-base {
-  position: relative;
   margin-top: -2px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #bdb9b4, #6f6c69);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f3efe8, #ddd7ce);
   padding: 12px;
 }
 
 .coin-slot {
   position: relative;
-  display: grid;
-  height: 54px;
-  place-items: center;
+  display: flex;
+  height: 86px;
+  align-items: flex-end;
+  justify-content: center;
   overflow: hidden;
-  border-radius: 12px;
-  background: #2c241f;
+  border-radius: 16px;
+  background: #3a342f;
+  padding-bottom: 10px;
 }
 
 .coin {
   position: absolute;
-  top: 6px;
-  width: 22px;
-  height: 22px;
+  top: 8px;
+  width: 52px;
+  height: 52px;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 35%, #fff4c8, var(--gold) 55%, #8a5a10);
-  box-shadow: 0 2px 0 #6b4420;
+  background:
+    radial-gradient(circle at 35% 32%, #fff8dc, var(--gold) 46%, #a56b12 78%);
+  box-shadow: 0 4px 0 #7a4e0c, inset 0 0 0 4px rgba(255, 248, 220, 0.7);
 }
 
 .coin.inserting {
-  animation: coin-in 0.7s ease forwards;
+  animation: coin-in 0.75s ease forwards;
+}
+
+.slot-label {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
 }
 
 .chute {
   display: grid;
-  min-height: 86px;
+  min-height: 92px;
   margin-top: 10px;
   place-items: center;
-  border-radius: 14px;
-  background: #3a3836;
-}
-
-.out-ball {
-  display: grid;
-  width: 62px;
-  height: 62px;
-  place-items: center;
-  border-radius: 999px;
-  background: radial-gradient(circle at 32% 30%, #fff, #f3f0ea 55%, #c8c4be);
-  box-shadow: inset -6px -6px 0 rgba(0, 0, 0, 0.08);
-  animation: drop-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.odds {
-  margin-top: 12px;
   border-radius: 16px;
-  background: var(--card);
-  padding: 12px;
-  box-shadow: inset 0 0 0 1px var(--border);
+  background: #f7f4ef;
+  box-shadow: inset 0 0 0 2px #e6e0d6;
+}
+
+.gacha-odds {
+  margin-top: 10px;
+  border-radius: 16px;
+  background: #fffdf9;
+  padding: 8px 10px 10px;
+  box-shadow: inset 0 0 0 2px #efe8dc;
 }
 
 .odds-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 14px;
   font-weight: 700;
 }
 
 @keyframes coin-in {
-  0% { transform: translateY(-20px); opacity: 1; }
-  100% { transform: translateY(26px); opacity: 0; }
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(48px) scale(0.7); opacity: 0; }
+}
+
+@keyframes jiggle {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-3px) rotate(2deg); }
+}
+
+@keyframes jiggle-hard {
+  0% { transform: translate(0, 0) rotate(-6deg); }
+  25% { transform: translate(2px, -4px) rotate(5deg); }
+  50% { transform: translate(-2px, 1px) rotate(-4deg); }
+  75% { transform: translate(1px, -3px) rotate(6deg); }
+  100% { transform: translate(0, 0) rotate(-6deg); }
 }
 
 .prize-drop {
