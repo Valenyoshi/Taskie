@@ -26,7 +26,7 @@ export function TaskCard({ task }: { task: TaskView }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [phase, setPhase] = useState<"idle" | "loading" | "strike" | "check" | "leave" | "settled">(
+  const [phase, setPhase] = useState<"idle" | "loading" | "strike" | "check" | "leave" | "gone" | "settled">(
     task.pending ? "idle" : "settled",
   );
   const [fileName, setFileName] = useState(task.fileName);
@@ -55,13 +55,22 @@ export function TaskCard({ task }: { task: TaskView }) {
   useEffect(() => {
     if (phase !== "strike") return;
     const toCheck = window.setTimeout(() => setPhase("check"), 980);
-    const toLeave = window.setTimeout(() => setPhase("leave"), 1680);
-    const toRefresh = window.setTimeout(() => router.refresh(), 2230);
-    return () => {
-      window.clearTimeout(toCheck);
-      window.clearTimeout(toLeave);
-      window.clearTimeout(toRefresh);
-    };
+    return () => window.clearTimeout(toCheck);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "check") return;
+    const toLeave = window.setTimeout(() => setPhase("leave"), 700);
+    return () => window.clearTimeout(toLeave);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "leave") return;
+    const toHide = window.setTimeout(() => {
+      setPhase("gone");
+      router.refresh();
+    }, 420);
+    return () => window.clearTimeout(toHide);
   }, [phase, router]);
 
   async function complete() {
@@ -94,6 +103,8 @@ export function TaskCard({ task }: { task: TaskView }) {
     }
     setFileName(data.fileName ?? file.name);
   }
+
+  if (phase === "gone") return null;
 
   return (
     <article

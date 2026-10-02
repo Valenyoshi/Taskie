@@ -307,6 +307,8 @@
   z-index: 4;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
   pointer-events: none;
 }
 
@@ -335,7 +337,9 @@
 }
 
 .task-leave {
-  animation: task-away 0.5s ease forwards;
+  animation: task-away 0.4s ease forwards;
+  animation-delay: 0s;
+  pointer-events: none;
 }
 
 @keyframes cover-grow {
@@ -350,7 +354,7 @@
 @keyframes task-away {
   to {
     opacity: 0;
-    transform: translateY(-16px) scale(0.96);
+    transform: scale(0.92);
   }
 }
 
