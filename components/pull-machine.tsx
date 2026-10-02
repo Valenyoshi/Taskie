@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SchoolIcon } from "@/components/school-icon";
 import { REWARDS } from "@/lib/catalog";
 import { rarityLabel, type Rarity } from "@/lib/game";
 
@@ -20,7 +21,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
   const [spinning, setSpinning] = useState(false);
   const [spots, setSpots] = useState<Spot[]>(scatter);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ name: string; emoji: string; rarity: Rarity } | null>(null);
+  const [result, setResult] = useState<{ id: string; name: string; rarity: Rarity } | null>(null);
   const pieces = REWARDS.slice(0, 8);
 
   useEffect(() => {
@@ -43,8 +44,8 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
       setError(data.error ?? "La máquina no respondió.");
       return;
     }
-    const emoji = REWARDS.find((reward) => reward.name === data.rewardName)?.emoji ?? "🎁";
-    setResult({ name: data.rewardName, emoji, rarity: data.rarity });
+    const found = REWARDS.find((reward) => reward.name === data.rewardName);
+    setResult({ id: found?.id ?? "lapiz", name: data.rewardName, rarity: data.rarity });
     router.refresh();
   }
 
@@ -62,7 +63,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
                 transform: `rotate(${spots[index]?.r ?? 0}deg)`,
               }}
             >
-              {piece.emoji}
+              <SchoolIcon id={piece.id} size={34} />
             </span>
           ))}
         </div>
@@ -78,7 +79,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         <div className="tray">
           {result ? (
             <div className="prize-drop text-center text-amber-100">
-              <p className="text-4xl">{result.emoji}</p>
+              <SchoolIcon id={result.id} size={46} />
               <p className="text-[11px] font-bold uppercase">{rarityLabel(result.rarity)}</p>
               <p className="font-display text-lg">{result.name}</p>
             </div>

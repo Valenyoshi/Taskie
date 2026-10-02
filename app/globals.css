@@ -459,3 +459,62 @@
 .medal-ribbon.locked {
   background: #a8a29e;
 }
+
+.pencil-case {
+  position: relative;
+  margin-inline: auto;
+  width: min(100%, 340px);
+}
+
+.pencil-lid {
+  height: 28px;
+  border-radius: 18px 18px 6px 6px;
+  background: linear-gradient(180deg, #3e6ea8, #2b5084);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.15);
+}
+
+.pencil-zip {
+  position: absolute;
+  top: 22px;
+  left: 16px;
+  right: 16px;
+  height: 8px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(90deg, #f4c56a 0 6px, #8a6230 6px 8px);
+}
+
+.pencil-body {
+  border-radius: 8px 8px 28px 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 30%),
+    linear-gradient(90deg, #315f98, #3f78b8 40%, #2d568c);
+  padding: 18px 14px 16px;
+  box-shadow: 0 14px 0 #1e3a5f;
+}
+
+.pencil-pocket {
+  display: flex;
+  min-height: 92px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, #f7f1e4, #efe2c8);
+  box-shadow: inset 0 8px 12px rgba(80, 50, 10, 0.12);
+  padding: 8px;
+}
+
+.pencil-item {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+}
+
+.pencil-empty {
+  font-size: 13px;
+  font-weight: 700;
+  color: #a89070;
+}
