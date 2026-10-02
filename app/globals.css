@@ -336,6 +336,23 @@
   animation: mark-in 0.35s ease 0.15s both;
 }
 
+.done-ring {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.task-refuse {
+  background: #f6cfc8;
+}
+
 .task-leave {
   animation: task-away 0.4s ease forwards;
   animation-delay: 0s;

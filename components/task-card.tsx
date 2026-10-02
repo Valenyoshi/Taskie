@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
 
@@ -30,6 +31,8 @@ export function TaskCard({ task }: { task: TaskView }) {
   );
   const [fileName, setFileName] = useState(task.fileName);
   const [open, setOpen] = useState(task.kind === "archivo");
+  const [refused, setRefused] = useState(false);
+  const needsUpload = task.kind === "archivo" || task.needsFile;
   const [lineTop, setLineTop] = useState(36);
   const cardRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -72,7 +75,28 @@ export function TaskCard({ task }: { task: TaskView }) {
     return () => window.clearTimeout(toHide);
   }, [phase, router]);
 
+  function refuse() {
+    setRefused(true);
+    cardRef.current?.animate(
+      [
+        { transform: "translateX(0)" },
+        { transform: "translateX(-7px)" },
+        { transform: "translateX(7px)" },
+        { transform: "translateX(-4px)" },
+        { transform: "translateX(4px)" },
+        { transform: "translateX(0)" },
+      ],
+      { duration: 450, easing: "ease" },
+    );
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate([40, 30, 50]);
+    window.setTimeout(() => setRefused(false), 650);
+  }
+
   async function complete() {
+    if (needsUpload && !fileName) {
+      refuse();
+      return;
+    }
     setPhase("loading");
     setBusy(true);
     setError(null);
@@ -81,7 +105,8 @@ export function TaskCard({ task }: { task: TaskView }) {
     setBusy(false);
     if (!res.ok) {
       setPhase("idle");
-      setError(data.error ?? "No se pudo marcar.");
+      if (needsUpload && !fileName) refuse();
+      else setError(data.error ?? "No se pudo marcar.");
       return;
     }
     setPhase("strike");
@@ -107,8 +132,8 @@ export function TaskCard({ task }: { task: TaskView }) {
   return (
     <article
       ref={cardRef}
-      className={`rise-in relative overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10 ${phase === "leave" ? "task-leave" : ""}`}
-      style={{ boxShadow: `inset 6px 0 0 ${color}` }}
+      className={`rise-in relative overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10 ${phase === "leave" ? "task-leave" : ""} ${refused ? "task-refuse" : ""}`}
+      style={{ boxShadow: `inset 6px 0 0 ${color}`, background: refused ? "#f6cfc8" : undefined }}
     >
       <div className="flex items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
@@ -130,15 +155,27 @@ export function TaskCard({ task }: { task: TaskView }) {
         {phase === "loading" ? (
           <span className="spinner" aria-label="Cargando" />
         ) : phase === "idle" ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void complete()}
-            className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-white"
-            style={{ background: color }}
-          >
-            Listo
-          </button>
+          <span className="flex shrink-0 items-center gap-1">
+            {task.kind !== "archivo" ? (
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-label={open ? "Ocultar información" : "Ver más información"}
+                onClick={() => setOpen((value) => !value)}
+                className="grid size-8 place-items-center text-muted-foreground"
+              >
+                <ChevronDown className={`size-4 transition ${open ? "rotate-180" : ""}`} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Marcar como hecha"
+              disabled={busy}
+              onClick={() => void complete()}
+              className="done-ring"
+              style={{ color }}
+            />
+          </span>
         ) : phase === "settled" ? (
           <span className="grid size-9 place-items-center text-2xl font-bold" style={{ color }} aria-label="Lista">
             ✓
@@ -151,10 +188,7 @@ export function TaskCard({ task }: { task: TaskView }) {
           <span className="card-cover-mark">✓</span>
         </div>
       ) : null}
-      <button type="button" className="w-full px-3 pb-2 text-left text-xs font-semibold text-muted-foreground" onClick={() => setOpen((value) => !value)}>
-        {open ? "Ocultar" : "Entrega"}
-      </button>
-      {open ? (
+      {open || task.kind === "archivo" ? (
         <div className="space-y-2 px-3 pb-3 text-sm">
           {task.description ? <p>{task.description}</p> : null}
           <p className="text-xs text-muted-foreground">{task.dueLabel}</p>
