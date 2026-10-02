@@ -1,7 +1,6 @@
 import { findUserById, insertTask, removeMissingEducamos, setSyncResult } from "./db";
 import { decryptSecret } from "./secret";
 import { fetchEducamosTasks } from "./educamos";
-import { endOfLocalDay, localDateString } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
   const user = findUserById(userId);
@@ -23,12 +22,11 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
     return { ok: false, error };
   }
 
-  const today = localDateString(new Date(), user.timezone);
   const result = await fetchEducamosTasks({
     url: user.educamosUrl,
     username: user.educamosUsername,
     password,
-    fallbackDue: endOfLocalDay(today, user.timezone),
+    timeZone: user.timezone,
   });
 
   if (!result.ok) {

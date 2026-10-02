@@ -12,12 +12,9 @@ export default async function RankingPage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="font-display text-3xl">Ranking</h1>
-        <p className="text-sm text-muted-foreground">Solo cuentas de esta web. No se ven contraseñas ni tareas.</p>
       </div>
       {data.alone ? (
-        <p className="rounded-xl bg-secondary px-4 py-3 text-sm">
-          Por ahora estás solo. Cuando tus compañeros creen su cuenta en esta misma web, aparecen acá.
-        </p>
+        <p className="text-sm text-muted-foreground">Solo vos, por ahora.</p>
       ) : null}
       <Board title="Más XP" rows={data.byXp.map((row, index) => ({ ...row, place: index + 1, score: `${row.xp} XP` }))} />
       <Board

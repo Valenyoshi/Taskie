@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 export function SyncButton() {
   const router = useRouter();
@@ -16,19 +15,16 @@ export function SyncButton() {
     const data = (await res.json()) as { error?: string; count?: number };
     setBusy(false);
     if (!res.ok) {
-      setMessage(data.error ?? "No pude sincronizar.");
+      setMessage(data.error ?? "No pude actualizar.");
       return;
     }
-    setMessage(data.count ? `Encontré ${data.count} tareas.` : "Entré, y no había tareas nuevas.");
+    setMessage(data.count ? String(data.count) : "0");
     router.refresh();
   }
 
   return (
-    <div>
-      <Button className="h-10" variant="outline" disabled={busy} onClick={() => void sync()}>
-        {busy ? "Buscando…" : "Buscar en Educamos"}
-      </Button>
-      {message ? <p className="mt-2 text-sm">{message}</p> : null}
-    </div>
+    <button type="button" disabled={busy} onClick={() => void sync()} className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white">
+      {busy ? "…" : message ?? "Actualizar"}
+    </button>
   );
 }

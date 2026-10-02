@@ -26,7 +26,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
             <div>
               <p className="font-display text-xl leading-none">{sessionUser.name}</p>
-              <p className="text-sm text-muted-foreground">{title ?? `Racha de ${sessionUser.streak} días`}</p>
+              <p className="text-sm text-muted-foreground">
+                {title ?? `Racha de ${sessionUser.streak} ${sessionUser.streak === 1 ? "día" : "días"}`}
+              </p>
             </div>
           </div>
           <LogoutButton />

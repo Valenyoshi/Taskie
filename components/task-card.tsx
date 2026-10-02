@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { rememberGain } from "@/components/gain-banner";
+import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
 
 export function TaskCard({ task }: { task: TaskView }) {
@@ -12,6 +11,8 @@ export function TaskCard({ task }: { task: TaskView }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [fileName, setFileName] = useState(task.fileName);
+  const [open, setOpen] = useState(false);
+  const color = subjectColor(task.subject);
 
   async function complete() {
     setBusy(true);
@@ -20,7 +21,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     const data = (await res.json()) as { error?: string; lines?: string[] };
     setBusy(false);
     if (!res.ok) {
-      setError(data.error ?? "No se pudo marcar la entrega.");
+      setError(data.error ?? "No se pudo marcar.");
       return;
     }
     rememberGain(data.lines ?? []);
@@ -36,38 +37,51 @@ export function TaskCard({ task }: { task: TaskView }) {
     const data = (await res.json()) as { error?: string; fileName?: string };
     setBusy(false);
     if (!res.ok) {
-      setError(data.error ?? "No se pudo subir el archivo.");
+      setError(data.error ?? "No se pudo subir.");
       return;
     }
     setFileName(data.fileName ?? file.name);
   }
 
   return (
-    <article className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <Badge variant="secondary">{task.subject}</Badge>
-          <h3 className="mt-2 font-display text-lg leading-tight">{task.title}</h3>
+    <article className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
+      <div className="flex items-start gap-3 p-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span title={task.subject} className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: color }}>
+              {shortSubject(task.subject)}
+            </span>
+            <span className={`text-xs font-semibold ${task.shortDue === "Atrasada" ? "text-rose-600" : "text-muted-foreground"}`}>
+              {task.shortDue}
+            </span>
+          </div>
+          <h3 className="mt-1 font-display text-lg leading-tight">{task.title}</h3>
         </div>
-        {task.status === "done" ? (
-          <Badge variant={task.onTime ? "default" : "outline"}>{task.onTime ? "A tiempo" : "Tarde"}</Badge>
-        ) : null}
+        {task.pending ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void complete()}
+            className="shrink-0 rounded-full bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {busy ? "…" : "Listo"}
+          </button>
+        ) : (
+          <span className="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800">
+            {task.onTime ? "A tiempo" : "Tarde"}
+          </span>
+        )}
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">{task.dueLabel}</p>
-      <p className="mt-2 text-sm">{task.description}</p>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Espacio de entrega</p>
-      <p className="text-sm">{task.needsFile ? "El docente pidió un archivo." : "Podés adjuntar un archivo si lo tenés."}</p>
-      {fileName ? (
-        <a className="mt-1 inline-block text-sm text-primary underline" href={`/api/tasks/${task.id}/file`}>
-          {fileName}
-        </a>
-      ) : null}
-      {task.pending ? (
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="text-sm">
-            <span className="mb-1 block">Subir archivo</span>
-            <label className="inline-flex h-10 cursor-pointer items-center rounded-lg bg-secondary px-3 font-medium">
-              Elegir archivo
+      <button type="button" className="w-full px-3 pb-2 text-left text-xs font-semibold text-muted-foreground" onClick={() => setOpen((value) => !value)}>
+        {open ? "Ocultar" : "Entrega"}
+      </button>
+      {open ? (
+        <div className="space-y-2 px-3 pb-3 text-sm">
+          {task.description ? <p>{task.description}</p> : null}
+          <p className="text-xs text-muted-foreground">{task.dueLabel}</p>
+          {task.pending ? (
+            <label className="inline-flex h-9 cursor-pointer items-center rounded-full bg-secondary px-3 text-sm font-medium">
+              {fileName ?? "Archivo"}
               <input
                 type="file"
                 disabled={busy}
@@ -78,19 +92,19 @@ export function TaskCard({ task }: { task: TaskView }) {
                 }}
               />
             </label>
-            <span className="ml-2 text-muted-foreground">{fileName ?? "Ningún archivo"}</span>
-          </div>
-          <Button className="h-11" disabled={busy} onClick={() => void complete()}>
-            {busy ? "Guardando…" : "Marcar como entregada"}
-          </Button>
+          ) : fileName ? (
+            <a className="text-sm text-primary underline" href={`/api/tasks/${task.id}/file`}>
+              {fileName}
+            </a>
+          ) : null}
+          {task.educamosUrl ? (
+            <a className="block text-sm font-semibold" style={{ color }} href={task.educamosUrl} target="_blank" rel="noreferrer">
+              Educamos
+            </a>
+          ) : null}
         </div>
       ) : null}
-      {task.educamosUrl ? (
-        <a className="mt-3 inline-block text-sm text-primary underline" href={task.educamosUrl} target="_blank" rel="noreferrer">
-          Abrir en Educamos
-        </a>
-      ) : null}
-      {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="px-3 pb-3 text-sm text-destructive">{error}</p> : null}
     </article>
   );
 }

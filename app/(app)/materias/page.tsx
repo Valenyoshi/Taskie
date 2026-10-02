@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { subjectColor } from "@/lib/subject-color";
 import { getCurrentUser } from "@/lib/session";
 import { subjectsData } from "@/lib/view";
 
@@ -12,7 +13,6 @@ export default async function MateriasPage() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="font-display text-3xl">Materias</h1>
-      <p className="text-sm text-muted-foreground">Cada tarea queda en la materia que la pidió.</p>
       {data.subjects.length === 0 ? (
         <p className="rounded-xl bg-card p-4 text-sm ring-1 ring-foreground/10">Cuando haya tareas, las vas a ver agrupadas acá.</p>
       ) : (
@@ -20,7 +20,8 @@ export default async function MateriasPage() {
           <Link
             key={subject.subject}
             href={`/materias/${encodeURIComponent(subject.subject)}`}
-            className="rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+            className="rounded-2xl bg-card p-4 ring-1 ring-foreground/10"
+            style={{ boxShadow: `inset 6px 0 0 ${subjectColor(subject.subject)}` }}
           >
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="font-display text-2xl">{subject.subject}</h2>

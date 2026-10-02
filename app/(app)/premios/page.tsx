@@ -13,29 +13,28 @@ export default async function PremiosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="font-display text-3xl">Premios</h1>
-        <p className="text-sm text-muted-foreground">Los puntos compran tiradas. Los logros se ganan cumpliendo la condición.</p>
-      </div>
+      <h1 className="font-display text-3xl">Premios</h1>
       <PullMachine points={data.user.points} cost={data.pullCost} missing={data.missing} />
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-2xl">Colección</h2>
         {data.items.map((item) => (
-          <article key={item.id} className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{item.kindLabel}</p>
-                <h3 className="font-display text-xl">{item.name}</h3>
-                <p className="text-sm text-muted-foreground">{item.blurb}</p>
-              </div>
-              <Badge variant={item.rarity === "super" ? "default" : "secondary"}>{item.rarityLabel}</Badge>
+          <article
+            key={item.id}
+            className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-3 ${
+              item.rarity === "super" ? "bg-amber-100" : item.rarity === "rare" ? "bg-violet-100" : "bg-card ring-1 ring-foreground/10"
+            }`}
+          >
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{item.kindLabel}</p>
+              <h3 className="font-display text-lg leading-tight">{item.name}</h3>
             </div>
-            <div className="mt-3">
+            <div className="flex items-center gap-2">
+              <Badge variant={item.rarity === "super" ? "default" : "secondary"}>{item.rarityLabel}</Badge>
               {item.owned && item.kind !== "medal" ? (
                 <EquipButton kind={item.kind} id={item.id} equipped={item.equipped} />
               ) : (
-                <p className="text-sm">{item.owned ? "En tu colección" : "Todavía no salió"}</p>
+                <span className="text-lg">{item.owned ? "★" : "·"}</span>
               )}
             </div>
           </article>
@@ -45,15 +44,12 @@ export default async function PremiosPage() {
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-2xl">Logros</h2>
         {data.achievements.map((achievement) => (
-          <article key={achievement.id} className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-display text-xl">{achievement.name}</h3>
-              <Badge variant={achievement.unlocked ? "default" : "outline"}>{achievement.unlocked ? "Hecho" : "Pendiente"}</Badge>
+          <article key={achievement.id} title={achievement.detail} className="flex items-center justify-between gap-3 rounded-2xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+            <div>
+              <h3 className="font-display text-lg leading-tight">{achievement.name}</h3>
+              <p className="text-xs text-muted-foreground">{achievement.progress || `+${achievement.xp} XP`}</p>
             </div>
-            <p className="mt-1 text-sm">{achievement.detail}</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {achievement.progress ? `${achievement.progress} · ` : ""}+{achievement.xp} XP y +{achievement.points} puntos
-            </p>
+            <Badge variant={achievement.unlocked ? "default" : "outline"}>{achievement.unlocked ? "Hecho" : "—"}</Badge>
           </article>
         ))}
       </section>

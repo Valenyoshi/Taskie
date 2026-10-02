@@ -8,7 +8,7 @@ import {
   tasksInWeek,
   tasksOnDay,
 } from "./goals";
-import { dueLabel, localDateString, weekStart } from "./time";
+import { addDays, dueLabel, localDateString, weekStart } from "./time";
 
 export type PublicUser = {
   id: string;
@@ -40,6 +40,7 @@ export type TaskView = {
   description: string;
   dueAt: string;
   dueLabel: string;
+  shortDue: string;
   status: "pending" | "done";
   onTime: boolean | null;
   needsFile: boolean;
@@ -89,6 +90,15 @@ export function toPublic(user: User): PublicUser {
   };
 }
 
+function shortDue(iso: string, timeZone: string, now = new Date()): string {
+  const dueDay = localDateString(new Date(iso), timeZone);
+  const today = localDateString(now, timeZone);
+  if (new Date(iso).getTime() < now.getTime() && dueDay < today) return "Atrasada";
+  if (dueDay === today) return "Hoy";
+  if (dueDay === addDays(today, 1)) return "Mañana";
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone }).format(new Date(iso));
+}
+
 export function toTask(task: Task, timeZone: string): TaskView {
   return {
     id: task.id,
@@ -97,6 +107,7 @@ export function toTask(task: Task, timeZone: string): TaskView {
     description: task.description,
     dueAt: task.dueAt,
     dueLabel: dueLabel(task.dueAt, timeZone),
+    shortDue: shortDue(task.dueAt, timeZone),
     status: task.status,
     onTime: task.onTime,
     needsFile: task.needsFile,

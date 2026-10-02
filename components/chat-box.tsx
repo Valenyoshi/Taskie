@@ -6,12 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
-const suggestions = [
-  "¿Qué tareas tengo hoy?",
-  "¿De qué materia es lo que vence primero?",
-  "¿Cómo voy con la misión diaria?",
-  "¿Cuántos puntos me faltan para una tirada?",
-];
+const suggestions = ["¿Qué tengo hoy?", "¿De qué materia es?"];
 
 export function ChatBox({ initial }: { initial: Message[] }) {
   const [messages, setMessages] = useState<Message[]>(initial);
@@ -45,10 +40,7 @@ export function ChatBox({ initial }: { initial: Message[] }) {
       <div className="flex flex-1 flex-col gap-3">
         {messages.length === 0 ? (
           <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-            <p className="font-display text-xl">Preguntame por tus tareas</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Puedo decirte qué vence, de qué materia es y cómo organizar el día. No veo tu contraseña.
-            </p>
+            <p className="font-display text-xl">Preguntame</p>
             <div className="mt-3 flex flex-col gap-2">
               {suggestions.map((item) => (
                 <Button key={item} variant="outline" className="h-auto justify-start py-2 text-left whitespace-normal" onClick={() => void send(item)}>

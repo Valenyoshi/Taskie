@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -13,33 +13,50 @@ function urlBase64ToUint8Array(base64String: string) {
   return output;
 }
 
-async function subscribe(): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
-    return { ok: false, error: "Este navegador no muestra avisos." };
-  }
+async function showNotice(title: string, body: string) {
+  if (!("Notification" in window)) throw new Error("Este navegador no muestra avisos.");
   const permission = await Notification.requestPermission();
-  if (permission !== "granted") return { ok: false, error: "No diste permiso para los avisos." };
+  if (permission !== "granted") throw new Error("Sin permiso.");
+  if (!("serviceWorker" in navigator)) {
+    new Notification(title, { body, icon: "/icon-192.png" });
+    return;
+  }
   const registration = await navigator.serviceWorker.register("/sw.js");
-  const keyRes = await fetch("/api/push/public-key");
-  const keyData = (await keyRes.json()) as { publicKey: string };
-  const existing = await registration.pushManager.getSubscription();
-  const subscription =
-    existing ??
-    (await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
-    }));
-  const json = subscription.toJSON();
-  const saved = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(json),
+  await navigator.serviceWorker.ready;
+  try {
+    const keyRes = await fetch("/api/push/public-key");
+    const keyData = (await keyRes.json()) as { publicKey: string };
+    const existing = await registration.pushManager.getSubscription();
+    const subscription =
+      existing ??
+      (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+      }));
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+    const sent = await fetch("/api/push/test", { method: "POST" });
+    if (sent.ok) return;
+  } catch {
+    // Este navegador no tiene servicio push. El aviso sale igual desde la página.
+  }
+  await registration.showNotification(title, {
+    body,
+    icon: "/icon-192.png",
+    data: { url: "/inicio" },
   });
-  if (!saved.ok) return { ok: false, error: "No pude guardar el aviso en este dispositivo." };
-  return { ok: true };
 }
 
-export function NotifyCard({ enabled }: { enabled: boolean }) {
+export function NotifyCard({
+  enabled,
+  reminders,
+}: {
+  enabled: boolean;
+  reminders: { id: string; subject: string; title: string; when: string; color: string }[];
+}) {
   const router = useRouter();
   const [on, setOn] = useState(enabled);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,10 +66,11 @@ export function NotifyCard({ enabled }: { enabled: boolean }) {
     setBusy(true);
     setMessage(null);
     if (next) {
-      const result = await subscribe();
-      if (!result.ok) {
+      try {
+        await showNotice("Racha", reminders[0] ? `${reminders[0].subject}: ${reminders[0].title}` : "Avisos activos.");
+      } catch (error) {
         setBusy(false);
-        setMessage(result.error);
+        setMessage(error instanceof Error ? error.message : "No pude activar los avisos.");
         return;
       }
     }
@@ -69,28 +87,41 @@ export function NotifyCard({ enabled }: { enabled: boolean }) {
   async function test() {
     setBusy(true);
     setMessage(null);
-    const ready = await subscribe();
-    if (!ready.ok) {
-      setBusy(false);
-      setMessage(ready.error);
-      return;
+    try {
+      const first = reminders[0];
+      await showNotice(first ? first.subject : "Racha", first ? `${first.when}. ${first.title}` : "Así llegan los avisos.");
+      setOn(true);
+      await fetch("/api/push/toggle", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      });
+      setMessage("Enviado");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No pude mostrar el aviso.");
     }
-    const res = await fetch("/api/push/test", { method: "POST" });
-    const data = (await res.json()) as { error?: string };
     setBusy(false);
-    setOn(true);
-    setMessage(res.ok ? "Mandé un aviso de prueba a este dispositivo." : data.error ?? "No salió el aviso.");
   }
 
   return (
-    <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl">Recordatorios</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Un resumen si hoy te quedan tareas, y otro aviso si alguna vence en las próximas horas. En el iPhone llegan
-            cuando agregás el sitio a la pantalla de inicio.
-          </p>
+    <section className="rounded-2xl bg-card p-3 ring-1 ring-foreground/10">
+      <div className="flex items-center gap-2">
+        <Bell className="size-5 shrink-0 text-rose-500" />
+        <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
+          {reminders.length === 0 ? (
+            <span className="text-sm text-muted-foreground">Al día</span>
+          ) : (
+            reminders.slice(0, 6).map((item) => (
+              <span
+                key={item.id}
+                title={item.title}
+                className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
+                style={{ background: item.color }}
+              >
+                {item.when} · {item.subject}
+              </span>
+            ))
+          )}
         </div>
         <button
           type="button"
@@ -98,16 +129,16 @@ export function NotifyCard({ enabled }: { enabled: boolean }) {
           aria-checked={on}
           disabled={busy}
           onClick={() => void toggle(!on)}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition ${on ? "bg-primary" : "bg-muted"}`}
+          className={`relative h-7 w-12 shrink-0 rounded-full ${on ? "bg-rose-500" : "bg-muted"}`}
         >
-          <span className={`absolute top-0.5 size-6 rounded-full bg-card shadow ${on ? "left-5" : "left-0.5"}`} />
-          <span className="sr-only">{on ? "Silenciar avisos" : "Activar avisos"}</span>
+          <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow ${on ? "left-5" : "left-0.5"}`} />
+          <span className="sr-only">Avisos</span>
+        </button>
+        <button type="button" disabled={busy} onClick={() => void test()} className="shrink-0 text-xs font-semibold text-rose-600">
+          Probar
         </button>
       </div>
-      <Button className="mt-3 h-10" variant="outline" disabled={busy} onClick={() => void test()}>
-        Probar aviso
-      </Button>
-      {message ? <p className="mt-2 text-sm">{message}</p> : null}
+      {message ? <p className="mt-1 text-xs text-muted-foreground">{message}</p> : null}
     </section>
   );
 }

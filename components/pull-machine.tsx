@@ -37,23 +37,22 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
   }
 
   return (
-    <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-      <p className="text-sm text-muted-foreground">Puntos para tirar</p>
-      <p className="font-display text-4xl text-points">{points}</p>
-      <p className="mt-1 text-sm">Cada tirada cuesta {cost} puntos. Común 60%, raro 32%, súper raro 8%.</p>
-      <Button className="mt-4 h-12 w-full text-base" disabled={busy || missing > 0} onClick={() => void pull()}>
-        {busy ? "Girando…" : missing > 0 ? `Te faltan ${missing} puntos` : "Tirar"}
+    <section className="rounded-3xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-4 text-white">
+      <p className="font-display text-4xl">{points}</p>
+      <p className="mt-1 text-sm font-semibold">Tirada {cost}</p>
+      <div className="mt-2 flex gap-2 text-xs font-bold">
+        <span className="rounded-full bg-white/30 px-2 py-1">60 común</span>
+        <span className="rounded-full bg-violet-700/70 px-2 py-1">32 raro</span>
+        <span className="rounded-full bg-amber-200 px-2 py-1 text-amber-950">8 súper</span>
+      </div>
+      <Button className="mt-4 h-12 w-full bg-white text-base text-orange-700 hover:bg-white/90 disabled:bg-white/80 disabled:opacity-100" disabled={busy || missing > 0} onClick={() => void pull()}>
+        {busy ? "…" : missing > 0 ? `Faltan ${missing}` : "Tirar"}
       </Button>
-      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm">{error}</p> : null}
       {result ? (
-        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/10 p-4">
-          <p className="text-xs uppercase tracking-wide">{rarityLabel(result.rarity)}</p>
+        <div className="mt-4 rounded-2xl bg-white p-4 text-orange-950">
+          <p className="text-xs font-bold uppercase">{rarityLabel(result.rarity)}</p>
           <p className="font-display text-2xl">{result.name}</p>
-          {result.lines.map((line) => (
-            <p key={line} className="mt-1 text-sm">
-              {line}
-            </p>
-          ))}
         </div>
       ) : null}
     </section>
