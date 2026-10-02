@@ -5,6 +5,7 @@ Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en 
 ## Qué tiene
 
 - Cuenta de task.ai y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
+- Puntos para subir archivos del aula (`https://lms.educamos.com/tucolegio/my/`). Si no cargás ese enlace, se arma con la dirección del colegio.
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
 - Experiencia para el nivel. Hasta el nivel 5 hacen falta 3 tareas, del 5 al 9 hacen falta 4 y desde el 10 hacen falta 5.

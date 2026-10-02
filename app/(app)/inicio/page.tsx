@@ -12,6 +12,8 @@ export default async function InicioPage() {
   const data = homeData(session.id);
   if (!data) redirect("/entrar");
   const { user, missions, pending, done } = data;
+  const homework = pending.filter((task) => task.kind === "tarea");
+  const uploads = pending.filter((task) => task.kind === "archivo");
 
   return (
     <div className="flex flex-col gap-4">
@@ -42,11 +44,26 @@ export default async function InicioPage() {
       </div>
       {user.syncError ? <p className="text-sm text-destructive">{user.syncError}</p> : null}
 
-      {pending.length === 0 ? (
+      {homework.length === 0 ? (
         <p className="rounded-2xl bg-card px-4 py-6 text-center font-display text-xl ring-1 ring-foreground/10">Nada pendiente</p>
       ) : (
         <div className="task-stack flex flex-col gap-3">
-          {pending.map((task) => (
+          {homework.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-2xl">Para subir</h2>
+      </div>
+      {uploads.length === 0 ? (
+        <p className="rounded-2xl bg-card px-4 py-6 text-center text-sm ring-1 ring-foreground/10">
+          No hay puntos de entrega. Actualizá para traer los del aula.
+        </p>
+      ) : (
+        <div className="task-stack flex flex-col gap-3">
+          {uploads.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
         </div>

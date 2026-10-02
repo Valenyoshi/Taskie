@@ -19,6 +19,7 @@ export type User = {
   equippedTheme: string | null;
   equippedFrame: string | null;
   equippedTitle: string | null;
+  lmsUrl: string | null;
   syncError: string | null;
   lastSyncAt: string | null;
   isDemo: boolean;
@@ -62,6 +63,7 @@ type UserRow = {
   educamos_url: string | null;
   educamos_username: string | null;
   educamos_password_enc: string | null;
+  lms_url: string | null;
   xp: number;
   points: number;
   streak: number;
@@ -110,6 +112,7 @@ function mapUser(row: UserRow): User {
     educamosUrl: row.educamos_url,
     educamosUsername: row.educamos_username,
     educamosPasswordEnc: row.educamos_password_enc,
+    lmsUrl: row.lms_url ?? null,
     xp: row.xp,
     points: row.points,
     streak: row.streak,
@@ -257,6 +260,9 @@ export function getDb(): Database.Database {
     globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0");
   }
   const userColumns = globalForDb.rachaDb.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  if (!userColumns.some((column) => column.name === "lms_url")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN lms_url TEXT");
+  }
   if (!userColumns.some((column) => column.name === "spins")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN spins INTEGER NOT NULL DEFAULT 0");
     globalForDb.rachaDb.exec(
@@ -278,6 +284,7 @@ export function createUser(input: {
   educamosUrl: string | null;
   educamosUsername: string | null;
   educamosPasswordEnc: string | null;
+  lmsUrl?: string | null;
   timezone: string;
   isDemo: boolean;
 }): void {
@@ -285,8 +292,8 @@ export function createUser(input: {
     .prepare(
       `INSERT INTO users (
         id, name, username, password_hash, educamos_url, educamos_username, educamos_password_enc,
-        timezone, is_demo, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        lms_url, timezone, is_demo, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.id,
@@ -296,6 +303,7 @@ export function createUser(input: {
       input.educamosUrl,
       input.educamosUsername,
       input.educamosPasswordEnc,
+      input.lmsUrl ?? null,
       input.timezone,
       input.isDemo ? 1 : 0,
       new Date().toISOString(),

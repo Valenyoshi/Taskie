@@ -1,6 +1,6 @@
 import { dropOldUntracked, findUserById, insertTask, setSyncResult } from "./db";
 import { decryptSecret } from "./secret";
-import { fetchEducamosTasks } from "./educamos";
+import { fetchEducamosTasks, fetchLmsUploads, lmsBase } from "./educamos";
 import { localDateString, zonedTimeToUtc } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
@@ -29,14 +29,22 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
     password,
     timeZone: user.timezone,
   });
+  const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
+  const uploads = classroom
+    ? await fetchLmsUploads({ lmsUrl: classroom, username: user.educamosUsername, password })
+    : { ok: true as const, tasks: [] };
 
-  if (!result.ok) {
+  if (!result.ok && !uploads.ok) {
     setSyncResult(userId, result.error);
     return { ok: false, error: result.error };
   }
 
   const now = new Date().toISOString();
-  for (const task of result.tasks) {
+  const tasks = [
+    ...(result.ok ? result.tasks.map((task) => ({ ...task, source: "educamos" })) : []),
+    ...(uploads.ok ? uploads.tasks.map((task) => ({ ...task, source: "lms" })) : []),
+  ];
+  for (const task of tasks) {
     insertTask({
       id: crypto.randomUUID(),
       userId,
@@ -45,14 +53,15 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
       title: task.title,
       description: task.description,
       dueAt: task.dueAt,
-      source: "educamos",
+      source: task.source,
       educamosUrl: task.url,
-      needsFile: task.needsFile,
+      needsFile: task.source === "lms" ? true : task.needsFile,
       createdAt: now,
     });
   }
   const today = localDateString(new Date(), user.timezone);
   dropOldUntracked(userId, zonedTimeToUtc(today, "00:00:00", user.timezone).toISOString());
-  setSyncResult(userId, null);
-  return { ok: true, count: result.tasks.length };
+  const error = !result.ok ? result.error : !uploads.ok ? uploads.error : null;
+  setSyncResult(userId, error);
+  return error ? { ok: false, error, count: tasks.length } : { ok: true, count: tasks.length };
 }

@@ -83,6 +83,10 @@ export function AuthPanel() {
             <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
             <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />
             <Field label="Contraseña de Educamos" name="educamosPassword" type="password" autoComplete="off" />
+            <Field label="Enlace del aula" name="lmsUrl" placeholder="https://lms.educamos.com/edison_mza/my/" required={false} />
+            <p className="text-xs text-muted-foreground">
+              Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están los puntos para subir archivos.
+            </p>
           </>
         ) : (
           <>
@@ -110,17 +114,19 @@ function Field({
   type = "text",
   placeholder,
   autoComplete,
+  required = true,
 }: {
   label: string;
   name: string;
   type?: string;
   placeholder?: string;
   autoComplete?: string;
+  required?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} required placeholder={placeholder} autoComplete={autoComplete} className="h-11" />
+      <Input id={name} name={name} type={type} required={required} placeholder={placeholder} autoComplete={autoComplete} className="h-11" />
     </div>
   );
 }

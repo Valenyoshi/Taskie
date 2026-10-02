@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     educamosUrl?: string;
     educamosUsername?: string;
     educamosPassword?: string;
+    lmsUrl?: string;
     timezone?: string;
   } | null;
   if (!body) return json({ error: "No entendí los datos." }, 400);
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   const educamosUrl = body.educamosUrl?.trim() ?? "";
   const educamosUsername = body.educamosUsername?.trim() ?? "";
   const educamosPassword = body.educamosPassword ?? "";
+  const lmsUrl = body.lmsUrl?.trim() || null;
   const timezone = body.timezone?.trim() || "America/Argentina/Buenos_Aires";
 
   if (name.length < 2 || name.length > 40) return json({ error: "El nombre tiene que tener entre 2 y 40 letras." }, 400);
@@ -45,6 +47,7 @@ export async function POST(request: Request) {
     educamosUrl,
     educamosUsername,
     educamosPasswordEnc: encryptSecret(educamosPassword),
+    lmsUrl,
     timezone,
     isDemo: false,
   });

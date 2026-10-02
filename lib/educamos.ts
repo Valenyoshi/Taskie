@@ -68,10 +68,17 @@ class Jar {
   }
 }
 
-async function request(jar: Jar, url: string, method = "GET", body?: string): Promise<{ status: number; text: string; finalUrl: string }> {
+async function request(
+  jar: Jar,
+  url: string,
+  method = "GET",
+  body?: string,
+  contentType?: string,
+): Promise<{ status: number; text: string; finalUrl: string }> {
   let current = url;
   let currentMethod = method;
   let currentBody = body;
+  let currentType = contentType;
   for (let hop = 0; hop < 12; hop++) {
     const res = await fetch(current, {
       method: currentMethod,
@@ -80,10 +87,10 @@ async function request(jar: Jar, url: string, method = "GET", body?: string): Pr
       signal: AbortSignal.timeout(20000),
       headers: {
         "user-agent": UA,
-        accept: "text/html,application/xhtml+xml",
+        accept: "text/html,application/xhtml+xml,application/json",
         cookie: jar.header(),
         ...(currentBody
-          ? { "content-type": "application/x-www-form-urlencoded", origin: new URL(current).origin }
+          ? { "content-type": currentType || "application/x-www-form-urlencoded", origin: new URL(current).origin }
           : {}),
       },
     });
@@ -94,6 +101,7 @@ async function request(jar: Jar, url: string, method = "GET", body?: string): Pr
       current = new URL(location, current).href;
       currentMethod = "GET";
       currentBody = undefined;
+      currentType = undefined;
       continue;
     }
     return { status: res.status, text: await res.text(), finalUrl: current };
@@ -156,6 +164,128 @@ function formAction(html: string, pageUrl: string): string | null {
   if (!action) return null;
   return new URL(action, pageUrl).href;
 }
+
+export function lmsBase(educamosUrl: string, explicit?: string | null): string | null {
+  const given = explicit?.trim();
+  if (given) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(given) ? given : `https://${given}`);
+      const slug = url.pathname.split("/").filter(Boolean)[0];
+      if (slug && slug !== "my" && slug !== "login") return `${url.origin}/${slug}`;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  try {
+    const host = new URL(normalizeBase(educamosUrl) ?? "").hostname;
+    const sub = host.split(".")[0] ?? "";
+    if (!host.endsWith(".educamos.com") || !sub || sub === "lms" || sub === "www" || sub === "sso1") return null;
+    return `https://lms.educamos.com/${sub.replace(/-/g, "_")}`;
+  } catch {
+    return null;
+  }
+}
+
+function namedValue(html: string, name: string): string {
+  const byName = new RegExp(`name="${name}"[^>]*value="([^"]*)"`, "i").exec(html);
+  const byValue = new RegExp(`value="([^"]*)"[^>]*name="${name}"`, "i").exec(html);
+  return decodeHtml((byName ?? byValue)?.[1] ?? "");
+}
+
+export async function fetchLmsUploads(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+}): Promise<SyncResult> {
+  const root = lmsBase("https://colegio.educamos.com", input.lmsUrl);
+  if (!root) return { ok: false, error: "El enlace del aula no es válido." };
+  const jar = new Jar();
+  try {
+    let page = await request(jar, `${root}/login/index.php`);
+    const fields = loginFields(page.text, input.username, input.password);
+    const action = formAction(page.text, page.finalUrl);
+    if (!fields || !action) return { ok: false, error: "No encontré la entrada del aula." };
+    page = await request(jar, action, "POST", fields.toString());
+    if (loginFields(page.text, input.username, input.password)) {
+      return { ok: false, error: "El aula no aceptó el usuario o la contraseña." };
+    }
+    if (page.text.includes('name="SAMLResponse"')) {
+      const form = page.text.match(/<form\b[\s\S]*?<\/form>/i)?.[0] ?? "";
+      const acs = form.match(/action="([^"]+)"/i)?.[1];
+      const response = namedValue(page.text, "SAMLResponse");
+      if (!acs || !response) return { ok: false, error: "El aula no completó el acceso." };
+      const body = new URLSearchParams();
+      body.set("SAMLResponse", response);
+      const relay = namedValue(page.text, "RelayState");
+      if (relay) body.set("RelayState", relay);
+      await request(jar, new URL(acs, page.finalUrl).href, "POST", body.toString());
+    }
+    page = await request(jar, `${root}/my/`);
+    const sesskey = page.text.match(/"sesskey":"([^"]+)"/)?.[1];
+    if (!sesskey) return { ok: false, error: "Entré, pero no llegué a las clases del aula." };
+    const now = Math.floor(Date.now() / 1000);
+    const payload = JSON.stringify([
+      {
+        index: 0,
+        methodname: "core_calendar_get_action_events_by_timesort",
+        args: {
+          limitnum: 50,
+          timesortfrom: now - 45 * 86400,
+          timesortto: now + 180 * 86400,
+          limittononsuspendedevents: true,
+        },
+      },
+    ]);
+    const ajax = await request(
+      jar,
+      `${root}/lib/ajax/service.php?sesskey=${encodeURIComponent(sesskey)}&info=core_calendar_get_action_events_by_timesort`,
+      "POST",
+      payload,
+      "application/json",
+    );
+    const parsed = JSON.parse(ajax.text) as { data?: { events?: LmsEvent[] }; error?: string }[];
+    const events = parsed[0]?.data?.events ?? [];
+    const tasks: RemoteTask[] = [];
+    const seen = new Set<string>();
+    for (const event of events) {
+      if (event.modulename !== "assign" || event.eventtype !== "due") continue;
+      if (!/entrega/i.test(event.action?.name ?? "")) continue;
+      const id = String(event.instance || event.id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const subject = event.course?.fullname?.trim();
+      const title = (event.activityname || event.name || "").replace(/^vencimiento de\s+/i, "").trim();
+      if (!subject || !title) continue;
+      tasks.push({
+        externalId: `lms-${id}`,
+        subject,
+        title,
+        description: "Punto de entrega del aula. Hay que subir un archivo.",
+        dueAt: new Date((event.timesort || event.timestart || now) * 1000).toISOString(),
+        needsFile: true,
+        url: event.url || event.action?.url || `${root}/mod/assign/view.php?id=${id}`,
+      });
+    }
+    return { ok: true, tasks };
+  } catch {
+    return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
+  }
+}
+
+type LmsEvent = {
+  id?: number;
+  instance?: number;
+  name?: string;
+  activityname?: string;
+  modulename?: string;
+  eventtype?: string;
+  timesort?: number;
+  timestart?: number;
+  url?: string;
+  course?: { fullname?: string };
+  action?: { name?: string; url?: string };
+};
 
 export async function fetchEducamosTasks(input: {
   url: string;

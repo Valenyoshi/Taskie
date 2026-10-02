@@ -29,7 +29,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     task.pending ? "idle" : "settled",
   );
   const [fileName, setFileName] = useState(task.fileName);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(task.kind === "archivo");
   const [lineTop, setLineTop] = useState(36);
   const cardRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -116,6 +116,9 @@ export function TaskCard({ task }: { task: TaskView }) {
             <span title={task.subject} className="text-[11px] font-bold" style={{ color }}>
               {shortSubject(task.subject)}
             </span>
+            {task.kind === "archivo" ? (
+              <span className="rounded-full bg-pine/15 px-2 py-0.5 text-[10px] font-bold uppercase text-pine">Archivo</span>
+            ) : null}
             <span className="text-xs font-semibold" style={{ color: task.shortDue === "Atrasada" ? color : undefined }}>
               {task.shortDue}
             </span>
@@ -175,7 +178,7 @@ export function TaskCard({ task }: { task: TaskView }) {
           ) : null}
           {task.educamosUrl ? (
             <a className="block text-sm font-semibold" style={{ color }} href={task.educamosUrl} target="_blank" rel="noreferrer">
-              Educamos
+              {task.kind === "archivo" ? "Aula" : "Educamos"}
             </a>
           ) : null}
         </div>

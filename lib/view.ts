@@ -44,6 +44,7 @@ export type TaskView = {
   status: "pending" | "done";
   onTime: boolean | null;
   needsFile: boolean;
+  kind: "tarea" | "archivo";
   fileName: string | null;
   educamosUrl: string | null;
   pending: boolean;
@@ -113,6 +114,7 @@ export function toTask(task: Task, timeZone: string): TaskView {
     status: task.status,
     onTime: task.onTime,
     needsFile: task.needsFile,
+    kind: task.source === "lms" ? "archivo" : "tarea",
     fileName: task.fileName,
     educamosUrl: task.educamosUrl,
     pending: task.status === "pending",
@@ -150,10 +152,11 @@ export function homeData(userId: string) {
   if (!user) return null;
   const tasks = listTasks(userId);
   const views = tasks.map((task) => toTask(task, user.timezone));
-  const completed = tasks.filter((task) => task.status === "done").length;
+  const homework = tasks.filter((task) => task.source !== "lms");
+  const completed = homework.filter((task) => task.status === "done").length;
   return {
     user: toPublic(user, completed),
-    missions: missionView(user, tasks),
+    missions: missionView(user, homework),
     pending: views.filter((task) => task.pending),
     done: views.filter((task) => !task.pending),
     pullCost: PULL_COST,
