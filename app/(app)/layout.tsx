@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div data-theme={themeKey(sessionUser.equippedTheme)} className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pt-5 pb-28">
+      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-5 pb-36">
         <header className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div

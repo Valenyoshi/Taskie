@@ -64,18 +64,22 @@ export function TaskCard({ task }: { task: TaskView }) {
       ) : null}
       {task.pending ? (
         <div className="mt-3 flex flex-col gap-2">
-          <label className="text-sm">
+          <div className="text-sm">
             <span className="mb-1 block">Subir archivo</span>
-            <input
-              type="file"
-              disabled={busy}
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void upload(file);
-              }}
-            />
-          </label>
+            <label className="inline-flex h-10 cursor-pointer items-center rounded-lg bg-secondary px-3 font-medium">
+              Elegir archivo
+              <input
+                type="file"
+                disabled={busy}
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void upload(file);
+                }}
+              />
+            </label>
+            <span className="ml-2 text-muted-foreground">{fileName ?? "Ningún archivo"}</span>
+          </div>
           <Button className="h-11" disabled={busy} onClick={() => void complete()}>
             {busy ? "Guardando…" : "Marcar como entregada"}
           </Button>

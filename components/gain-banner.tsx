@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 export function rememberGain(lines: string[]) {
   sessionStorage.setItem("racha-gain", JSON.stringify(lines));
+  window.dispatchEvent(new CustomEvent("racha-gain"));
 }
 
 export function GainBanner({ initial }: { initial?: string[] }) {
@@ -13,20 +14,24 @@ export function GainBanner({ initial }: { initial?: string[] }) {
   const [lines, setLines] = useState<string[]>(initial ?? []);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("racha-gain");
-    if (raw) {
+    function read() {
+      const raw = sessionStorage.getItem("racha-gain");
+      if (!raw) return false;
       sessionStorage.removeItem("racha-gain");
       try {
         const parsed = JSON.parse(raw) as string[];
         if (Array.isArray(parsed) && parsed.length) {
           setLines(parsed);
-          return;
+          return true;
         }
       } catch {
         sessionStorage.removeItem("racha-gain");
       }
+      return false;
     }
-    setLines(stamp ? stamp.split("\n") : []);
+    if (!read()) setLines(stamp ? stamp.split("\n") : []);
+    window.addEventListener("racha-gain", read);
+    return () => window.removeEventListener("racha-gain", read);
   }, [pathname, stamp]);
 
   if (lines.length === 0) return null;
