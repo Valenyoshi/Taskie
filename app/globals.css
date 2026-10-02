@@ -277,6 +277,37 @@
   transform: scale(0.88);
 }
 
+.task-title {
+  transition: color 0.35s ease, opacity 0.35s ease;
+}
+
+.task-title.is-done {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  opacity: 0.55;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 999px;
+  border: 3px solid #fed7aa;
+  border-top-color: #ea580c;
+  animation: tumble 0.7s linear infinite;
+}
+
+.check-pop {
+  animation: medal-pop 0.35s ease both;
+}
+
+.capsule-float {
+  position: absolute;
+  font-size: 26px;
+  line-height: 1;
+  transition: left 0.18s linear, top 0.18s linear, transform 0.18s linear;
+}
+
 .machine {
   position: relative;
   margin-inline: auto;

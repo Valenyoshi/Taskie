@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { EquipButton } from "@/components/equip-button";
 import { Medal } from "@/components/medal";
 import { PullMachine } from "@/components/pull-machine";
 import { getCurrentUser } from "@/lib/session";
@@ -26,15 +25,22 @@ export default async function PremiosPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-display text-2xl">Colección</h2>
-        <div className="flex flex-wrap justify-center gap-3">
-          {data.items.map((item) => (
-            <div key={item.id} className="flex flex-col items-center">
-              <Medal unlocked={item.owned} secret label={item.name} mark={item.owned ? item.name.slice(0, 1) : "?"} />
-              {item.owned && item.kind !== "medal" ? (
-                <EquipButton kind={item.kind} id={item.id} equipped={item.equipped} />
-              ) : null}
-            </div>
+        <h2 className="mb-3 font-display text-2xl">Tu estuche</h2>
+        {data.items.some((item) => item.owned) ? (
+          <div className="flex flex-wrap gap-2">
+            {data.items.filter((item) => item.owned).map((item) => (
+              <div key={item.id} className="grid min-w-16 place-items-center rounded-2xl bg-card px-3 py-2 ring-1 ring-foreground/10">
+                <span className="text-3xl">{item.emoji}</span>
+                <span className="text-[11px] font-semibold">{item.name}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Todavía vacío</p>
+        )}
+        <div className="mt-3 flex flex-wrap justify-center gap-3">
+          {data.items.filter((item) => !item.owned).map((item) => (
+            <Medal key={item.id} unlocked={false} secret label={item.name} />
           ))}
         </div>
       </section>

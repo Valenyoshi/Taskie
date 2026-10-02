@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { GainBanner } from "@/components/gain-banner";
 import { LogoutButton } from "@/components/logout-button";
 import { NavBar } from "@/components/nav-bar";
-import { frameClass, rewardById, themeKey } from "@/lib/catalog";
+import { frameClass, themeKey } from "@/lib/catalog";
 import { touchOpen } from "@/lib/progress";
 import { getCurrentUser } from "@/lib/session";
 
@@ -12,7 +12,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sessionUser = await getCurrentUser();
   if (!sessionUser) redirect("/entrar");
   const lines = touchOpen(sessionUser.id);
-  const title = sessionUser.equippedTitle ? rewardById(sessionUser.equippedTitle)?.name : null;
 
   return (
     <div data-theme={themeKey(sessionUser.equippedTheme)} className="min-h-dvh bg-background text-foreground">
@@ -27,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <div>
               <p className="font-display text-xl leading-none">{sessionUser.name}</p>
               <p className="text-sm text-muted-foreground">
-                {title ?? `Racha de ${sessionUser.streak} ${sessionUser.streak === 1 ? "día" : "días"}`}
+                Racha de {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
               </p>
             </div>
           </div>

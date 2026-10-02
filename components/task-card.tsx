@@ -10,22 +10,27 @@ export function TaskCard({ task }: { task: TaskView }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "loading" | "strike" | "done">(task.pending ? "idle" : "done");
   const [fileName, setFileName] = useState(task.fileName);
   const [open, setOpen] = useState(false);
   const color = subjectColor(task.subject);
 
   async function complete() {
+    setPhase("loading");
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/tasks/${task.id}/complete`, { method: "POST" });
     const data = (await res.json()) as { error?: string; lines?: string[] };
     setBusy(false);
     if (!res.ok) {
+      setPhase("idle");
       setError(data.error ?? "No se pudo marcar.");
       return;
     }
+    setPhase("strike");
     rememberGain(data.lines ?? []);
-    router.refresh();
+    window.setTimeout(() => setPhase("done"), 380);
+    window.setTimeout(() => router.refresh(), 1100);
   }
 
   async function upload(file: File) {
@@ -47,7 +52,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     <article className="rise-in overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
       <div className="flex items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center gap-2 ${phase === "strike" || phase === "done" ? "task-title is-done" : ""}`}>
             <span title={task.subject} className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: color }}>
               {shortSubject(task.subject)}
             </span>
@@ -55,21 +60,23 @@ export function TaskCard({ task }: { task: TaskView }) {
               {task.shortDue}
             </span>
           </div>
-          <h3 className="mt-1 font-display text-lg leading-tight">{task.title}</h3>
+          <h3 className={`task-title mt-1 font-display text-lg leading-tight ${phase === "strike" || phase === "done" ? "is-done" : ""}`}>{task.title}</h3>
         </div>
-        {task.pending ? (
+        {phase === "loading" ? (
+          <span className="spinner" aria-label="Cargando" />
+        ) : phase === "done" ? (
+          <span className="check-pop grid size-9 place-items-center rounded-full bg-emerald-500 text-lg text-white" aria-label="Lista">
+            ✓
+          </span>
+        ) : (
           <button
             type="button"
             disabled={busy}
             onClick={() => void complete()}
-            className="shrink-0 rounded-full bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="shrink-0 rounded-full bg-orange-500 px-3 py-2 text-sm font-semibold text-white"
           >
-            {busy ? "…" : "Listo"}
+            Listo
           </button>
-        ) : (
-          <span className="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800">
-            {task.onTime ? "A tiempo" : "Tarde"}
-          </span>
         )}
       </div>
       <button type="button" className="w-full px-3 pb-2 text-left text-xs font-semibold text-muted-foreground" onClick={() => setOpen((value) => !value)}>

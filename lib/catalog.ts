@@ -5,6 +5,7 @@ export type RewardKind = "theme" | "frame" | "title" | "medal";
 export type RewardDef = {
   id: string;
   name: string;
+  emoji: string;
   kind: RewardKind;
   rarity: Rarity;
   blurb: string;
@@ -12,21 +13,21 @@ export type RewardDef = {
 };
 
 export const REWARDS: RewardDef[] = [
-  { id: "tema-cuaderno", name: "Tema cuaderno", kind: "theme", rarity: "common", theme: "cuaderno", blurb: "Papel crema y tinta." },
-  { id: "tema-pizarra", name: "Tema pizarra", kind: "theme", rarity: "common", theme: "pizarra", blurb: "El verde del aula." },
-  { id: "marco-lino", name: "Marco de lino", kind: "frame", rarity: "common", blurb: "Un borde sencillo." },
-  { id: "marco-tiza", name: "Marco de tiza", kind: "frame", rarity: "common", blurb: "Trazo claro." },
-  { id: "titulo-al-dia", name: "Al día", kind: "title", rarity: "common", blurb: "Se muestra bajo tu nombre." },
-  { id: "medalla-lapiz", name: "Medalla lápiz", kind: "medal", rarity: "common", blurb: "La primera del estuche." },
-  { id: "tema-bosque", name: "Tema bosque", kind: "theme", rarity: "rare", theme: "bosque", blurb: "Verde profundo." },
-  { id: "tema-noche", name: "Tema noche", kind: "theme", rarity: "rare", theme: "noche", blurb: "Para estudiar tarde." },
-  { id: "marco-bronce", name: "Marco bronce", kind: "frame", rarity: "rare", blurb: "Brilla un poco." },
-  { id: "titulo-constante", name: "Constante", kind: "title", rarity: "rare", blurb: "Se nota la racha." },
-  { id: "medalla-brujula", name: "Medalla brújula", kind: "medal", rarity: "rare", blurb: "No se te pasa una entrega." },
-  { id: "tema-oro", name: "Tema oro", kind: "theme", rarity: "super", theme: "oro", blurb: "El cuaderno de gala." },
-  { id: "marco-oro", name: "Marco oro", kind: "frame", rarity: "super", blurb: "Se ve desde el fondo del aula." },
-  { id: "titulo-leyenda", name: "Leyenda del curso", kind: "title", rarity: "super", blurb: "Pocas personas lo tienen." },
-  { id: "medalla-sol", name: "Medalla sol", kind: "medal", rarity: "super", blurb: "Una de las raras." },
+  { id: "lapiz", name: "Lápiz", emoji: "✏️", kind: "medal", rarity: "common", blurb: "El de siempre." },
+  { id: "regla", name: "Regla", emoji: "📏", kind: "medal", rarity: "common", blurb: "Para la línea recta." },
+  { id: "clip", name: "Clip", emoji: "📎", kind: "medal", rarity: "common", blurb: "Del escritorio." },
+  { id: "crayon", name: "Crayón", emoji: "🖍️", kind: "medal", rarity: "common", blurb: "De la caja de colores." },
+  { id: "cuaderno", name: "Cuaderno", emoji: "📓", kind: "medal", rarity: "common", blurb: "Hojas rayadas." },
+  { id: "goma", name: "Goma", emoji: "🧼", kind: "medal", rarity: "common", blurb: "Borra el error." },
+  { id: "mochila", name: "Mochila", emoji: "🎒", kind: "medal", rarity: "rare", blurb: "La del recreo." },
+  { id: "tubo", name: "Tubo de ensayo", emoji: "🧪", kind: "medal", rarity: "rare", blurb: "Del laboratorio." },
+  { id: "abaco", name: "Ábaco", emoji: "🧮", kind: "medal", rarity: "rare", blurb: "Para contar." },
+  { id: "paleta", name: "Paleta", emoji: "🎨", kind: "medal", rarity: "rare", blurb: "De plástica." },
+  { id: "libro", name: "Libro", emoji: "📗", kind: "medal", rarity: "rare", blurb: "El de lectura." },
+  { id: "copa", name: "Copa del aula", emoji: "🏆", kind: "medal", rarity: "super", blurb: "La del estante." },
+  { id: "globo", name: "Globo terráqueo", emoji: "🌍", kind: "medal", rarity: "super", blurb: "De geografía." },
+  { id: "microscopio", name: "Microscopio", emoji: "🔬", kind: "medal", rarity: "super", blurb: "De ciencias." },
+  { id: "manzana", name: "Manzana", emoji: "🍎", kind: "medal", rarity: "super", blurb: "La del escritorio." },
 ];
 
 export const ACHIEVEMENTS = [

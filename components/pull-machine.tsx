@@ -1,16 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { REWARDS } from "@/lib/catalog";
 import { rarityLabel, type Rarity } from "@/lib/game";
 
-const COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#fb7185", "#14b8a6", "#facc15"];
+type Spot = { x: number; y: number; r: number };
+
+function scatter(): Spot[] {
+  return REWARDS.slice(0, 8).map(() => ({
+    x: 8 + Math.random() * 68,
+    y: 8 + Math.random() * 62,
+    r: Math.random() * 80 - 40,
+  }));
+}
 
 export function PullMachine({ points, cost, missing }: { points: number; cost: number; missing: number }) {
   const router = useRouter();
   const [spinning, setSpinning] = useState(false);
+  const [spots, setSpots] = useState<Spot[]>(scatter);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ name: string; rarity: Rarity } | null>(null);
+  const [result, setResult] = useState<{ name: string; emoji: string; rarity: Rarity } | null>(null);
+  const pieces = REWARDS.slice(0, 8);
+
+  useEffect(() => {
+    if (!spinning) return;
+    const timer = window.setInterval(() => setSpots(scatter()), 160);
+    return () => window.clearInterval(timer);
+  }, [spinning]);
 
   async function pull() {
     if (spinning || missing > 0) return;
@@ -20,23 +37,33 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
     const started = Date.now();
     const res = await fetch("/api/pull", { method: "POST" });
     const data = (await res.json()) as { error?: string; rewardName?: string; rarity?: Rarity };
-    const wait = Math.max(0, 1300 - (Date.now() - started));
-    await new Promise((resolve) => setTimeout(resolve, wait));
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, 1600 - (Date.now() - started))));
     setSpinning(false);
     if (!res.ok || !data.rewardName || !data.rarity) {
       setError(data.error ?? "La máquina no respondió.");
       return;
     }
-    setResult({ name: data.rewardName, rarity: data.rarity });
+    const emoji = REWARDS.find((reward) => reward.name === data.rewardName)?.emoji ?? "🎁";
+    setResult({ name: data.rewardName, emoji, rarity: data.rarity });
     router.refresh();
   }
 
   return (
     <div className="machine rise-in">
       <div className="machine-globe">
-        <div className={`capsules ${spinning ? "spinning" : ""}`}>
-          {COLORS.map((color) => (
-            <span key={color} className="capsule" style={{ background: `linear-gradient(180deg, white, ${color})` }} />
+        <div className="capsules">
+          {pieces.map((piece, index) => (
+            <span
+              key={piece.id}
+              className="capsule-float"
+              style={{
+                left: `${spots[index]?.x ?? 10}%`,
+                top: `${spots[index]?.y ?? 10}%`,
+                transform: `rotate(${spots[index]?.r ?? 0}deg)`,
+              }}
+            >
+              {piece.emoji}
+            </span>
           ))}
         </div>
       </div>
@@ -51,8 +78,9 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         <div className="tray">
           {result ? (
             <div className="prize-drop text-center text-amber-100">
+              <p className="text-4xl">{result.emoji}</p>
               <p className="text-[11px] font-bold uppercase">{rarityLabel(result.rarity)}</p>
-              <p className="font-display text-xl">{result.name}</p>
+              <p className="font-display text-lg">{result.name}</p>
             </div>
           ) : (
             <p className="text-xs font-semibold text-amber-200/80">{spinning ? "Girando…" : "Girá la rueda"}</p>
