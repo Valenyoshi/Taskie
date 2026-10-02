@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { GoalBars } from "@/components/goal-bars";
 import { SyncButton } from "@/components/sync-button";
 import { TaskCard } from "@/components/task-card";
 import { getCurrentUser } from "@/lib/session";
@@ -28,22 +29,12 @@ export default async function InicioPage() {
         <p className="zone-kicker">Nivel {user.level}</p>
         <Meter label="XP" value={user.need ? user.into / user.need : 0} caption={`${user.into}/${user.need}`} />
       </section>
-      <div className="grid grid-cols-2 gap-3">
-        <section className="zone zone-day rise-in">
-          <Meter
-            label="Hoy"
-            value={missions.dailyTotal ? missions.dailyRatio : 0}
-            caption={missions.dailyTotal ? `${missions.dailyDone}/${missions.dailyTotal}` : "—"}
-          />
-        </section>
-        <section className="zone zone-week rise-in">
-          <Meter
-            label="Semana"
-            value={missions.weeklyTotal ? missions.weeklyDone / missions.weeklyTotal : 0}
-            caption={missions.weeklyTotal ? `${missions.weeklyDone}/${missions.weeklyTotal}` : "—"}
-          />
-        </section>
-      </div>
+      <GoalBars
+        dailyClosed={missions.dailyClosed}
+        dailyTotal={missions.dailyTotal}
+        weeklyClosed={missions.weeklyClosed}
+        weeklyTotal={missions.weeklyTotal}
+      />
 
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl">Por hacer</h2>
@@ -90,3 +81,4 @@ function Meter({ label, value, caption }: { label: string; value: number; captio
     </div>
   );
 }
+

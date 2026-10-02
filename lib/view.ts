@@ -53,10 +53,12 @@ export type MissionView = {
   dailyDone: number;
   dailyTotal: number;
   dailyRatio: number;
+  dailyClosed: number;
   dailyMet: boolean;
   dailyClaimed: boolean;
   weeklyDone: number;
   weeklyTotal: number;
+  weeklyClosed: number;
   weeklyMet: boolean;
   weeklyClaimed: boolean;
   comboClaimed: boolean;
@@ -124,14 +126,18 @@ export function missionView(user: User, tasks: Task[]): MissionView {
   const week = tasksInWeek(tasks, user.timezone, start);
   const dailyDone = onTimeTasks(dueToday).length;
   const weeklyDone = onTimeTasks(week).length;
+  const dailyClosed = dueToday.filter((task) => task.status === "done").length;
+  const weeklyClosed = week.filter((task) => task.status === "done").length;
   return {
     dailyDone,
     dailyTotal: dueToday.length,
     dailyRatio: dueToday.length ? dailyDone / dueToday.length : 0,
+    dailyClosed,
     dailyMet: dueToday.length > 0 && dailyDone / dueToday.length >= 0.6,
     dailyClaimed: hasClaim(user.id, "daily", today),
     weeklyDone,
     weeklyTotal: week.length,
+    weeklyClosed,
     weeklyMet: week.length > 0 && weeklyDone === week.length,
     weeklyClaimed: hasClaim(user.id, "weekly", start),
     comboClaimed: hasClaim(user.id, "combo", start),

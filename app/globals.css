@@ -775,6 +775,41 @@
   line-height: 1;
 }
 
+.goal-zoom {
+  position: relative;
+  z-index: 5;
+  animation: goal-zoom 0.7s ease;
+}
+
+@keyframes goal-zoom {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+.confetti-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-bit {
+  position: absolute;
+  top: -16px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: confetti-fall 1.7s ease-in forwards;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translate3d(var(--drift), 100vh, 0) rotate(var(--spin)); opacity: 0; }
+}
+
 .prize-drop {
   animation: drop-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
