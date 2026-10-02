@@ -83,12 +83,12 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
       >
         <div className={`hatch ${phase === "drop" ? "open" : ""}`} aria-hidden>
           <span className="hatch-half top" />
-          <span className="hatch-line" />
           <span className="hatch-half bot" />
+          <span
+            className={`coin hatch-coin ${phase === "coin" ? "inserting" : ""} ${phase === "tumble" || phase === "drop" ? "gone" : ""}`}
+          />
+          <span className="hatch-line" />
         </div>
-        <span
-          className={`coin hatch-coin ${phase === "coin" ? "inserting" : ""} ${phase === "tumble" || phase === "drop" ? "gone" : ""}`}
-        />
       </button>
       <div className="gacha-base">
         <p className="mb-2 text-center text-xs font-semibold text-foreground">{missing > 0 ? `Faltan ${missing}` : `${points} pts`}</p>
