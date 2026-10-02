@@ -69,7 +69,8 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         </div>
       </div>
       <div className="machine-body">
-        <button type="button" className={`crank ${spinning ? "turning" : ""}`} disabled={spinning || missing > 0} onClick={() => void pull()} aria-label="Girar la manivela">
+        <span className="crank-axle" aria-hidden />
+        <button type="button" className={`crank ${spinning ? "turning" : ""}`} disabled={spinning || missing > 0} onClick={() => void pull()} aria-label="Girar la rueda">
           <span />
         </button>
         <div className="coin-readout">

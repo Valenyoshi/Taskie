@@ -311,7 +311,8 @@
 .machine {
   position: relative;
   margin-inline: auto;
-  width: min(100%, 280px);
+  width: min(100%, 340px);
+  padding-right: 56px;
 }
 
 .machine-globe {
@@ -348,37 +349,52 @@
 
 .machine-body {
   position: relative;
-  border-radius: 0 0 28px 28px;
+  border-radius: 18px 18px 28px 28px;
   background: linear-gradient(180deg, #e23b2f, #b42318 70%);
-  padding: 14px 46px 18px 16px;
-  box-shadow: 0 16px 0 #7f1d1d;
+  padding: 16px 18px 18px;
+  box-shadow: inset 0 8px 0 rgba(255, 255, 255, 0.12);
+}
+
+.crank-axle {
+  position: absolute;
+  top: 28px;
+  right: -16px;
+  z-index: 1;
+  width: 22px;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #d7dee6, #6b7280);
+  box-shadow: 0 2px 0 #3f3a36;
 }
 
 .crank {
   position: absolute;
-  top: 18px;
-  right: -18px;
-  width: 54px;
-  height: 54px;
+  top: 8px;
+  right: -46px;
+  z-index: 2;
+  width: 58px;
+  height: 58px;
   border-radius: 999px;
-  border: 6px solid #f8e7b0;
-  background: #f4c56a;
+  border: 6px solid #8a6230;
+  background:
+    radial-gradient(circle at 50% 50%, #7c4a12 0 5px, transparent 6px),
+    repeating-conic-gradient(from 0deg, #f4c56a 0 12deg, #e0a84a 12deg 24deg);
+  box-shadow: 0 4px 0 #6b4420, inset 0 0 0 8px #f8e7b0;
 }
 
 .crank span {
   position: absolute;
-  top: 50%;
+  top: 2px;
   left: 50%;
-  width: 8px;
-  height: 36px;
-  margin-top: -28px;
-  margin-left: -4px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
   border-radius: 999px;
   background: #7c4a12;
-  transform-origin: center 28px;
+  box-shadow: 0 2px 0 #4a2c0c;
 }
 
-.crank.turning span {
+.crank.turning {
   animation: crank-turn 1.2s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 

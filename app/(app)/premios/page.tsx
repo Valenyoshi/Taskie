@@ -13,8 +13,8 @@ export default async function PremiosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-display text-3xl">Premios</h1>
       <PullMachine points={data.user.points} cost={data.pullCost} missing={data.missing} />
+      <PencilCase items={data.items.filter((item) => item.owned).map((item) => ({ id: item.id, name: item.name }))} />
 
       <section>
         <h2 className="mb-3 font-display text-2xl">Logros</h2>
@@ -25,7 +25,6 @@ export default async function PremiosPage() {
         </div>
       </section>
 
-      <PencilCase items={data.items.filter((item) => item.owned).map((item) => ({ id: item.id, name: item.name }))} />
       <div className="flex flex-wrap justify-center gap-3">
         {data.items.filter((item) => !item.owned).map((item) => (
           <Medal key={item.id} unlocked={false} secret label={item.name} />
