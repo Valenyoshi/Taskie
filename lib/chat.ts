@@ -18,7 +18,7 @@ export function taskSnapshot(user: User, tasks: Task[]): string {
   });
   const level = levelFromTasks(tasks.filter((task) => task.status === "done").length);
   return [
-    `Alumno: ${user.name}. Nivel ${level.level} (${level.into}/${level.need} tareas), ${user.points} puntos, racha ${user.streak}.`,
+    `Alumno: ${user.name}. Nivel ${level.level} (${level.into}/${level.need} XP), ${user.points} puntos, racha ${user.streak}.`,
     `Cada 2 tareas alcanzan para un giro de ${PULL_COST} puntos.`,
     lines.length ? lines.join("\n") : "No hay tareas cargadas.",
   ].join("\n");
@@ -69,7 +69,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = listTas
   }
 
   if (/nivel|xp|experiencia|racha/.test(q)) {
-    return `${intro}Estás en nivel ${level.level}, con ${level.into} de ${level.need} tareas para el siguiente. Hasta el nivel 5 son 3, después 4 y desde el 10 son 5. La racha es de ${user.streak} días.`;
+    return `${intro}Estás en nivel ${level.level}, con ${level.into} de ${level.need} XP. La barra se llena con los trabajos: hasta el nivel 5 son 3, después 4 y desde el 10 son 5. La racha es de ${user.streak} días.`;
   }
 
   const next = pending[0];

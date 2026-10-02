@@ -17,6 +17,7 @@ export const POINTS = {
 } as const;
 
 export const PULL_COST = 50;
+export const TASK_XP = 10;
 
 export function tasksForLevel(level: number): number {
   if (level >= 10) return 5;
@@ -32,12 +33,14 @@ export function levelFromTasks(completed: number): {
   let level = 1;
   let left = Math.max(0, Math.floor(completed));
   while (level < 10000) {
-    const need = tasksForLevel(level);
-    if (left < need) return { level, into: left, need };
-    left -= need;
+    const tasks = tasksForLevel(level);
+    const need = tasks * TASK_XP;
+    const into = left * TASK_XP;
+    if (left < tasks) return { level, into, need };
+    left -= tasks;
     level += 1;
   }
-  return { level, into: 0, need: 5 };
+  return { level, into: 0, need: 5 * TASK_XP };
 }
 
 export type Rarity = "common" | "rare" | "super";

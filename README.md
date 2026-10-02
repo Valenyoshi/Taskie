@@ -7,7 +7,7 @@ Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en 
 - Cuenta de task.ai y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
-- XP para subir de nivel. Cada nivel pide 10 XP más que el anterior, hasta un tope de 400.
+- Experiencia para el nivel. Hasta el nivel 5 hacen falta 3 tareas, del 5 al 9 hacen falta 4 y desde el 10 hacen falta 5.
 - Puntos, aparte de la XP. Una tirada de la máquina cuesta 50 puntos.
 - Máquina: común 60 %, raro 32 %, súper raro 8 %.
 - Logros, racha por entrar, ranking y un chat para dudas.

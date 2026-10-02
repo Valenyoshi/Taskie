@@ -44,7 +44,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
     setPhase("coin");
     const res = await fetch("/api/pull", { method: "POST" });
     const data = (await res.json()) as { error?: string; rewardName?: string; rarity?: Rarity };
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await new Promise((resolve) => setTimeout(resolve, 780));
     setPhase("tumble");
     await new Promise((resolve) => setTimeout(resolve, 1000));
     if (!res.ok || !data.rewardName || !data.rarity) {
@@ -74,16 +74,24 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
           </div>
         ))}
       </div>
-      <div className={`hatch ${phase === "drop" ? "open" : ""}`} aria-hidden>
-        <span className="hatch-half top" />
-        <span className="hatch-line" />
-        <span className="hatch-half bot" />
-      </div>
+      <button
+        type="button"
+        className="hatch-button"
+        disabled={busy || missing > 0}
+        onClick={() => void pull()}
+        aria-label={`Meter una moneda de ${cost} puntos`}
+      >
+        <div className={`hatch ${phase === "drop" ? "open" : ""}`} aria-hidden>
+          <span className="hatch-half top" />
+          <span className="hatch-line" />
+          <span className="hatch-half bot" />
+        </div>
+        <span
+          className={`coin hatch-coin ${phase === "coin" ? "inserting" : ""} ${phase === "tumble" || phase === "drop" ? "gone" : ""}`}
+        />
+      </button>
       <div className="gacha-base">
-        <button type="button" className="coin-slot" disabled={busy || missing > 0} onClick={() => void pull()} aria-label={`Meter una moneda de ${cost} puntos`}>
-          <span className={`coin ${phase === "coin" ? "inserting" : ""}`} />
-          <span className="slot-label">{missing > 0 ? `Faltan ${missing}` : busy ? "Entrando…" : `${points} pts`}</span>
-        </button>
+        <p className="mb-2 text-center text-xs font-semibold text-foreground">{missing > 0 ? `Faltan ${missing}` : `${points} pts`}</p>
         <div className="chute">
           {result && phase === "drop" ? (
             <div className="text-center">

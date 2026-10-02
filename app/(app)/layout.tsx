@@ -3,7 +3,8 @@ import { GainBanner } from "@/components/gain-banner";
 import { LogoutButton } from "@/components/logout-button";
 import { NavBar } from "@/components/nav-bar";
 import { SectionTitle } from "@/components/section-title";
-import { frameClass, themeKey } from "@/lib/catalog";
+import { frameClass, scoreRewards, themeKey } from "@/lib/catalog";
+import { listRewardIds } from "@/lib/db";
 import { touchOpen } from "@/lib/progress";
 import { getCurrentUser } from "@/lib/session";
 
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sessionUser = await getCurrentUser();
   if (!sessionUser) redirect("/entrar");
   const lines = touchOpen(sessionUser.id);
+  const prizePoints = scoreRewards(listRewardIds(sessionUser.id));
 
   return (
     <div data-theme={themeKey(sessionUser.equippedTheme)} className="min-h-dvh bg-background text-foreground">
@@ -27,9 +29,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               {sessionUser.name.slice(0, 1).toUpperCase()}
             </div>
-            <p className="text-sm text-muted-foreground">
-              {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
-            </p>
+            <div className="text-left leading-tight">
+              <p className="font-display text-2xl text-foreground">
+                {prizePoints}
+                <span className="ml-1 text-sm font-semibold">pts de premio</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
+              </p>
+            </div>
           </div>
         </header>
         {lines.length > 0 ? <div className="mb-4"><GainBanner initial={lines} /></div> : <GainBanner />}

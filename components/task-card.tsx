@@ -66,12 +66,8 @@ export function TaskCard({ task }: { task: TaskView }) {
               {task.shortDue}
             </span>
           </div>
-          <h3
-            className={`task-title mt-1 font-display text-lg leading-tight ${phase === "strike" || phase === "check" || phase === "leave" || phase === "settled" ? "striking" : ""} ${phase === "settled" ? "struck" : ""}`}
-            style={{ color }}
-          >
+          <h3 className="mt-1 font-display text-lg leading-tight" style={{ color }}>
             {task.title}
-            <span className="strike" />
           </h3>
         </div>
         {phase === "loading" ? (
@@ -92,8 +88,12 @@ export function TaskCard({ task }: { task: TaskView }) {
           </span>
         ) : null}
       </div>
+      <span
+        className={`card-strike ${phase === "strike" || phase === "check" || phase === "leave" || phase === "settled" ? "on" : ""}`}
+        style={{ color }}
+      />
       {phase === "check" || phase === "leave" ? (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-card/70">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <span className="big-check">✓</span>
         </div>
       ) : null}

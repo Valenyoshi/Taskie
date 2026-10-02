@@ -236,7 +236,7 @@ function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number,
 export function rankingData(userId: string) {
   const me = findUserById(userId);
   if (!me) return null;
-  const rows = listUsers().map((user) => {
+  const rows = listUsers().filter((user) => !user.isDemo).map((user) => {
     const ids = listRewardIds(user.id);
     return {
       id: user.id,
