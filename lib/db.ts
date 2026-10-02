@@ -23,6 +23,7 @@ export type User = {
   lastSyncAt: string | null;
   isDemo: boolean;
   pulled: boolean;
+  spins: number;
   foundSuper: boolean;
   createdAt: string;
 };
@@ -74,6 +75,7 @@ type UserRow = {
   last_sync_at: string | null;
   is_demo: number;
   pulled: number;
+  spins: number;
   found_super: number;
   created_at: string;
 };
@@ -121,6 +123,7 @@ function mapUser(row: UserRow): User {
     lastSyncAt: row.last_sync_at,
     isDemo: row.is_demo === 1,
     pulled: row.pulled === 1,
+    spins: row.spins ?? 0,
     foundSuper: row.found_super === 1,
     createdAt: row.created_at,
   };
@@ -175,6 +178,7 @@ export function getDb(): Database.Database {
         last_sync_at TEXT,
         is_demo INTEGER NOT NULL DEFAULT 0,
         pulled INTEGER NOT NULL DEFAULT 0,
+        spins INTEGER NOT NULL DEFAULT 0,
         found_super INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       );
@@ -251,6 +255,13 @@ export function getDb(): Database.Database {
   const columns = globalForDb.rachaDb.prepare("PRAGMA table_info(tasks)").all() as { name: string }[];
   if (!columns.some((column) => column.name === "tracked")) {
     globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0");
+  }
+  const userColumns = globalForDb.rachaDb.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  if (!userColumns.some((column) => column.name === "spins")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN spins INTEGER NOT NULL DEFAULT 0");
+    globalForDb.rachaDb.exec(
+      "UPDATE users SET spins = (SELECT COUNT(*) FROM user_rewards WHERE user_rewards.user_id = users.id)",
+    );
   }
   return globalForDb.rachaDb;
 }
@@ -344,7 +355,7 @@ export function setEquipped(userId: string, kind: "theme" | "frame" | "title", r
 
 export function markPulled(userId: string, foundSuper: boolean): void {
   getDb()
-    .prepare("UPDATE users SET pulled = 1, found_super = CASE WHEN ? = 1 THEN 1 ELSE found_super END WHERE id = ?")
+    .prepare("UPDATE users SET pulled = 1, spins = spins + 1, found_super = CASE WHEN ? = 1 THEN 1 ELSE found_super END WHERE id = ?")
     .run(foundSuper ? 1 : 0, userId);
 }
 

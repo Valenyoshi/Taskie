@@ -10,19 +10,20 @@ export default async function RankingPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="font-display text-3xl">Ranking</h1>
-      </div>
-      {data.alone ? (
-        <p className="text-sm text-muted-foreground">Solo vos, por ahora.</p>
-      ) : null}
-      <Board title="Más XP" rows={data.byXp.map((row, index) => ({ ...row, place: index + 1, score: `${row.xp} XP` }))} />
+      <h1 className="font-display text-3xl">Ranking</h1>
+      {data.alone ? <p className="text-sm text-muted-foreground">Solo vos, por ahora.</p> : null}
       <Board
-        title="Más premios"
+        title="Más XP"
+        tone="xp"
+        rows={data.byXp.map((row, index) => ({ ...row, place: index + 1, score: `${row.xp} XP` }))}
+      />
+      <Board
+        title="Más giros"
+        tone="spins"
         rows={data.byPrizes.map((row, index) => ({
           ...row,
           place: index + 1,
-          score: `${row.prizeScore} pts de premio`,
+          score: `${row.spins} ${row.spins === 1 ? "giro" : "giros"}`,
         }))}
       />
     </div>
@@ -31,23 +32,27 @@ export default async function RankingPage() {
 
 function Board({
   title,
+  tone,
   rows,
 }: {
   title: string;
+  tone: "xp" | "spins";
   rows: { id: string; place: number; name: string; level: number; score: string; me: boolean }[];
 }) {
   return (
-    <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+    <section className={`ranking-board ${tone}`}>
       <h2 className="font-display text-2xl">{title}</h2>
       <ol className="mt-3 flex flex-col gap-2">
         {rows.map((row) => (
-          <li key={row.id} className={`flex items-center justify-between rounded-lg px-3 py-2 ${row.me ? "bg-primary/10" : "bg-muted"}`}>
-            <span>
-              <span className="mr-2 text-muted-foreground">{row.place}</span>
-              {row.name}
-              <span className="ml-2 text-xs text-muted-foreground">nivel {row.level}</span>
+          <li key={row.id} className={`ranking-row ${row.me ? "me" : ""}`}>
+            <span className="flex items-center gap-2">
+              <span className="ranking-place">{row.place}</span>
+              <span>
+                {row.name}
+                <span className="ml-2 text-xs opacity-80">nivel {row.level}</span>
+              </span>
             </span>
-            <span className="text-sm font-medium">{row.score}</span>
+            <span className="font-display text-lg">{row.score}</span>
           </li>
         ))}
       </ol>

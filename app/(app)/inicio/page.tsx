@@ -16,7 +16,7 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="rise-in rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-teal-500 p-4 text-white shadow-lg">
+      <section className="rise-in flow-gradient rounded-3xl p-4 text-white shadow-lg">
         <div className="mb-3 flex items-center justify-between">
           <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">Nivel {user.level}</span>
           <span className="text-sm font-semibold">

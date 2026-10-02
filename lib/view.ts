@@ -243,10 +243,11 @@ export function rankingData(userId: string) {
       level: levelProgress(user.xp).level,
       prizeScore: scoreRewards(ids),
       prizes: ids.length,
+      spins: user.spins,
       me: user.id === userId,
     };
   });
   const byXp = [...rows].sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name, "es"));
-  const byPrizes = [...rows].sort((a, b) => b.prizeScore - a.prizeScore || b.xp - a.xp || a.name.localeCompare(b.name, "es"));
+  const byPrizes = [...rows].sort((a, b) => b.spins - a.spins || b.prizeScore - a.prizeScore || a.name.localeCompare(b.name, "es"));
   return { user: toPublic(me), byXp, byPrizes, alone: rows.length === 1 };
 }
