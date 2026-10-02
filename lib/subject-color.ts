@@ -1,4 +1,4 @@
-const palette = ["#e25b45", "#e8a317", "#1c7c6e", "#c44736", "#c48a12", "#145e54"];
+const palette = ["#e25b45", "#1c7c6e", "#2f6fdb", "#e8a317", "#8b5cf6", "#db3e8a", "#0f766e", "#c2410c", "#0369a1", "#65a30d"];
 
 export function shortSubject(subject: string): string {
   const piece = subject.includes(":") ? subject.split(":").pop()!.trim() : subject;

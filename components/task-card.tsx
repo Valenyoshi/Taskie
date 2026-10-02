@@ -10,7 +10,9 @@ export function TaskCard({ task }: { task: TaskView }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [phase, setPhase] = useState<"idle" | "loading" | "strike" | "done">(task.pending ? "idle" : "done");
+  const [phase, setPhase] = useState<"idle" | "loading" | "strike" | "check" | "leave" | "settled">(
+    task.pending ? "idle" : "settled",
+  );
   const [fileName, setFileName] = useState(task.fileName);
   const [open, setOpen] = useState(false);
   const color = subjectColor(task.subject);
@@ -29,8 +31,9 @@ export function TaskCard({ task }: { task: TaskView }) {
     }
     setPhase("strike");
     rememberGain(data.lines ?? []);
-    window.setTimeout(() => setPhase("done"), 380);
-    window.setTimeout(() => router.refresh(), 1100);
+    window.setTimeout(() => setPhase("check"), 1100);
+    window.setTimeout(() => setPhase("leave"), 1900);
+    window.setTimeout(() => router.refresh(), 2450);
   }
 
   async function upload(file: File) {
@@ -49,36 +52,51 @@ export function TaskCard({ task }: { task: TaskView }) {
   }
 
   return (
-    <article className="rise-in overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
+    <article
+      className={`rise-in relative overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10 ${phase === "leave" ? "task-leave" : ""}`}
+      style={{ boxShadow: `inset 6px 0 0 ${color}` }}
+    >
       <div className="flex items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
-          <div className={`flex items-center gap-2 ${phase === "strike" || phase === "done" ? "task-title is-done" : ""}`}>
-            <span title={task.subject} className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: color }}>
+          <div className="flex items-center gap-2">
+            <span title={task.subject} className="text-[11px] font-bold" style={{ color }}>
               {shortSubject(task.subject)}
             </span>
-            <span className={`text-xs font-semibold ${task.shortDue === "Atrasada" ? "text-coral" : "text-muted-foreground"}`}>
+            <span className="text-xs font-semibold" style={{ color: task.shortDue === "Atrasada" ? color : undefined }}>
               {task.shortDue}
             </span>
           </div>
-          <h3 className={`task-title mt-1 font-display text-lg leading-tight ${phase === "strike" || phase === "done" ? "is-done" : ""}`}>{task.title}</h3>
+          <h3
+            className={`task-title mt-1 font-display text-lg leading-tight ${phase === "strike" || phase === "check" || phase === "leave" || phase === "settled" ? "striking" : ""} ${phase === "settled" ? "struck" : ""}`}
+            style={{ color }}
+          >
+            {task.title}
+            <span className="strike" />
+          </h3>
         </div>
         {phase === "loading" ? (
           <span className="spinner" aria-label="Cargando" />
-        ) : phase === "done" ? (
-          <span className="check-pop grid size-9 place-items-center rounded-full bg-pine text-lg text-white" aria-label="Lista">
-            ✓
-          </span>
-        ) : (
+        ) : phase === "idle" ? (
           <button
             type="button"
             disabled={busy}
             onClick={() => void complete()}
-            className="shrink-0 rounded-full bg-coral px-3 py-2 text-sm font-semibold text-white"
+            className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-white"
+            style={{ background: color }}
           >
             Listo
           </button>
-        )}
+        ) : phase === "settled" ? (
+          <span className="grid size-9 place-items-center text-2xl font-bold" style={{ color }} aria-label="Lista">
+            ✓
+          </span>
+        ) : null}
       </div>
+      {phase === "check" || phase === "leave" ? (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-card/70">
+          <span className="big-check">✓</span>
+        </div>
+      ) : null}
       <button type="button" className="w-full px-3 pb-2 text-left text-xs font-semibold text-muted-foreground" onClick={() => setOpen((value) => !value)}>
         {open ? "Ocultar" : "Entrega"}
       </button>
