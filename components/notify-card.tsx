@@ -106,7 +106,7 @@ export function NotifyCard({
   return (
     <section className="rounded-2xl bg-card p-3 ring-1 ring-foreground/10">
       <div className="flex items-center gap-2">
-        <Bell className="size-5 shrink-0 text-rose-500" />
+        <Bell className="size-5 shrink-0 text-coral" />
         <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
           {reminders.length === 0 ? (
             <span className="text-sm text-muted-foreground">Al día</span>
@@ -129,12 +129,12 @@ export function NotifyCard({
           aria-checked={on}
           disabled={busy}
           onClick={() => void toggle(!on)}
-          className={`relative h-7 w-12 shrink-0 rounded-full ${on ? "bg-rose-500" : "bg-muted"}`}
+          className={`relative h-7 w-12 shrink-0 rounded-full ${on ? "bg-coral" : "bg-muted"}`}
         >
           <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow ${on ? "left-5" : "left-0.5"}`} />
           <span className="sr-only">Avisos</span>
         </button>
-        <button type="button" disabled={busy} onClick={() => void test()} className="shrink-0 text-xs font-semibold text-rose-600">
+        <button type="button" disabled={busy} onClick={() => void test()} className="shrink-0 text-xs font-semibold text-coral">
           Probar
         </button>
       </div>

@@ -51,7 +51,7 @@ export default async function InicioPage() {
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl">Por hacer</h2>
         <div className="flex items-center gap-2">
-          {user.isDemo ? <span className="rounded-full bg-amber-200 px-2 py-1 text-xs font-semibold text-amber-950">Ejemplo</span> : null}
+          {user.isDemo ? <span className="rounded-full bg-gold/25 px-2 py-1 text-xs font-semibold text-foreground">Ejemplo</span> : null}
           <SyncButton />
         </div>
       </div>
@@ -102,7 +102,7 @@ function Meter({
       </div>
       <div className="relative h-3 overflow-hidden rounded-full bg-white/30">
         <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
-        {marker != null ? <div className="absolute inset-y-0 w-0.5 bg-amber-200" style={{ left: `${marker * 100}%` }} /> : null}
+        {marker != null ? <div className="absolute inset-y-0 w-0.5 bg-gold" style={{ left: `${marker * 100}%` }} /> : null}
       </div>
     </div>
   );

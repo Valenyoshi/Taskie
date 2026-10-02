@@ -56,7 +56,7 @@ export function TaskCard({ task }: { task: TaskView }) {
             <span title={task.subject} className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: color }}>
               {shortSubject(task.subject)}
             </span>
-            <span className={`text-xs font-semibold ${task.shortDue === "Atrasada" ? "text-rose-600" : "text-muted-foreground"}`}>
+            <span className={`text-xs font-semibold ${task.shortDue === "Atrasada" ? "text-coral" : "text-muted-foreground"}`}>
               {task.shortDue}
             </span>
           </div>
@@ -65,7 +65,7 @@ export function TaskCard({ task }: { task: TaskView }) {
         {phase === "loading" ? (
           <span className="spinner" aria-label="Cargando" />
         ) : phase === "done" ? (
-          <span className="check-pop grid size-9 place-items-center rounded-full bg-emerald-500 text-lg text-white" aria-label="Lista">
+          <span className="check-pop grid size-9 place-items-center rounded-full bg-pine text-lg text-white" aria-label="Lista">
             ✓
           </span>
         ) : (
@@ -73,7 +73,7 @@ export function TaskCard({ task }: { task: TaskView }) {
             type="button"
             disabled={busy}
             onClick={() => void complete()}
-            className="shrink-0 rounded-full bg-orange-500 px-3 py-2 text-sm font-semibold text-white"
+            className="shrink-0 rounded-full bg-coral px-3 py-2 text-sm font-semibold text-white"
           >
             Listo
           </button>

@@ -23,7 +23,7 @@ export function SyncButton() {
   }
 
   return (
-    <button type="button" disabled={busy} onClick={() => void sync()} className="rounded-full bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white">
+    <button type="button" disabled={busy} onClick={() => void sync()} className="rounded-full bg-pine px-3 py-1.5 text-xs font-semibold text-white">
       {busy ? "…" : message ?? "Actualizar"}
     </button>
   );

@@ -16,8 +16,8 @@ export default async function EntrarPage() {
 
   return (
     <main className="relative min-h-dvh overflow-hidden">
-      <div className="pointer-events-none absolute -left-16 top-10 size-56 rounded-full bg-orange-300/50 blur-3xl" />
-      <div className="pointer-events-none absolute -right-10 bottom-10 size-64 rounded-full bg-teal-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute -left-16 top-10 size-56 rounded-full bg-coral/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-10 bottom-10 size-64 rounded-full bg-pine/20 blur-3xl" />
       {floats.map((item) => (
         <div key={item.id} className={`pointer-events-none absolute opacity-80 ${item.className}`}>
           <SchoolIcon id={item.id} size={64} />
@@ -25,7 +25,7 @@ export default async function EntrarPage() {
       ))}
       <div className="relative mx-auto grid min-h-dvh max-w-5xl items-center gap-8 px-5 py-16 md:grid-cols-2">
         <section>
-          <p className="text-sm font-bold tracking-[0.18em] text-orange-600">task.ai</p>
+          <p className="text-sm font-bold tracking-[0.18em] text-coral">task.ai</p>
           <h1 className="gradient-text mt-3 font-display text-5xl leading-none">Las tareas del colegio, con otro nivel.</h1>
         </section>
         <AuthPanel />

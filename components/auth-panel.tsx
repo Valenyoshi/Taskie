@@ -54,7 +54,7 @@ export function AuthPanel() {
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-orange-200">
+    <div className="overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-gold/40">
       <div className="flow-gradient h-2" />
       <div className="p-5">
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">

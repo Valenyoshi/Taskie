@@ -94,7 +94,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
             <p className="text-xs font-semibold">{spinning ? "Girando…" : "Girá la rueda"}</p>
           )}
         </div>
-        {error ? <p className="mt-2 text-center text-xs text-amber-100">{error}</p> : null}
+        {error ? <p className="mt-2 text-center text-xs text-gold">{error}</p> : null}
       </div>
       <div className="cab-lights" aria-hidden>
         {Array.from({ length: 8 }, (_, index) => (
