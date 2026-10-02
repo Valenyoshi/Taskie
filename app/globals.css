@@ -697,6 +697,29 @@
   color: var(--ink);
 }
 
+.points-digits {
+  display: inline-flex;
+  height: 1em;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.digit-window {
+  height: 1em;
+  overflow: hidden;
+}
+
+.digit-reel {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.16s ease-out;
+}
+
+.digit-cell {
+  height: 1em;
+  line-height: 1;
+}
+
 .prize-corral .points-value,
 .points-corral.machine .points-value {
   font-size: 1.25rem;

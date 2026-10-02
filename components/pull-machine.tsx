@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CountUp } from "@/components/count-up";
 import { SchoolIcon } from "@/components/school-icon";
 import { REWARDS } from "@/lib/catalog";
 import { rarityLabel, type Rarity } from "@/lib/game";
@@ -94,7 +95,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         <div className="points-corral machine">
           <span className="points-coin" aria-hidden />
           <span>
-            <span className="points-value">{missing > 0 ? missing : points}</span>
+            <span className="points-value">{missing > 0 ? missing : <CountUp value={points} />}</span>
             <span className="points-label">{missing > 0 ? "faltan" : "puntos"}</span>
           </span>
         </div>

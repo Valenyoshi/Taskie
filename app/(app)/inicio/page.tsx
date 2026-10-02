@@ -1,7 +1,6 @@
-import { NotifyCard } from "@/components/notify-card";
+import { CountUp } from "@/components/count-up";
 import { SyncButton } from "@/components/sync-button";
 import { TaskCard } from "@/components/task-card";
-import { shortSubject, subjectColor } from "@/lib/subject-color";
 import { getCurrentUser } from "@/lib/session";
 import { homeData } from "@/lib/view";
 import { redirect } from "next/navigation";
@@ -12,14 +11,15 @@ export default async function InicioPage() {
   const data = homeData(session.id);
   if (!data) redirect("/entrar");
   const { user, missions, pending, done } = data;
-  const reminders = pending.filter((task) => task.shortDue === "Hoy" || task.shortDue === "Mañana" || task.shortDue === "Atrasada");
 
   return (
     <div className="flex flex-col gap-4">
       <section className="points-corral rise-in">
         <span className="points-coin" aria-hidden />
         <span>
-          <span className="points-value">{user.points}</span>
+          <span className="points-value">
+            <CountUp value={user.points} />
+          </span>
           <span className="points-label">puntos</span>
         </span>
       </section>
@@ -32,10 +32,8 @@ export default async function InicioPage() {
         <section className="zone zone-day rise-in">
           <Meter
             label="Hoy"
-            ink
             value={missions.dailyTotal ? missions.dailyRatio : 0}
             caption={missions.dailyTotal ? `${missions.dailyDone}/${missions.dailyTotal}` : "—"}
-            marker={0.6}
           />
         </section>
         <section className="zone zone-week rise-in">
@@ -46,17 +44,6 @@ export default async function InicioPage() {
           />
         </section>
       </div>
-
-      <NotifyCard
-        enabled={user.notificationsEnabled}
-        reminders={reminders.map((task) => ({
-          id: task.id,
-          subject: shortSubject(task.subject),
-          title: task.title,
-          when: task.shortDue,
-          color: subjectColor(task.subject),
-        }))}
-      />
 
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl">Por hacer</h2>
@@ -92,19 +79,7 @@ export default async function InicioPage() {
   );
 }
 
-function Meter({
-  label,
-  value,
-  caption,
-  marker,
-  ink,
-}: {
-  label: string;
-  value: number;
-  caption: string;
-  marker?: number;
-  ink?: boolean;
-}) {
+function Meter({ label, value, caption }: { label: string; value: number; caption: string }) {
   const width = `${Math.max(0, Math.min(100, Math.round(value * 100)))}%`;
   return (
     <div className="mt-3">
@@ -112,11 +87,8 @@ function Meter({
         <span>{label}</span>
         <span>{caption}</span>
       </div>
-        <div className={`relative h-3 overflow-hidden rounded-full ${ink ? "bg-[#2c241f]/15" : "bg-white/35"}`}>
-        <div className={`meter-fill h-full rounded-full ${ink ? "bg-[#2c241f]" : "bg-white"}`} style={{ width }} />
-        {marker != null ? (
-          <div className={`absolute inset-y-0 w-0.5 ${ink ? "bg-white" : "bg-gold"}`} style={{ left: `${marker * 100}%` }} />
-        ) : null}
+      <div className="relative h-3 overflow-hidden rounded-full bg-white/35">
+        <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
       </div>
     </div>
   );

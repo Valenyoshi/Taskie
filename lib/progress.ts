@@ -134,6 +134,7 @@ export function touchOpen(userId: string): string[] {
   const user = findUserById(userId);
   if (!user) return lines;
   const today = localDateString(new Date(), user.timezone);
+  if (user.lastOpenDate === today) return lines;
   const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
   let streak = 1;
   if (user.lastOpenDate && addDays(user.lastOpenDate, 1) === today) streak = user.streak + 1;

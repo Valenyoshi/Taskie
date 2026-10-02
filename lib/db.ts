@@ -482,6 +482,13 @@ export function addAchievement(userId: string, achievementId: string): boolean {
   return result.changes === 1;
 }
 
+export function countDoneTasksByUser(): Record<string, number> {
+  const rows = getDb()
+    .prepare("SELECT user_id AS userId, COUNT(*) AS n FROM tasks WHERE status = 'done' GROUP BY user_id")
+    .all() as { userId: string; n: number }[];
+  return Object.fromEntries(rows.map((row) => [row.userId, row.n]));
+}
+
 export function listRewardIds(userId: string): string[] {
   const rows = getDb()
     .prepare("SELECT reward_id FROM user_rewards WHERE user_id = ? ORDER BY obtained_at ASC")

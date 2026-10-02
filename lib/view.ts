@@ -1,5 +1,5 @@
 import { ACHIEVEMENTS, REWARDS, frameClass, kindLabel, rewardById, scoreRewards, themeKey } from "./catalog";
-import { findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, listUsers, type Task, type User } from "./db";
+import { countDoneTasksByUser, findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, listUsers, type Task, type User } from "./db";
 import { levelFromTasks, PULL_COST, rarityLabel } from "./game";
 import {
   bestCompletionsSameDay,
@@ -236,13 +236,14 @@ function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number,
 export function rankingData(userId: string) {
   const me = findUserById(userId);
   if (!me) return null;
+  const doneByUser = countDoneTasksByUser();
   const rows = listUsers().filter((user) => !user.isDemo).map((user) => {
     const ids = listRewardIds(user.id);
     return {
       id: user.id,
       name: user.name,
       xp: user.xp,
-      level: levelFromTasks(listTasks(user.id).filter((task) => task.status === "done").length).level,
+      level: levelFromTasks(doneByUser[user.id] ?? 0).level,
       prizeScore: scoreRewards(ids),
       prizes: ids.length,
       spins: user.spins,

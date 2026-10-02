@@ -25,6 +25,7 @@ export function NavBar() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                prefetch
                 className={cn(
                   "nav-link flex flex-col items-center gap-1 px-1 py-2 text-[11px] font-medium",
                   active ? "text-primary" : "text-muted-foreground",
