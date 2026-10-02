@@ -299,8 +299,8 @@
   height: 32px;
   flex: none;
   border-radius: 999px;
-  border: 3px solid #fed7aa;
-  border-top-color: #ea580c;
+  border: 3px solid color-mix(in srgb, var(--gold) 45%, white);
+  border-top-color: var(--coral);
   animation: tumble 0.7s linear infinite;
 }
 
@@ -391,11 +391,11 @@
   width: 62px;
   height: 62px;
   border-radius: 999px;
-  border: 5px solid #92400e;
+  border: 5px solid var(--ink);
   background:
-    radial-gradient(circle at 50% 50%, #78350f 0 6px, #fef3c7 7px 10px, transparent 11px),
-    repeating-conic-gradient(#fbbf24 0 14deg, #d97706 14deg 28deg);
-  box-shadow: 0 4px 0 #78350f;
+    radial-gradient(circle at 50% 50%, var(--ink) 0 6px, #fff6dd 7px 10px, transparent 11px),
+    repeating-conic-gradient(var(--gold) 0 14deg, #c48a12 14deg 28deg);
+  box-shadow: 0 4px 0 var(--ink);
 }
 
 .wheel i {
@@ -406,7 +406,7 @@
   height: 12px;
   margin-left: -6px;
   border-radius: 999px;
-  background: #7c2d12;
+  background: var(--coral);
 }
 
 .wheel.turning {
@@ -521,7 +521,7 @@
   align-items: center;
   margin-bottom: 8px;
   border-radius: 999px;
-  background: #7c2d12;
+  background: #145e54;
   padding: 0 8px;
 }
 
@@ -583,8 +583,8 @@
 }
 
 @keyframes bulb {
-  0%, 40% { background: #fde68a; box-shadow: 0 0 10px #fbbf24; }
-  50%, 100% { background: #fb7185; box-shadow: 0 0 10px #fb7185; opacity: 0.55; }
+  0%, 40% { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+  50%, 100% { background: var(--coral); box-shadow: 0 0 10px var(--coral); opacity: 0.55; }
 }
 
 .flow-gradient {

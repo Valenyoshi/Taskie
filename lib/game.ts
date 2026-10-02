@@ -10,7 +10,7 @@ export const XP = {
 
 export const POINTS = {
   onTime: 25,
-  late: 8,
+  late: 25,
   daily: 40,
   weekly: 100,
   combo: 60,
@@ -18,24 +18,26 @@ export const POINTS = {
 
 export const PULL_COST = 50;
 
-export function levelCost(level: number): number {
-  return Math.min(40 + (level - 1) * 10, 400);
+export function tasksForLevel(level: number): number {
+  if (level >= 10) return 5;
+  if (level >= 5) return 4;
+  return 3;
 }
 
-export function levelProgress(xp: number): {
+export function levelFromTasks(completed: number): {
   level: number;
   into: number;
   need: number;
 } {
   let level = 1;
-  let left = Math.max(0, Math.floor(xp));
+  let left = Math.max(0, Math.floor(completed));
   while (level < 10000) {
-    const need = levelCost(level);
+    const need = tasksForLevel(level);
     if (left < need) return { level, into: left, need };
     left -= need;
     level += 1;
   }
-  return { level, into: 0, need: 400 };
+  return { level, into: 0, need: 5 };
 }
 
 export type Rarity = "common" | "rare" | "super";

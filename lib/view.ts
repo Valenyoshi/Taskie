@@ -1,6 +1,6 @@
 import { ACHIEVEMENTS, REWARDS, frameClass, kindLabel, rewardById, scoreRewards, themeKey } from "./catalog";
 import { findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, listUsers, type Task, type User } from "./db";
-import { levelProgress, PULL_COST, rarityLabel } from "./game";
+import { levelFromTasks, PULL_COST, rarityLabel } from "./game";
 import {
   bestCompletionsSameDay,
   onTimeTasks,
@@ -63,8 +63,8 @@ export type MissionView = {
   comboReady: boolean;
 };
 
-export function toPublic(user: User): PublicUser {
-  const level = levelProgress(user.xp);
+export function toPublic(user: User, completed = 0): PublicUser {
+  const level = levelFromTasks(completed);
   const title = user.equippedTitle ? rewardById(user.equippedTitle) : undefined;
   return {
     id: user.id,
@@ -144,8 +144,9 @@ export function homeData(userId: string) {
   if (!user) return null;
   const tasks = listTasks(userId);
   const views = tasks.map((task) => toTask(task, user.timezone));
+  const completed = tasks.filter((task) => task.status === "done").length;
   return {
-    user: toPublic(user),
+    user: toPublic(user, completed),
     missions: missionView(user, tasks),
     pending: views.filter((task) => task.pending),
     done: views.filter((task) => !task.pending),
@@ -198,7 +199,8 @@ export function rewardsData(userId: string) {
     unlocked: unlocked.has(achievement.id),
     progress: progressLabel(achievement.id, user, tasks, week.length, onTimeTasks(week).length),
   }));
-  return { user: toPublic(user), items, achievements, pullCost: PULL_COST, missing: Math.max(0, PULL_COST - user.points) };
+  const completed = tasks.filter((task) => task.status === "done").length;
+  return { user: toPublic(user, completed), items, achievements, pullCost: PULL_COST, missing: Math.max(0, PULL_COST - user.points) };
 }
 
 function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number, weekDone: number): string {
@@ -217,11 +219,11 @@ function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number,
     case "streak_30":
       return `${Math.min(30, user.streak)}/30`;
     case "level_5":
-      return `nivel ${Math.min(5, levelProgress(user.xp).level)}/5`;
+      return `nivel ${Math.min(5, levelFromTasks(tasks.filter((task) => task.status === "done").length).level)}/5`;
     case "level_10":
-      return `nivel ${Math.min(10, levelProgress(user.xp).level)}/10`;
+      return `nivel ${Math.min(10, levelFromTasks(tasks.filter((task) => task.status === "done").length).level)}/10`;
     case "level_20":
-      return `nivel ${Math.min(20, levelProgress(user.xp).level)}/20`;
+      return `nivel ${Math.min(20, levelFromTasks(tasks.filter((task) => task.status === "done").length).level)}/20`;
     case "perfect_week":
       return `${weekDone}/${weekTotal || 0} esta semana`;
     case "subject_day":
@@ -240,7 +242,7 @@ export function rankingData(userId: string) {
       id: user.id,
       name: user.name,
       xp: user.xp,
-      level: levelProgress(user.xp).level,
+      level: levelFromTasks(listTasks(user.id).filter((task) => task.status === "done").length).level,
       prizeScore: scoreRewards(ids),
       prizes: ids.length,
       spins: user.spins,

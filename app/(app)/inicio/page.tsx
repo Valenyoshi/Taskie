@@ -23,7 +23,7 @@ export default async function InicioPage() {
             {user.streak}d · {user.points} pts
           </span>
         </div>
-        <Meter label="XP" value={user.into / user.need} caption={`${user.into}/${user.need}`} />
+        <Meter label="Nivel" value={user.need ? user.into / user.need : 0} caption={`${user.into}/${user.need}`} />
         <Meter
           label="Hoy"
           value={missions.dailyTotal ? missions.dailyRatio : 0}

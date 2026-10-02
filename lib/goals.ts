@@ -1,4 +1,4 @@
-import { levelProgress } from "./game";
+import { levelFromTasks } from "./game";
 import { addDays, localDateString, weekStart } from "./time";
 
 export type GoalTask = {
@@ -116,8 +116,9 @@ export type GoalFlags = {
   foundSuper: boolean;
 };
 
-export function evaluateGoals(tasks: GoalTask[], timeZone: string, streak: number, xp: number, pulled: boolean, foundSuper: boolean): GoalFlags {
+export function evaluateGoals(tasks: GoalTask[], timeZone: string, streak: number, pulled: boolean, foundSuper: boolean): GoalFlags {
   const weeks = weekKeysOf(tasks, timeZone);
+  const completed = tasks.filter((task) => task.status === "done").length;
   return {
     firstOnTime: tasks.some((task) => task.onTime),
     fiveSameDay: bestCompletionsSameDay(tasks, timeZone) >= 5,
@@ -125,7 +126,7 @@ export function evaluateGoals(tasks: GoalTask[], timeZone: string, streak: numbe
     perfectWeek: weeks.some((start) => weekPerfect(tasksInWeek(tasks, timeZone, start))),
     subjectDay: subjectDayMet(tasks, timeZone),
     streak,
-    level: levelProgress(xp).level,
+    level: levelFromTasks(completed).level,
     pulled,
     foundSuper,
   };

@@ -19,7 +19,7 @@ import {
   type Task,
   type User,
 } from "./db";
-import { POINTS, PULL_COST, XP, levelProgress, rollRarity } from "./game";
+import { POINTS, PULL_COST, XP, levelFromTasks, rollRarity } from "./game";
 import {
   dailyMet,
   daysHitInWeek,
@@ -73,7 +73,7 @@ export function applyMissions(userId: string, lines: string[]): void {
 }
 
 function flagsFor(user: User, tasks: Task[]) {
-  return evaluateGoals(tasks, user.timezone, user.streak, user.xp, user.pulled, user.foundSuper);
+  return evaluateGoals(tasks, user.timezone, user.streak, user.pulled, user.foundSuper);
 }
 
 function achievementMet(id: AchievementId, user: User, tasks: Task[]): boolean {
@@ -134,7 +134,7 @@ export function touchOpen(userId: string): string[] {
   const user = findUserById(userId);
   if (!user) return lines;
   const today = localDateString(new Date(), user.timezone);
-  const before = levelProgress(user.xp);
+  const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
   let streak = 1;
   if (user.lastOpenDate && addDays(user.lastOpenDate, 1) === today) streak = user.streak + 1;
   const opened = setOpenDay(userId, streak, today, XP.streakOpen);
@@ -143,7 +143,7 @@ export function touchOpen(userId: string): string[] {
   applyAchievements(userId, lines);
   const afterUser = findUserById(userId);
   if (afterUser) {
-    const after = levelProgress(afterUser.xp);
+    const after = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
     if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
   }
   return lines;
@@ -157,7 +157,7 @@ export function deliverTask(userId: string, taskId: string): { ok: true; lines: 
   const result = transaction(() => {
     const current = findUserById(userId);
     if (!current) return { ok: false as const, error: "No encontré tu cuenta." };
-    const before = levelProgress(current.xp);
+    const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
     const completedAt = new Date().toISOString();
     const onTime = new Date(completedAt).getTime() <= new Date(task.dueAt).getTime();
     if (!markTaskDone(taskId, userId, completedAt, onTime)) {
@@ -174,7 +174,7 @@ export function deliverTask(userId: string, taskId: string): { ok: true; lines: 
     applyAchievements(userId, lines);
     const afterUser = findUserById(userId);
     if (afterUser) {
-      const after = levelProgress(afterUser.xp);
+      const after = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
       if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
     }
     return { ok: true as const, lines };
@@ -198,7 +198,7 @@ export function buyPull(userId: string):
   return transaction(() => {
     const beforeUser = findUserById(userId);
     if (!beforeUser) return { ok: false as const, error: "No encontré tu cuenta." };
-    const before = levelProgress(beforeUser.xp);
+    const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
     if (!spendPoints(userId, PULL_COST)) {
       return { ok: false as const, error: `Te faltan puntos para una tirada.` };
     }
@@ -216,7 +216,7 @@ export function buyPull(userId: string):
     applyAchievements(userId, lines);
     const afterUser = findUserById(userId);
     if (afterUser) {
-      const after = levelProgress(afterUser.xp);
+      const after = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
       if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
     }
     return { ok: true as const, lines, rewardName: reward.name, rarity: reward.rarity, duplicate };
