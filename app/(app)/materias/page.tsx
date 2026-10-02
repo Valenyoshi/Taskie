@@ -12,7 +12,6 @@ export default async function MateriasPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="font-display text-3xl">Materias</h1>
       {data.subjects.length === 0 ? (
         <p className="rounded-xl bg-card p-4 text-sm ring-1 ring-foreground/10">Cuando haya tareas, las vas a ver agrupadas acá.</p>
       ) : (

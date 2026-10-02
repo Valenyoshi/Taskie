@@ -10,7 +10,6 @@ export default async function RankingPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-display text-3xl">Ranking</h1>
       {data.alone ? <p className="text-sm text-muted-foreground">Solo vos, por ahora.</p> : null}
       <Board
         title="Más XP"

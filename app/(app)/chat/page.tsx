@@ -9,7 +9,6 @@ export default async function ChatPage() {
   const messages = listMessages(session.id);
   return (
     <div>
-      <h1 className="mb-3 font-display text-3xl">Chat</h1>
       <ChatBox initial={messages} />
     </div>
   );
