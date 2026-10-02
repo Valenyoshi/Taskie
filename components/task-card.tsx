@@ -89,7 +89,7 @@ export function TaskCard({ task }: { task: TaskView }) {
       { duration: 450, easing: "ease" },
     );
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate([40, 30, 50]);
-    window.setTimeout(() => setRefused(false), 650);
+    window.setTimeout(() => setRefused(false), 700);
   }
 
   async function complete() {
@@ -133,7 +133,11 @@ export function TaskCard({ task }: { task: TaskView }) {
     <article
       ref={cardRef}
       className={`rise-in relative overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10 ${phase === "leave" ? "task-leave" : ""} ${refused ? "task-refuse" : ""}`}
-      style={{ boxShadow: `inset 6px 0 0 ${color}`, background: refused ? "#f6cfc8" : undefined }}
+      style={{
+        boxShadow: `inset 6px 0 0 ${color}`,
+        backgroundColor: refused ? "#f6cfc8" : "var(--card)",
+        transition: "background-color 1.1s ease",
+      }}
     >
       <div className="flex items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
