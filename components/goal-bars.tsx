@@ -95,7 +95,7 @@ function Meter({ label, done, total }: { label: string; done: number; total: num
     <div className="mt-3">
       <div className="mb-1.5 flex justify-between text-xs font-bold">
         <span>{label}</span>
-        <span>{total ? `${done}/${total}` : "—"}</span>
+        <span>{done}/{total}</span>
       </div>
       <div className="relative h-3 overflow-hidden rounded-full bg-white/35">
         <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />

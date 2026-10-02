@@ -243,7 +243,7 @@ export function rankingData(userId: string) {
   const me = findUserById(userId);
   if (!me) return null;
   const doneByUser = countDoneTasksByUser();
-  const rows = listUsers().filter((user) => !user.isDemo).map((user) => {
+  const rows = listUsers().map((user) => {
     const ids = listRewardIds(user.id);
     return {
       id: user.id,

@@ -36,6 +36,23 @@ export function AuthPanel() {
     router.refresh();
   }
 
+  async function demo() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/auth/demo", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError("No pude armar la cuenta de prueba.");
+      return;
+    }
+    router.push("/inicio");
+    router.refresh();
+  }
+
   return (
     <div className="overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-gold/40">
       <div className="flow-gradient h-2" />
@@ -79,6 +96,9 @@ export function AuthPanel() {
           {busy ? "Entrando…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
         </Button>
       </form>
+      <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>
+        Probar con tareas de ejemplo
+      </Button>
       </div>
     </div>
   );
