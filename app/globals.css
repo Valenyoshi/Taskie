@@ -477,9 +477,20 @@
 }
 
 .pencil-case {
-  position: relative;
   margin-inline: auto;
   width: min(100%, 340px);
+}
+
+.pencil-title {
+  margin-bottom: 10px;
+  text-align: center;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.pencil-shell {
+  position: relative;
 }
 
 .pencil-lid {
