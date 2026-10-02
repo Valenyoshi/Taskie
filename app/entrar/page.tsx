@@ -1,19 +1,35 @@
 import { redirect } from "next/navigation";
 import { AuthPanel } from "@/components/auth-panel";
+import { SchoolIcon } from "@/components/school-icon";
 import { getCurrentUser } from "@/lib/session";
+
+const floats = [
+  { id: "lapiz", className: "left-6 top-16 float-a" },
+  { id: "mochila", className: "right-8 top-24 float-b" },
+  { id: "manzana", className: "bottom-16 left-10 float-b hidden md:block" },
+  { id: "libro", className: "bottom-24 right-12 float-a hidden md:block" },
+];
 
 export default async function EntrarPage() {
   const user = await getCurrentUser();
   if (user) redirect("/inicio");
 
   return (
-    <main className="mx-auto grid min-h-dvh max-w-5xl items-center gap-10 px-5 py-10 md:grid-cols-2">
-      <section>
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">Racha</p>
-        <h1 className="mt-3 font-display text-5xl leading-none">Las tareas del colegio, con nivel.</h1>
-        <p className="mt-4 max-w-md text-base text-muted-foreground">Tus tareas de Educamos, con nivel y premios.</p>
-      </section>
-      <AuthPanel />
+    <main className="relative min-h-dvh overflow-hidden">
+      <div className="pointer-events-none absolute -left-16 top-10 size-56 rounded-full bg-orange-300/50 blur-3xl" />
+      <div className="pointer-events-none absolute -right-10 bottom-10 size-64 rounded-full bg-teal-300/40 blur-3xl" />
+      {floats.map((item) => (
+        <div key={item.id} className={`pointer-events-none absolute opacity-80 ${item.className}`}>
+          <SchoolIcon id={item.id} size={64} />
+        </div>
+      ))}
+      <div className="relative mx-auto grid min-h-dvh max-w-5xl items-center gap-8 px-5 py-16 md:grid-cols-2">
+        <section>
+          <p className="text-sm font-bold tracking-[0.18em] text-orange-600">task.ai</p>
+          <h1 className="gradient-text mt-3 font-display text-5xl leading-none">Las tareas del colegio, con otro nivel.</h1>
+        </section>
+        <AuthPanel />
+      </div>
     </main>
   );
 }

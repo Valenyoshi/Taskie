@@ -518,3 +518,17 @@
   font-weight: 700;
   color: #a89070;
 }
+
+.gradient-text {
+  background: linear-gradient(100deg, #f97316, #e11d48 45%, #0f766e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.float-a { animation: float-y 4.5s ease-in-out infinite; }
+.float-b { animation: float-y 5.5s ease-in-out infinite reverse; }
+
+@keyframes float-y {
+  50% { transform: translateY(-10px) rotate(-6deg); }
+}

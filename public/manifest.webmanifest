@@ -1,7 +1,7 @@
 {
-  "name": "Racha",
-  "short_name": "Racha",
-  "description": "Tareas de Educamos, experiencia y premios.",
+  "name": "task.ai",
+  "short_name": "task.ai",
+  "description": "Las tareas del colegio, con otro nivel.",
   "start_url": "/inicio",
   "scope": "/",
   "display": "standalone",

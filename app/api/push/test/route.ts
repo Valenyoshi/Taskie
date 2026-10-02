@@ -9,7 +9,7 @@ export async function POST() {
   if (subs.length === 0) return json({ error: "Este navegador todavía no aceptó los avisos." }, 400);
   for (const sub of subs) {
     await sendPush(sub, {
-      title: "Racha",
+      title: "task.ai",
       body: "Así te vamos a avisar cuando tengas tareas para entregar.",
       url: "/inicio",
     });

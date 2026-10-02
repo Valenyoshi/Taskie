@@ -67,7 +67,7 @@ export function NotifyCard({
     setMessage(null);
     if (next) {
       try {
-        await showNotice("Racha", reminders[0] ? `${reminders[0].subject}: ${reminders[0].title}` : "Avisos activos.");
+        await showNotice("task.ai", reminders[0] ? `${reminders[0].subject}: ${reminders[0].title}` : "Avisos activos.");
       } catch (error) {
         setBusy(false);
         setMessage(error instanceof Error ? error.message : "No pude activar los avisos.");
@@ -89,7 +89,7 @@ export function NotifyCard({
     setMessage(null);
     try {
       const first = reminders[0];
-      await showNotice(first ? first.subject : "Racha", first ? `${first.when}. ${first.title}` : "Así llegan los avisos.");
+      await showNotice(first ? first.subject : "task.ai", first ? `${first.when}. ${first.title}` : "Así llegan los avisos.");
       setOn(true);
       await fetch("/api/push/toggle", {
         method: "POST",

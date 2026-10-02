@@ -24,9 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               {sessionUser.name.slice(0, 1).toUpperCase()}
             </div>
             <div>
-              <p className="font-display text-xl leading-none">{sessionUser.name}</p>
+              <p className="font-display text-xl leading-none">Hola {sessionUser.username}</p>
               <p className="text-sm text-muted-foreground">
-                Racha de {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
+                task.ai · {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
               </p>
             </div>
           </div>

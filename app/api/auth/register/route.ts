@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   if (!/^[a-zA-Z0-9._-]{3,24}$/.test(username)) {
     return json({ error: "El usuario usa letras, números, punto o guion, de 3 a 24." }, 400);
   }
-  if (password.length < 6) return json({ error: "La contraseña de Racha necesita al menos 6 caracteres." }, 400);
+  if (password.length < 6) return json({ error: "La contraseña de task.ai necesita al menos 6 caracteres." }, 400);
   if (!educamosUrl || !educamosUsername || !educamosPassword) {
     return json({ error: "Completá la URL del colegio, el usuario y la contraseña de Educamos." }, 400);
   }

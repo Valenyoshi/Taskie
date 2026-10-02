@@ -54,7 +54,9 @@ export function AuthPanel() {
   }
 
   return (
-    <div className="rounded-2xl bg-card p-5 ring-1 ring-foreground/10">
+    <div className="overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-orange-200">
+      <div className="h-2 bg-gradient-to-r from-orange-400 via-rose-500 to-teal-500" />
+      <div className="p-5">
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
         <button
           type="button"
@@ -75,8 +77,8 @@ export function AuthPanel() {
         {mode === "crear" ? (
           <>
             <Field label="Tu nombre" name="name" placeholder="Cómo querés salir en el ranking" />
-            <Field label="Usuario de Racha" name="username" placeholder="vale.curso" autoComplete="username" />
-            <Field label="Contraseña de Racha" name="password" type="password" autoComplete="new-password" />
+            <Field label="Usuario de task.ai" name="username" placeholder="vale.curso" autoComplete="username" />
+            <Field label="Contraseña de task.ai" name="password" type="password" autoComplete="new-password" />
             <p className="pt-2 text-sm font-medium">Tu colegio en Educamos</p>
             <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
             <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />
@@ -97,6 +99,7 @@ export function AuthPanel() {
       <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>
         Probar con tareas de ejemplo
       </Button>
+      </div>
     </div>
   );
 }
