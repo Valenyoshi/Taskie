@@ -16,7 +16,7 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-teal-500 p-4 text-white shadow-lg">
+      <section className="rise-in rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-teal-500 p-4 text-white shadow-lg">
         <div className="mb-3 flex items-center justify-between">
           <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">Nivel {user.level}</span>
           <span className="text-sm font-semibold">
@@ -60,7 +60,7 @@ export default async function InicioPage() {
       {pending.length === 0 ? (
         <p className="rounded-2xl bg-card px-4 py-6 text-center font-display text-xl ring-1 ring-foreground/10">Nada pendiente</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="task-stack flex flex-col gap-3">
           {pending.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
@@ -101,7 +101,7 @@ function Meter({
         <span>{caption}</span>
       </div>
       <div className="relative h-3 overflow-hidden rounded-full bg-white/30">
-        <div className="h-full rounded-full bg-white" style={{ width }} />
+        <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
         {marker != null ? <div className="absolute inset-y-0 w-0.5 bg-amber-200" style={{ left: `${marker * 100}%` }} /> : null}
       </div>
     </div>

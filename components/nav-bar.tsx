@@ -26,7 +26,7 @@ export function NavBar() {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-1 py-2 text-[11px] font-medium",
+                  "nav-link flex flex-col items-center gap-1 px-1 py-2 text-[11px] font-medium",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >

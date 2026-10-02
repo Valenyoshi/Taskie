@@ -1,6 +1,7 @@
-import { findUserById, insertTask, removeMissingEducamos, setSyncResult } from "./db";
+import { dropOldUntracked, findUserById, insertTask, setSyncResult } from "./db";
 import { decryptSecret } from "./secret";
 import { fetchEducamosTasks } from "./educamos";
+import { localDateString, zonedTimeToUtc } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
   const user = findUserById(userId);
@@ -50,9 +51,8 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
       createdAt: now,
     });
   }
-  if (result.tasks.length > 0) {
-    removeMissingEducamos(userId, result.tasks.map((task) => task.externalId));
-  }
+  const today = localDateString(new Date(), user.timezone);
+  dropOldUntracked(userId, zonedTimeToUtc(today, "00:00:00", user.timezone).toISOString());
   setSyncResult(userId, null);
   return { ok: true, count: result.tasks.length };
 }

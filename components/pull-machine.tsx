@@ -2,59 +2,64 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { rarityLabel, type Rarity } from "@/lib/game";
+
+const COLORS = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#fb7185", "#14b8a6", "#facc15"];
 
 export function PullMachine({ points, cost, missing }: { points: number; cost: number; missing: number }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ name: string; rarity: Rarity; duplicate: boolean; lines: string[] } | null>(null);
+  const [result, setResult] = useState<{ name: string; rarity: Rarity } | null>(null);
 
   async function pull() {
-    setBusy(true);
+    if (spinning || missing > 0) return;
+    setSpinning(true);
     setError(null);
+    setResult(null);
+    const started = Date.now();
     const res = await fetch("/api/pull", { method: "POST" });
-    const data = (await res.json()) as {
-      error?: string;
-      rewardName?: string;
-      rarity?: Rarity;
-      duplicate?: boolean;
-      lines?: string[];
-    };
-    setBusy(false);
+    const data = (await res.json()) as { error?: string; rewardName?: string; rarity?: Rarity };
+    const wait = Math.max(0, 1300 - (Date.now() - started));
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    setSpinning(false);
     if (!res.ok || !data.rewardName || !data.rarity) {
       setError(data.error ?? "La máquina no respondió.");
       return;
     }
-    setResult({
-      name: data.rewardName,
-      rarity: data.rarity,
-      duplicate: Boolean(data.duplicate),
-      lines: data.lines ?? [],
-    });
+    setResult({ name: data.rewardName, rarity: data.rarity });
     router.refresh();
   }
 
   return (
-    <section className="rounded-3xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-4 text-white">
-      <p className="font-display text-4xl">{points}</p>
-      <p className="mt-1 text-sm font-semibold">Tirada {cost}</p>
-      <div className="mt-2 flex gap-2 text-xs font-bold">
-        <span className="rounded-full bg-white/30 px-2 py-1">60 común</span>
-        <span className="rounded-full bg-violet-700/70 px-2 py-1">32 raro</span>
-        <span className="rounded-full bg-amber-200 px-2 py-1 text-amber-950">8 súper</span>
-      </div>
-      <Button className="mt-4 h-12 w-full bg-white text-base text-orange-700 hover:bg-white/90 disabled:bg-white/80 disabled:opacity-100" disabled={busy || missing > 0} onClick={() => void pull()}>
-        {busy ? "…" : missing > 0 ? `Faltan ${missing}` : "Tirar"}
-      </Button>
-      {error ? <p className="mt-3 text-sm">{error}</p> : null}
-      {result ? (
-        <div className="mt-4 rounded-2xl bg-white p-4 text-orange-950">
-          <p className="text-xs font-bold uppercase">{rarityLabel(result.rarity)}</p>
-          <p className="font-display text-2xl">{result.name}</p>
+    <div className="machine rise-in">
+      <div className="machine-globe">
+        <div className={`capsules ${spinning ? "spinning" : ""}`}>
+          {COLORS.map((color) => (
+            <span key={color} className="capsule" style={{ background: `linear-gradient(180deg, white, ${color})` }} />
+          ))}
         </div>
-      ) : null}
-    </section>
+      </div>
+      <div className="machine-body">
+        <button type="button" className={`crank ${spinning ? "turning" : ""}`} disabled={spinning || missing > 0} onClick={() => void pull()} aria-label="Girar la manivela">
+          <span />
+        </button>
+        <div className="coin-readout">
+          <span>{points} pts</span>
+          <span>{missing > 0 ? `faltan ${missing}` : `${cost} la ficha`}</span>
+        </div>
+        <div className="tray">
+          {result ? (
+            <div className="prize-drop text-center text-amber-100">
+              <p className="text-[11px] font-bold uppercase">{rarityLabel(result.rarity)}</p>
+              <p className="font-display text-xl">{result.name}</p>
+            </div>
+          ) : (
+            <p className="text-xs font-semibold text-amber-200/80">{spinning ? "Girando…" : "Girá la rueda"}</p>
+          )}
+        </div>
+        {error ? <p className="mt-2 text-center text-xs text-amber-100">{error}</p> : null}
+      </div>
+    </div>
   );
 }

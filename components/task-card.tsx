@@ -44,7 +44,7 @@ export function TaskCard({ task }: { task: TaskView }) {
   }
 
   return (
-    <article className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
+    <article className="rise-in overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
       <div className="flex items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

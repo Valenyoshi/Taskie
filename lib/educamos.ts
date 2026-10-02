@@ -1,4 +1,4 @@
-import { addDays, endOfLocalDay, localDateString } from "./time";
+import { addDays, endOfLocalDay, localDateString, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
   externalId: string;
@@ -203,7 +203,7 @@ export async function fetchEducamosTasks(input: {
     const alumno = page.text.match(/name="AlumnoId"[^>]*value="([^"]+)"/i)?.[1];
     if (alumno) {
       const today = localDateString(new Date(), input.timeZone);
-      const [y1, m1, d1] = addDays(today, -30).split("-");
+      const [y1, m1, d1] = today.split("-");
       const [y2, m2, d2] = addDays(today, 90).split("-");
       const body = new URLSearchParams({
         alertaValidacion: "ValidationSummary",
@@ -219,7 +219,9 @@ export async function fetchEducamosTasks(input: {
       }
     }
 
-    return { ok: true, tasks };
+    const today = localDateString(new Date(), input.timeZone);
+    const start = zonedTimeToUtc(today, "00:00:00", input.timeZone).toISOString();
+    return { ok: true, tasks: tasks.filter((task) => task.dueAt >= start) };
   } catch {
     return { ok: false, error: "No se pudo abrir Educamos. Revisá la dirección del colegio." };
   }

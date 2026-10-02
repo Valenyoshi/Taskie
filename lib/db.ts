@@ -248,6 +248,10 @@ export function getDb(): Database.Database {
     `);
     globalForDb.rachaDb = db;
   }
+  const columns = globalForDb.rachaDb.prepare("PRAGMA table_info(tasks)").all() as { name: string }[];
+  if (!columns.some((column) => column.name === "tracked")) {
+    globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0");
+  }
   return globalForDb.rachaDb;
 }
 
@@ -371,15 +375,16 @@ export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completed
   getDb()
     .prepare(
       `INSERT INTO tasks (
-        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, created_at, tracked
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 1)
       ON CONFLICT(user_id, external_id) DO UPDATE SET
         subject = excluded.subject,
         title = excluded.title,
         description = excluded.description,
         due_at = excluded.due_at,
         educamos_url = excluded.educamos_url,
-        needs_file = excluded.needs_file
+        needs_file = excluded.needs_file,
+        tracked = 1
       WHERE tasks.status = 'pending'`,
     )
     .run(
@@ -426,13 +431,13 @@ export function attachFile(id: string, userId: string, fileName: string, filePat
   return result.changes === 1;
 }
 
-export function removeMissingEducamos(userId: string, externalIds: string[]): void {
-  const pending = listTasks(userId).filter((task) => task.source === "educamos" && task.status === "pending");
-  const keep = new Set(externalIds);
-  const del = getDb().prepare("DELETE FROM tasks WHERE id = ? AND user_id = ? AND status = 'pending'");
-  for (const task of pending) {
-    if (task.externalId && !keep.has(task.externalId)) del.run(task.id, userId);
-  }
+export function dropOldUntracked(userId: string, startOfTodayIso: string): void {
+  getDb()
+    .prepare(
+      `DELETE FROM tasks
+       WHERE user_id = ? AND source = 'educamos' AND status = 'pending' AND tracked = 0 AND due_at < ?`,
+    )
+    .run(userId, startOfTodayIso);
 }
 
 export function hasClaim(userId: string, kind: string, periodKey: string): boolean {
