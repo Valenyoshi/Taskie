@@ -8,7 +8,7 @@ import {
   tasksInWeek,
   tasksOnDay,
 } from "./goals";
-import { addDays, dueLabel, localDateString, weekStart } from "./time";
+import { addDays, dueLabel, localDateString, pendingIsCurrent, weekStart } from "./time";
 
 export type PublicUser = {
   id: string;
@@ -150,7 +150,9 @@ export function missionView(user: User, tasks: Task[]): MissionView {
 export function homeData(userId: string) {
   const user = findUserById(userId);
   if (!user) return null;
-  const tasks = listTasks(userId);
+  const tasks = listTasks(userId).filter(
+    (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone),
+  );
   const views = tasks.map((task) => toTask(task, user.timezone));
   const homework = tasks.filter((task) => task.source !== "lms");
   const completed = homework.filter((task) => task.status === "done").length;

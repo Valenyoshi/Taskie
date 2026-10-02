@@ -12,16 +12,34 @@ function urlBase64ToUint8Array(base64String: string) {
   return output;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 async function showNotice(title: string, body: string) {
   if (!("Notification" in window)) throw new Error("Este navegador no muestra avisos.");
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") throw new Error("Sin permiso.");
+  const permission = await withTimeout(Notification.requestPermission(), 4000);
+  if (permission !== "granted") throw new Error("Sin permiso del navegador.");
   if (!("serviceWorker" in navigator)) {
     new Notification(title, { body, icon: "/icon-192.png" });
     return;
   }
-  const registration = await navigator.serviceWorker.register("/sw.js");
-  await navigator.serviceWorker.ready;
+  const registration = await withTimeout(
+    navigator.serviceWorker.register("/sw.js").then(() => navigator.serviceWorker.ready),
+    3000,
+  );
   try {
     const keyRes = await fetch("/api/push/public-key");
     const keyData = (await keyRes.json()) as { publicKey: string };
@@ -69,12 +87,9 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
     }
     if (!next) return;
     try {
-      await Promise.race([
-        showNotice("task.ai", "Avisos activos."),
-        new Promise((_, reject) => window.setTimeout(() => reject(new Error("El navegador no dio permiso.")), 4000)),
-      ]);
+      await showNotice("task.ai", "Avisos activos.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Sin permiso.");
+      setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No pude mostrar el aviso.");
     }
   }
 

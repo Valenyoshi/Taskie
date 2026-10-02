@@ -1,6 +1,6 @@
 import { hasNotification, listPush, listTasks, listUsers, logNotification } from "./db";
 import { sendPush } from "./push";
-import { localDateString, localHour } from "./time";
+import { localDateString, localHour, pendingIsCurrent } from "./time";
 
 const globalForScheduler = globalThis as unknown as { rachaScheduler?: boolean };
 
@@ -23,7 +23,9 @@ export async function runReminders(now = new Date()): Promise<void> {
     if (subs.length === 0) continue;
     const today = localDateString(now, user.timezone);
     const hour = localHour(now, user.timezone);
-    const tasks = listTasks(user.id).filter((task) => task.status === "pending");
+    const tasks = listTasks(user.id).filter(
+      (task) => task.status === "pending" && pendingIsCurrent(task.dueAt, user.timezone, now),
+    );
     const dueToday = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);
 
     if (hour >= 8 && hour <= 20 && dueToday.length > 0 && !hasNotification(user.id, "digest", today)) {

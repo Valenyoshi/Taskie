@@ -16,6 +16,13 @@ export function localHour(date: Date, timeZone: string): number {
   return Number(hour);
 }
 
+export function pendingIsCurrent(dueAt: string, timeZone: string, now = new Date()): boolean {
+  const dueDay = localDateString(new Date(dueAt), timeZone);
+  const today = localDateString(now, timeZone);
+  if (dueDay >= today) return true;
+  return dueDay >= addDays(today, -3);
+}
+
 export function addDays(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + days));

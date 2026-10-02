@@ -1,4 +1,4 @@
-import { addDays, endOfLocalDay, localDateString, zonedTimeToUtc } from "./time";
+import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
   externalId: string;
@@ -197,6 +197,7 @@ export async function fetchLmsUploads(input: {
   lmsUrl: string;
   username: string;
   password: string;
+  timeZone: string;
 }): Promise<SyncResult> {
   const root = lmsBase("https://colegio.educamos.com", input.lmsUrl);
   if (!root) return { ok: false, error: "El enlace del aula no es válido." };
@@ -231,7 +232,7 @@ export async function fetchLmsUploads(input: {
         methodname: "core_calendar_get_action_events_by_timesort",
         args: {
           limitnum: 50,
-          timesortfrom: now - 45 * 86400,
+          timesortfrom: now - 4 * 86400,
           timesortto: now + 180 * 86400,
           limittononsuspendedevents: true,
         },
@@ -267,7 +268,7 @@ export async function fetchLmsUploads(input: {
         url: event.url || event.action?.url || `${root}/mod/assign/view.php?id=${id}`,
       });
     }
-    return { ok: true, tasks };
+    return { ok: true, tasks: tasks.filter((task) => pendingIsCurrent(task.dueAt, input.timeZone)) };
   } catch {
     return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
   }

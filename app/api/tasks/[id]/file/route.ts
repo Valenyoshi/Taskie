@@ -19,7 +19,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED.has(ext)) return json({ error: "Ese tipo de archivo no entra. Usá PDF, imagen, Word o texto." }, 400);
 
-  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/\.{2,}/g, ".").slice(0, 80);
+  if (!safe || safe === "." || safe === "..") return json({ error: "Ese nombre de archivo no sirve." }, 400);
   const dir = path.join(process.cwd(), "data", "uploads", user.id, id);
   mkdirSync(dir, { recursive: true });
   const stored = path.join(dir, safe);
@@ -36,11 +37,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!task || task.userId !== user.id || !task.filePath || !task.fileName) {
     return json({ error: "No hay archivo." }, 404);
   }
-  const root = path.join(process.cwd(), "data", "uploads", user.id, id);
+  const root = path.join(process.cwd(), "data", "uploads", user.id, id) + path.sep;
   const resolved = path.resolve(task.filePath);
   if (!resolved.startsWith(root)) return json({ error: "No hay archivo." }, 404);
-  const bytes = readFileSync(resolved);
-  return new Response(bytes, {
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(resolved);
+  } catch {
+    return json({ error: "No hay archivo." }, 404);
+  }
+  return new Response(bytes as unknown as BodyInit, {
     headers: {
       "content-type": "application/octet-stream",
       "content-disposition": `attachment; filename="${task.fileName.replace(/"/g, "")}"`,

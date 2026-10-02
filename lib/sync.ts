@@ -31,7 +31,12 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
   });
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
   const uploads = classroom
-    ? await fetchLmsUploads({ lmsUrl: classroom, username: user.educamosUsername, password })
+    ? await fetchLmsUploads({
+        lmsUrl: classroom,
+        username: user.educamosUsername,
+        password,
+        timeZone: user.timezone,
+      })
     : { ok: true as const, tasks: [] };
 
   if (!result.ok && !uploads.ok) {

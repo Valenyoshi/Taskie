@@ -1,6 +1,10 @@
 import { listTasks, type Task, type User } from "./db";
 import { levelFromTasks, PULL_COST } from "./game";
-import { dueLabel, localDateString, weekStart, addDays } from "./time";
+import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
+
+function currentTasks(user: User): Task[] {
+  return listTasks(user.id).filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone));
+}
 
 function fold(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -24,7 +28,7 @@ export function taskSnapshot(user: User, tasks: Task[]): string {
   ].join("\n");
 }
 
-export function localAnswer(message: string, user: User, tasks: Task[] = listTasks(user.id)): string {
+export function localAnswer(message: string, user: User, tasks: Task[] = currentTasks(user)): string {
   const q = fold(message);
   const today = localDateString(new Date(), user.timezone);
   const todayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);
@@ -79,7 +83,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = listTas
 }
 
 export async function answerWithModel(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
-  const tasks = listTasks(user.id);
+  const tasks = currentTasks(user);
   const fallback = () => localAnswer(message, user, tasks);
   const key = process.env.GEMINI_API_KEY;
   if (!key) return fallback();
