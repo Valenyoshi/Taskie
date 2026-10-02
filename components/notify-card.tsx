@@ -52,36 +52,37 @@ async function showNotice(title: string, body: string) {
 export function NotifyToggle({ enabled }: { enabled: boolean }) {
   const [on, setOn] = useState(enabled);
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   async function toggle() {
     const next = !on;
-    setBusy(true);
+    setOn(next);
     setMessage(null);
-    if (next) {
-      try {
-        await showNotice("task.ai", "Avisos activos.");
-      } catch (error) {
-        setBusy(false);
-        setMessage(error instanceof Error ? error.message : "No pude activar los avisos.");
-        return;
-      }
-    }
-    await fetch("/api/push/toggle", {
+    const res = await fetch("/api/push/toggle", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ enabled: next }),
     });
-    setOn(next);
-    setBusy(false);
+    if (!res.ok) {
+      setOn(!next);
+      setMessage("No se pudo guardar.");
+      return;
+    }
+    if (!next) return;
+    try {
+      await Promise.race([
+        showNotice("task.ai", "Avisos activos."),
+        new Promise((_, reject) => window.setTimeout(() => reject(new Error("El navegador no dio permiso.")), 4000)),
+      ]);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Sin permiso.");
+    }
   }
 
   return (
-    <div className="fixed right-3 bottom-20 z-30">
+    <div className="fixed right-3 bottom-20 z-30 flex flex-col items-end">
       <button
         type="button"
         aria-pressed={on}
-        disabled={busy}
         onClick={() => void toggle()}
         className={`grid size-12 place-items-center rounded-full shadow ring-1 ring-foreground/10 ${on ? "bg-coral text-white" : "bg-card text-muted-foreground"}`}
       >

@@ -47,10 +47,7 @@ export default async function InicioPage() {
 
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl">Por hacer</h2>
-        <div className="flex items-center gap-2">
-          {user.isDemo ? <span className="rounded-full bg-gold/25 px-2 py-1 text-xs font-semibold text-foreground">Ejemplo</span> : null}
-          <SyncButton />
-        </div>
+        <SyncButton />
       </div>
       {user.syncError ? <p className="text-sm text-destructive">{user.syncError}</p> : null}
 
