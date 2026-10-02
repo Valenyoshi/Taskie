@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { GainBanner } from "@/components/gain-banner";
 import { LogoutButton } from "@/components/logout-button";
 import { NavBar } from "@/components/nav-bar";
 import { SectionTitle } from "@/components/section-title";
@@ -13,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sessionUser = await getCurrentUser();
   if (!sessionUser) redirect("/entrar");
-  const lines = touchOpen(sessionUser.id);
+  touchOpen(sessionUser.id);
   const prizePoints = scoreRewards(listRewardIds(sessionUser.id));
 
   return (
@@ -23,24 +22,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="mb-5 pt-8 text-center">
           <SectionTitle />
           <p className="mt-2 font-display text-3xl leading-none">Hola {sessionUser.username}</p>
-          <div className="mt-3 flex items-center justify-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
             <div
               className={`grid size-9 place-items-center rounded-full bg-secondary text-sm font-display ring-4 ${frameClass(sessionUser.equippedFrame)}`}
             >
               {sessionUser.name.slice(0, 1).toUpperCase()}
             </div>
-            <div className="text-left leading-tight">
-              <p className="font-display text-2xl text-foreground">
-                {prizePoints}
-                <span className="ml-1 text-sm font-semibold">pts de premio</span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
-              </p>
+            <div className="prize-corral">
+              <span className="points-coin" aria-hidden />
+              <span>
+                <span className="points-value">{prizePoints}</span>
+                <span className="points-label">premio</span>
+              </span>
             </div>
+            <p className="streak-pill">
+              {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
+            </p>
           </div>
         </header>
-        {lines.length > 0 ? <div className="mb-4"><GainBanner initial={lines} /></div> : <GainBanner />}
         {children}
       </div>
       <NavBar />

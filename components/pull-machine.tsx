@@ -44,7 +44,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
     setPhase("coin");
     const res = await fetch("/api/pull", { method: "POST" });
     const data = (await res.json()) as { error?: string; rewardName?: string; rarity?: Rarity };
-    await new Promise((resolve) => setTimeout(resolve, 780));
+    await new Promise((resolve) => setTimeout(resolve, 900));
     setPhase("tumble");
     await new Promise((resolve) => setTimeout(resolve, 1000));
     if (!res.ok || !data.rewardName || !data.rarity) {
@@ -62,10 +62,10 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
   return (
     <div className="gacha rise-in">
       <Lights />
-      <div className="gacha-globe">
+      <div className={`gacha-globe ${phase === "tumble" ? "shaking" : ""}`}>
         {pile.map((piece, index) => (
           <div key={piece.id} className="absolute" style={{ left: `${PILE[index].x}%`, top: `${PILE[index].y}%` }}>
-            <div className={`cap ${phase === "tumble" ? "hot" : ""}`} style={{ animationDelay: `${index * 0.08}s` }}>
+            <div className={`cap ${phase === "tumble" ? "hot" : ""}`} style={{ animationDelay: `${index * 0.07}s` }}>
               <div className="cap-prize">
                 <SchoolIcon id={piece.id} size={26} />
               </div>
@@ -81,7 +81,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         onClick={() => void pull()}
         aria-label={`Meter una moneda de ${cost} puntos`}
       >
-        <div className={`hatch ${phase === "drop" ? "open" : ""}`} aria-hidden>
+        <div className={`hatch ${phase === "drop" ? "open" : ""} ${phase === "coin" ? "feeding" : ""}`} aria-hidden>
           <span className="hatch-half top" />
           <span className="hatch-half bot" />
           <span
@@ -91,7 +91,13 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         </div>
       </button>
       <div className="gacha-base">
-        <p className="mb-2 text-center text-xs font-semibold text-foreground">{missing > 0 ? `Faltan ${missing}` : `${points} pts`}</p>
+        <div className="points-corral machine">
+          <span className="points-coin" aria-hidden />
+          <span>
+            <span className="points-value">{missing > 0 ? missing : points}</span>
+            <span className="points-label">{missing > 0 ? "faltan" : "puntos"}</span>
+          </span>
+        </div>
         <div className="chute">
           {result && phase === "drop" ? (
             <div className="text-center">

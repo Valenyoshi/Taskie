@@ -16,26 +16,36 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="rise-in flow-gradient rounded-3xl p-4 text-white shadow-lg">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="rounded-full bg-white/20 px-3 py-1 text-sm font-semibold">Nivel {user.level}</span>
-          <span className="text-sm font-semibold">
-            {user.streak}d · {user.points} pts
-          </span>
-        </div>
-        <Meter label="XP" value={user.need ? user.into / user.need : 0} caption={`${user.into}/${user.need}`} />
-        <Meter
-          label="Hoy"
-          value={missions.dailyTotal ? missions.dailyRatio : 0}
-          caption={missions.dailyTotal ? `${missions.dailyDone}/${missions.dailyTotal}` : "—"}
-          marker={0.6}
-        />
-        <Meter
-          label="Semana"
-          value={missions.weeklyTotal ? missions.weeklyDone / missions.weeklyTotal : 0}
-          caption={missions.weeklyTotal ? `${missions.weeklyDone}/${missions.weeklyTotal}` : "—"}
-        />
+      <section className="points-corral rise-in">
+        <span className="points-coin" aria-hidden />
+        <span>
+          <span className="points-value">{user.points}</span>
+          <span className="points-label">puntos</span>
+        </span>
       </section>
+
+      <section className="zone zone-xp rise-in">
+        <p className="zone-kicker">Nivel {user.level}</p>
+        <Meter label="XP" value={user.need ? user.into / user.need : 0} caption={`${user.into}/${user.need}`} />
+      </section>
+      <div className="grid grid-cols-2 gap-3">
+        <section className="zone zone-day rise-in">
+          <Meter
+            label="Hoy"
+            ink
+            value={missions.dailyTotal ? missions.dailyRatio : 0}
+            caption={missions.dailyTotal ? `${missions.dailyDone}/${missions.dailyTotal}` : "—"}
+            marker={0.6}
+          />
+        </section>
+        <section className="zone zone-week rise-in">
+          <Meter
+            label="Semana"
+            value={missions.weeklyTotal ? missions.weeklyDone / missions.weeklyTotal : 0}
+            caption={missions.weeklyTotal ? `${missions.weeklyDone}/${missions.weeklyTotal}` : "—"}
+          />
+        </section>
+      </div>
 
       <NotifyCard
         enabled={user.notificationsEnabled}
@@ -87,22 +97,26 @@ function Meter({
   value,
   caption,
   marker,
+  ink,
 }: {
   label: string;
   value: number;
   caption: string;
   marker?: number;
+  ink?: boolean;
 }) {
   const width = `${Math.max(0, Math.min(100, Math.round(value * 100)))}%`;
   return (
-    <div className="mt-2">
-      <div className="mb-1 flex justify-between text-xs font-semibold">
+    <div className="mt-3">
+      <div className="mb-1.5 flex justify-between text-xs font-bold">
         <span>{label}</span>
         <span>{caption}</span>
       </div>
-      <div className="relative h-3 overflow-hidden rounded-full bg-white/30">
-        <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
-        {marker != null ? <div className="absolute inset-y-0 w-0.5 bg-gold" style={{ left: `${marker * 100}%` }} /> : null}
+        <div className={`relative h-3 overflow-hidden rounded-full ${ink ? "bg-[#2c241f]/15" : "bg-white/35"}`}>
+        <div className={`meter-fill h-full rounded-full ${ink ? "bg-[#2c241f]" : "bg-white"}`} style={{ width }} />
+        {marker != null ? (
+          <div className={`absolute inset-y-0 w-0.5 ${ink ? "bg-white" : "bg-gold"}`} style={{ left: `${marker * 100}%` }} />
+        ) : null}
       </div>
     </div>
   );

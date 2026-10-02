@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { rememberGain } from "@/components/gain-banner";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
 
@@ -78,7 +77,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/tasks/${task.id}/complete`, { method: "POST" });
-    const data = (await res.json()) as { error?: string; lines?: string[] };
+    const data = (await res.json()) as { error?: string };
     setBusy(false);
     if (!res.ok) {
       setPhase("idle");
@@ -86,7 +85,6 @@ export function TaskCard({ task }: { task: TaskView }) {
       return;
     }
     setPhase("strike");
-    rememberGain(data.lines ?? []);
   }
 
   async function upload(file: File) {
