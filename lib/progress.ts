@@ -154,7 +154,7 @@ export function deliverTask(userId: string, taskId: string): { ok: true; lines: 
   const task = getTask(taskId);
   if (!task || task.userId !== userId) return { ok: false, error: "No encontré esa tarea." };
   if (task.status === "done") return { ok: false, error: "Esa tarea ya está entregada." };
-  if ((task.needsFile || task.source === "lms") && !task.fileName) {
+  if (task.source === "lms" && !task.fileName) {
     return { ok: false, error: "Primero subí un archivo." };
   }
   const lines: string[] = [];

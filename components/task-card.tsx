@@ -32,7 +32,7 @@ export function TaskCard({ task }: { task: TaskView }) {
   const [fileName, setFileName] = useState(task.fileName);
   const [open, setOpen] = useState(task.kind === "archivo");
   const [refused, setRefused] = useState(false);
-  const needsUpload = task.kind === "archivo" || task.needsFile;
+  const needsUpload = task.kind === "archivo";
   const [lineTop, setLineTop] = useState(36);
   const cardRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);

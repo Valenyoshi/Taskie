@@ -54,19 +54,26 @@ export default async function InicioPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl">Para subir</h2>
-      </div>
-      {uploads.length === 0 ? (
-        <p className="rounded-2xl bg-card px-4 py-6 text-center text-sm ring-1 ring-foreground/10">
-          No hay puntos de entrega. Actualizá para traer los del aula.
-        </p>
-      ) : (
-        <div className="task-stack flex flex-col gap-3">
-          {uploads.map((task) => (
-            <TaskCard key={task.id} task={task} />
-          ))}
-        </div>
+      {uploads.length > 0 ? (
+        <>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl">Para subir</h2>
+          </div>
+          <div className="task-stack flex flex-col gap-3">
+            {uploads.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </div>
+        </>
+      ) : user.isDemo ? null : (
+        <>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-2xl">Para subir</h2>
+          </div>
+          <p className="rounded-2xl bg-card px-4 py-6 text-center text-sm ring-1 ring-foreground/10">
+            No hay puntos de entrega. Actualizá para traer los del aula.
+          </p>
+        </>
       )}
 
       {done.length > 0 ? (
