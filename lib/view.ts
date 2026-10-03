@@ -45,6 +45,8 @@ export type TaskView = {
   onTime: boolean | null;
   needsFile: boolean;
   kind: "tarea" | "archivo";
+  dueToday: boolean;
+  dueWeek: boolean;
   fileName: string | null;
   educamosUrl: string | null;
   pending: boolean;
@@ -115,17 +117,41 @@ export function toTask(task: Task, timeZone: string): TaskView {
     onTime: task.onTime,
     needsFile: task.needsFile,
     kind: task.source === "lms" ? "archivo" : "tarea",
+    dueToday: localDateString(new Date(task.dueAt), timeZone) === localDateString(new Date(), timeZone),
+    dueWeek: (() => {
+      const due = localDateString(new Date(task.dueAt), timeZone);
+      const start = weekStart(localDateString(new Date(), timeZone));
+      return due >= start && due <= addDays(start, 6);
+    })(),
     fileName: task.fileName,
     educamosUrl: task.educamosUrl,
     pending: task.status === "pending",
   };
 }
 
+function doneOn(task: Task, timeZone: string): string | null {
+  if (task.status !== "done" || !task.completedAt) return null;
+  return localDateString(new Date(task.completedAt), timeZone);
+}
+
+function countsForDay(task: Task, timeZone: string, day: string): boolean {
+  if (localDateString(new Date(task.dueAt), timeZone) === day) return true;
+  return doneOn(task, timeZone) === day;
+}
+
+function countsForWeek(task: Task, timeZone: string, start: string, end: string): boolean {
+  const due = localDateString(new Date(task.dueAt), timeZone);
+  if (due >= start && due <= end) return true;
+  const done = doneOn(task, timeZone);
+  return done != null && done >= start && done <= end;
+}
+
 export function missionView(user: User, tasks: Task[]): MissionView {
   const today = localDateString(new Date(), user.timezone);
   const start = weekStart(today);
-  const dueToday = tasksOnDay(tasks, user.timezone, today);
-  const week = tasksInWeek(tasks, user.timezone, start);
+  const end = addDays(start, 6);
+  const dueToday = tasks.filter((task) => countsForDay(task, user.timezone, today));
+  const week = tasks.filter((task) => countsForWeek(task, user.timezone, start, end));
   const dailyDone = onTimeTasks(dueToday).length;
   const weeklyDone = onTimeTasks(week).length;
   const dailyClosed = dueToday.filter((task) => task.status === "done").length;

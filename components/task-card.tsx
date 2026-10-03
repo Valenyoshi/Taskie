@@ -110,6 +110,9 @@ export function TaskCard({ task }: { task: TaskView }) {
       return;
     }
     setPhase("strike");
+    window.dispatchEvent(
+      new CustomEvent("racha-task-done", { detail: { dueToday: task.dueToday, dueWeek: task.dueWeek } }),
+    );
   }
 
   async function upload(file: File) {

@@ -167,13 +167,10 @@ export function deliverTask(userId: string, taskId: string): { ok: true; lines: 
     if (!markTaskDone(taskId, userId, completedAt, onTime)) {
       return { ok: false as const, error: "Esa tarea ya está entregada." };
     }
-    if (onTime) {
-      addXpPoints(userId, XP.onTime, POINTS.onTime);
-      lines.push(`Entrega a tiempo: +${XP.onTime} XP y +${POINTS.onTime} puntos.`);
-    } else {
-      addXpPoints(userId, XP.late, POINTS.late);
-      lines.push(`Entrega tarde: +${XP.late} XP y +${POINTS.late} puntos. No suma a las barras.`);
-    }
+    const points = Math.round((onTime ? POINTS.onTime : POINTS.late) * (task.source === "lms" ? 1.25 : 1));
+    const xp = onTime ? XP.onTime : XP.late;
+    addXpPoints(userId, xp, points);
+    lines.push(onTime ? `Entrega a tiempo: +${xp} XP y +${points} puntos.` : `Entrega tarde: +${xp} XP y +${points} puntos.`);
     applyMissions(userId, lines);
     applyAchievements(userId, lines);
     const afterUser = findUserById(userId);

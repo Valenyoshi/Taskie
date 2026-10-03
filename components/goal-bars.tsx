@@ -15,12 +15,36 @@ export function GoalBars({
   weeklyClosed: number;
   weeklyTotal: number;
 }) {
+  const [boost, setBoost] = useState({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
   const [zoom, setZoom] = useState({ day: false, week: false });
   const [confetti, setConfetti] = useState(false);
   const [bits, setBits] = useState<{ left: number; delay: number; color: string; drift: number; spin: number }[]>([]);
 
   useEffect(() => {
-    const snapshot = `${dailyClosed}/${dailyTotal}|${weeklyClosed}/${weeklyTotal}`;
+    function onDone(event: Event) {
+      const detail = (event as CustomEvent<{ dueToday?: boolean; dueWeek?: boolean }>).detail ?? {};
+      setBoost((current) => ({
+        dayClosed: current.dayClosed + 1,
+        dayTotal: current.dayTotal + (detail.dueToday ? 0 : 1),
+        weekClosed: current.weekClosed + 1,
+        weekTotal: current.weekTotal + (detail.dueWeek ? 0 : 1),
+      }));
+    }
+    window.addEventListener("racha-task-done", onDone);
+    return () => window.removeEventListener("racha-task-done", onDone);
+  }, []);
+
+  useEffect(() => {
+    setBoost({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
+  }, [dailyClosed, dailyTotal, weeklyClosed, weeklyTotal]);
+
+  const dayDone = dailyClosed + boost.dayClosed;
+  const dayNeed = dailyTotal + boost.dayTotal;
+  const weekDone = weeklyClosed + boost.weekClosed;
+  const weekNeed = weeklyTotal + boost.weekTotal;
+
+  useEffect(() => {
+    const snapshot = `${dayDone}/${dayNeed}|${weekDone}/${weekNeed}`;
     let alive = true;
     const timers: number[] = [];
     const later = (run: () => void, ms: number) => {
@@ -35,8 +59,8 @@ export function GoalBars({
       const [dayPart, weekPart] = previous.split("|");
       const [prevDay, prevDayTotal] = (dayPart ?? "0/0").split("/").map(Number);
       const [prevWeek, prevWeekTotal] = (weekPart ?? "0/0").split("/").map(Number);
-      const dayJust = prevDayTotal > 0 && prevDay < prevDayTotal && dailyTotal > 0 && dailyClosed === dailyTotal;
-      const weekJust = prevWeekTotal > 0 && prevWeek < prevWeekTotal && weeklyTotal > 0 && weeklyClosed === weeklyTotal;
+      const dayJust = prevDayTotal > 0 && prevDay < prevDayTotal && dayNeed > 0 && dayDone === dayNeed;
+      const weekJust = prevWeekTotal > 0 && prevWeek < prevWeekTotal && weekNeed > 0 && weekDone === weekNeed;
       if (!dayJust && !weekJust) return;
       setZoom({ day: dayJust, week: weekJust });
       setBits(
@@ -56,16 +80,16 @@ export function GoalBars({
       alive = false;
       timers.forEach((id) => window.clearTimeout(id));
     };
-  }, [dailyClosed, dailyTotal, weeklyClosed, weeklyTotal]);
+  }, [dayDone, dayNeed, weekDone, weekNeed]);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
         <section className={`zone zone-day rise-in ${zoom.day ? "goal-zoom" : ""}`}>
-          <Meter label="Hoy" done={dailyClosed} total={dailyTotal} />
+          <Meter label="Hoy" done={dayDone} total={dayNeed} />
         </section>
         <section className={`zone zone-week rise-in ${zoom.week ? "goal-zoom" : ""}`}>
-          <Meter label="Semana" done={weeklyClosed} total={weeklyTotal} />
+          <Meter label="Semana" done={weekDone} total={weekNeed} />
         </section>
       </div>
       {confetti ? (
