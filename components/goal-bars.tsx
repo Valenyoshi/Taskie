@@ -19,6 +19,8 @@ export function GoalBars({
   const weekRef = useRef<HTMLElement>(null);
   const [boost, setBoost] = useState({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
   const [check, setCheck] = useState({ day: false, week: false });
+  const [leaving, setLeaving] = useState({ day: false, week: false });
+  const [gone, setGone] = useState({ day: false, week: false });
   const [confetti, setConfetti] = useState(false);
   const [bits, setBits] = useState<{ left: number; delay: number; color: string; drift: number; spin: number }[]>([]);
 
@@ -61,6 +63,10 @@ export function GoalBars({
       sessionStorage.setItem("racha-goals", snapshot);
       if (!previous || previous === snapshot) {
         setShown(next);
+        setGone({
+          day: dayNeed > 0 && dayDone === dayNeed,
+          week: weekNeed > 0 && weekDone === weekNeed,
+        });
         return;
       }
       const [dayPart, weekPart] = previous.split("|");
@@ -84,11 +90,14 @@ export function GoalBars({
         })),
       );
       later(() => setShown(next), 900);
-      later(() => setCheck({ day: dayJust, week: weekJust }), 1900);
-      later(() => setCheck({ day: false, week: false }), 3100);
-      later(() => setConfetti(true), 3100);
+      later(() => setCheck({ day: dayJust, week: weekJust }), 1800);
+      later(() => setConfetti(true), 2600);
       later(() => {
         setConfetti(false);
+        setLeaving({ day: dayJust, week: weekJust });
+      }, 4400);
+      later(() => {
+        setGone({ day: dayJust, week: weekJust });
         releasePage();
       }, 4900);
     }, 40);
@@ -102,14 +111,26 @@ export function GoalBars({
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        <section ref={dayRef} className="zone zone-day rise-in">
-          <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
-          {check.day ? <GoalCheck /> : null}
-        </section>
-        <section ref={weekRef} className="zone zone-week rise-in">
-          <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} />
-          {check.week ? <GoalCheck /> : null}
-        </section>
+        {gone.day ? <div /> : (
+          <section ref={dayRef} className={`zone zone-day rise-in ${leaving.day ? "task-leave" : ""}`}>
+            <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
+            {check.day ? (
+              <div className="card-cover" aria-hidden>
+                <span className="card-cover-mark">✓</span>
+              </div>
+            ) : null}
+          </section>
+        )}
+        {gone.week ? <div /> : (
+          <section ref={weekRef} className={`zone zone-week rise-in ${leaving.week ? "task-leave" : ""}`}>
+            <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} />
+            {check.week ? (
+              <div className="card-cover" aria-hidden>
+                <span className="card-cover-mark">✓</span>
+              </div>
+            ) : null}
+          </section>
+        )}
       </div>
       {confetti ? (
         <div className="confetti-screen" aria-hidden>
@@ -148,14 +169,6 @@ function releasePage() {
     root.style.transform = "";
     root.style.transformOrigin = "";
   }, 900);
-}
-
-function GoalCheck() {
-  return (
-    <div className="goal-check" aria-hidden>
-      <span>✓</span>
-    </div>
-  );
 }
 
 function Meter({ label, done, total }: { label: string; done: number; total: number }) {

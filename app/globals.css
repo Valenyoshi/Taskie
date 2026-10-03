@@ -775,6 +775,11 @@
   background: linear-gradient(160deg, #e25b45, #c44532);
 }
 
+.zone-day,
+.zone-week {
+  overflow: hidden;
+}
+
 .zone-day {
   background: linear-gradient(165deg, #f3c04a, #e8a317);
   color: var(--ink);
