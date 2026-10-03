@@ -154,11 +154,10 @@ export function homeData(userId: string) {
     (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone),
   );
   const views = tasks.map((task) => toTask(task, user.timezone));
-  const homework = tasks.filter((task) => task.source !== "lms");
-  const completed = homework.filter((task) => task.status === "done").length;
+  const completed = tasks.filter((task) => task.status === "done").length;
   return {
     user: toPublic(user, completed),
-    missions: missionView(user, homework),
+    missions: missionView(user, tasks),
     pending: views.filter((task) => task.pending),
     done: views.filter((task) => !task.pending),
     pullCost: PULL_COST,
