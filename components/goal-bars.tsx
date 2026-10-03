@@ -44,9 +44,11 @@ export function GoalBars({
   const dayNeed = dailyTotal + boost.dayTotal;
   const weekDone = weeklyClosed + boost.weekClosed;
   const weekNeed = weeklyTotal + boost.weekTotal;
+  const [shown, setShown] = useState({ dayDone, dayNeed, weekDone, weekNeed });
 
   useEffect(() => {
     const snapshot = `${dayDone}/${dayNeed}|${weekDone}/${weekNeed}`;
+    const next = { dayDone, dayNeed, weekDone, weekNeed };
     let alive = true;
     const timers: number[] = [];
     const later = (run: () => void, ms: number) => {
@@ -57,13 +59,19 @@ export function GoalBars({
     later(() => {
       const previous = sessionStorage.getItem("racha-goals");
       sessionStorage.setItem("racha-goals", snapshot);
-      if (!previous || previous === snapshot) return;
+      if (!previous || previous === snapshot) {
+        setShown(next);
+        return;
+      }
       const [dayPart, weekPart] = previous.split("|");
       const [prevDay, prevDayTotal] = (dayPart ?? "0/0").split("/").map(Number);
       const [prevWeek, prevWeekTotal] = (weekPart ?? "0/0").split("/").map(Number);
       const dayJust = prevDayTotal > 0 && prevDay < prevDayTotal && dayNeed > 0 && dayDone === dayNeed;
       const weekJust = prevWeekTotal > 0 && prevWeek < prevWeekTotal && weekNeed > 0 && weekDone === weekNeed;
-      if (!dayJust && !weekJust) return;
+      if (!dayJust && !weekJust) {
+        setShown(next);
+        return;
+      }
       const target = (dayJust ? dayRef.current : weekRef.current) ?? dayRef.current;
       if (target) focusPage(target);
       setBits(
@@ -75,13 +83,14 @@ export function GoalBars({
           spin: 180 + (index % 6) * 60,
         })),
       );
-      later(() => setConfetti(true), 820);
-      later(() => setConfetti(false), 2500);
-      later(() => setCheck({ day: dayJust, week: weekJust }), 2500);
+      later(() => setShown(next), 900);
+      later(() => setCheck({ day: dayJust, week: weekJust }), 1900);
+      later(() => setCheck({ day: false, week: false }), 3100);
+      later(() => setConfetti(true), 3100);
       later(() => {
-        setCheck({ day: false, week: false });
+        setConfetti(false);
         releasePage();
-      }, 3700);
+      }, 4900);
     }, 40);
     return () => {
       alive = false;
@@ -94,11 +103,11 @@ export function GoalBars({
     <>
       <div className="grid grid-cols-2 gap-3">
         <section ref={dayRef} className="zone zone-day rise-in">
-          <Meter label="Hoy" done={dayDone} total={dayNeed} />
+          <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
           {check.day ? <GoalCheck /> : null}
         </section>
         <section ref={weekRef} className="zone zone-week rise-in">
-          <Meter label="Semana" done={weekDone} total={weekNeed} />
+          <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} />
           {check.week ? <GoalCheck /> : null}
         </section>
       </div>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Medal } from "@/components/medal";
 import { PencilCase } from "@/components/pencil-case";
+import { PrizeReveal } from "@/components/prize-reveal";
 import { PullMachine } from "@/components/pull-machine";
 import { getCurrentUser } from "@/lib/session";
 import { rewardsData } from "@/lib/view";
@@ -12,8 +13,7 @@ export default async function PremiosPage() {
   if (!data) redirect("/entrar");
 
   return (
-    <div className="flex flex-col gap-4">
-      <PullMachine points={data.user.points} cost={data.pullCost} missing={data.missing} />
+    <PrizeReveal machine={<PullMachine points={data.user.points} cost={data.pullCost} missing={data.missing} />}>
       <PencilCase items={data.items.filter((item) => item.owned).map((item) => ({ id: item.id, name: item.name }))} />
 
       <section>
@@ -30,6 +30,6 @@ export default async function PremiosPage() {
           <Medal key={item.id} unlocked={false} secret label={item.name} />
         ))}
       </div>
-    </div>
+    </PrizeReveal>
   );
 }

@@ -839,6 +839,10 @@
   100% { transform: translate3d(var(--drift), 100vh, 0) rotate(var(--spin)); opacity: 0; }
 }
 
+.prize-below {
+  transition: filter 0.2s linear, opacity 0.2s linear;
+}
+
 .prize-drop {
   animation: drop-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
