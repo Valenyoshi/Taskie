@@ -160,9 +160,10 @@ function pageRoot(): HTMLElement {
 function focusPage(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
   const root = pageRoot();
+  const cover = Math.max(window.innerWidth / rect.width, window.innerHeight / rect.height) * 1.08;
   root.style.transformOrigin = `${rect.left + rect.width / 2}px ${rect.top + rect.height / 2}px`;
   root.style.transition = "transform 0.85s cubic-bezier(0.22, 0.8, 0.28, 1)";
-  root.style.transform = "scale(1.7)";
+  root.style.transform = `scale(${cover})`;
 }
 
 function releasePage() {
