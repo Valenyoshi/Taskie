@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const COLORS = ["#e25b45", "#e8a317", "#1c7c6e", "#fff6d8", "#f3c04a"];
 
@@ -47,18 +48,17 @@ export function GoalBars({
   const weekDone = weeklyClosed + boost.weekClosed;
   const weekNeed = weeklyTotal + boost.weekTotal;
   const [shown, setShown] = useState({ dayDone, dayNeed, weekDone, weekNeed });
+  const party = useRef(false);
 
   useEffect(() => {
     const snapshot = `${dayDone}/${dayNeed}|${weekDone}/${weekNeed}`;
     const next = { dayDone, dayNeed, weekDone, weekNeed };
-    let alive = true;
-    const timers: number[] = [];
+    if (party.current) return;
     const later = (run: () => void, ms: number) => {
-      timers.push(window.setTimeout(() => {
-        if (alive) run();
-      }, ms));
+      window.setTimeout(run, ms);
     };
     later(() => {
+      if (party.current) return;
       const previous = sessionStorage.getItem("racha-goals");
       sessionStorage.setItem("racha-goals", snapshot);
       if (!previous || previous === snapshot) {
@@ -78,6 +78,7 @@ export function GoalBars({
         setShown(next);
         return;
       }
+      party.current = true;
       const target = (dayJust ? dayRef.current : weekRef.current) ?? dayRef.current;
       if (target) focusPage(target);
       setBits(
@@ -90,22 +91,18 @@ export function GoalBars({
         })),
       );
       later(() => setShown(next), 900);
-      later(() => setCheck({ day: dayJust, week: weekJust }), 1800);
-      later(() => setConfetti(true), 2600);
       later(() => {
+        setCheck({ day: dayJust, week: weekJust });
+        setConfetti(true);
+      }, 1800);
+      later(() => setLeaving({ day: dayJust, week: weekJust }), 4200);
+      later(() => {
+        setGone((current) => ({ day: current.day || dayJust, week: current.week || weekJust }));
         setConfetti(false);
-        setLeaving({ day: dayJust, week: weekJust });
-      }, 4400);
-      later(() => {
-        setGone({ day: dayJust, week: weekJust });
+        party.current = false;
         releasePage();
-      }, 4900);
+      }, 5200);
     }, 40);
-    return () => {
-      alive = false;
-      timers.forEach((id) => window.clearTimeout(id));
-      if (document.documentElement.style.transform) releasePage();
-    };
   }, [dayDone, dayNeed, weekDone, weekNeed]);
 
   return (
@@ -132,37 +129,44 @@ export function GoalBars({
           </section>
         )}
       </div>
-      {confetti ? (
-        <div className="confetti-screen" aria-hidden>
-          {bits.map((bit, index) => (
-            <span
-              key={index}
-              className="confetti-bit"
-              style={{
-                left: `${bit.left}%`,
-                background: bit.color,
-                animationDelay: `${bit.delay}s`,
-                ["--drift" as string]: `${bit.drift}px`,
-                ["--spin" as string]: `${bit.spin}deg`,
-              }}
-            />
-          ))}
-        </div>
-      ) : null}
+      {confetti
+        ? createPortal(
+            <div className="confetti-screen" aria-hidden>
+              {bits.map((bit, index) => (
+                <span
+                  key={index}
+                  className="confetti-bit"
+                  style={{
+                    left: `${bit.left}%`,
+                    background: bit.color,
+                    animationDelay: `${bit.delay}s`,
+                    ["--drift" as string]: `${bit.drift}px`,
+                    ["--spin" as string]: `${bit.spin}deg`,
+                  }}
+                />
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
 
+function pageRoot(): HTMLElement {
+  return document.querySelector("[data-theme]") ?? document.body;
+}
+
 function focusPage(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
-  const root = document.documentElement;
+  const root = pageRoot();
   root.style.transformOrigin = `${rect.left + rect.width / 2}px ${rect.top + rect.height / 2}px`;
   root.style.transition = "transform 0.85s cubic-bezier(0.22, 0.8, 0.28, 1)";
   root.style.transform = "scale(1.7)";
 }
 
 function releasePage() {
-  const root = document.documentElement;
+  const root = pageRoot();
   root.style.transform = "scale(1)";
   window.setTimeout(() => {
     root.style.transition = "";

@@ -824,18 +824,18 @@
 .confetti-screen {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 80;
   overflow: hidden;
   pointer-events: none;
 }
 
 .confetti-bit {
   position: absolute;
-  top: -16px;
-  width: 8px;
-  height: 12px;
+  top: -20px;
+  width: 12px;
+  height: 18px;
   border-radius: 2px;
-  animation: confetti-fall 1.7s ease-in forwards;
+  animation: confetti-fall 2.1s ease-in forwards;
 }
 
 @keyframes confetti-fall {
