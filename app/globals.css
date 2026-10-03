@@ -765,6 +765,7 @@
 }
 
 .zone {
+  position: relative;
   border-radius: 24px;
   padding: 14px 16px 16px;
   color: white;
@@ -789,16 +790,30 @@
   line-height: 1;
 }
 
-.goal-zoom {
-  position: relative;
-  z-index: 5;
-  animation: goal-zoom 0.7s ease;
+.goal-check {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
 }
 
-@keyframes goal-zoom {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+.goal-check span {
+  color: #1f9d55;
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  background: none;
+  box-shadow: none;
+  animation: goal-check-life 1.15s ease forwards;
+}
+
+@keyframes goal-check-life {
+  0% { opacity: 0; transform: scale(0.7); }
+  20% { opacity: 1; transform: scale(1); }
+  65% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.92); }
 }
 
 .confetti-screen {

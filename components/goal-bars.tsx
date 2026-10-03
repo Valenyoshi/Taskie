@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const COLORS = ["#e25b45", "#e8a317", "#1c7c6e", "#fff6d8", "#f3c04a"];
 
@@ -15,8 +15,10 @@ export function GoalBars({
   weeklyClosed: number;
   weeklyTotal: number;
 }) {
+  const dayRef = useRef<HTMLElement>(null);
+  const weekRef = useRef<HTMLElement>(null);
   const [boost, setBoost] = useState({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
-  const [zoom, setZoom] = useState({ day: false, week: false });
+  const [check, setCheck] = useState({ day: false, week: false });
   const [confetti, setConfetti] = useState(false);
   const [bits, setBits] = useState<{ left: number; delay: number; color: string; drift: number; spin: number }[]>([]);
 
@@ -62,7 +64,8 @@ export function GoalBars({
       const dayJust = prevDayTotal > 0 && prevDay < prevDayTotal && dayNeed > 0 && dayDone === dayNeed;
       const weekJust = prevWeekTotal > 0 && prevWeek < prevWeekTotal && weekNeed > 0 && weekDone === weekNeed;
       if (!dayJust && !weekJust) return;
-      setZoom({ day: dayJust, week: weekJust });
+      const target = (dayJust ? dayRef.current : weekRef.current) ?? dayRef.current;
+      if (target) focusPage(target);
       setBits(
         Array.from({ length: 56 }, (_, index) => ({
           left: Math.round((index * 17) % 100),
@@ -72,24 +75,31 @@ export function GoalBars({
           spin: 180 + (index % 6) * 60,
         })),
       );
-      later(() => setConfetti(true), 420);
-      later(() => setZoom({ day: false, week: false }), 900);
-      later(() => setConfetti(false), 2300);
+      later(() => setConfetti(true), 820);
+      later(() => setConfetti(false), 2500);
+      later(() => setCheck({ day: dayJust, week: weekJust }), 2500);
+      later(() => {
+        setCheck({ day: false, week: false });
+        releasePage();
+      }, 3700);
     }, 40);
     return () => {
       alive = false;
       timers.forEach((id) => window.clearTimeout(id));
+      if (document.documentElement.style.transform) releasePage();
     };
   }, [dayDone, dayNeed, weekDone, weekNeed]);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        <section className={`zone zone-day rise-in ${zoom.day ? "goal-zoom" : ""}`}>
+        <section ref={dayRef} className="zone zone-day rise-in">
           <Meter label="Hoy" done={dayDone} total={dayNeed} />
+          {check.day ? <GoalCheck /> : null}
         </section>
-        <section className={`zone zone-week rise-in ${zoom.week ? "goal-zoom" : ""}`}>
+        <section ref={weekRef} className="zone zone-week rise-in">
           <Meter label="Semana" done={weekDone} total={weekNeed} />
+          {check.week ? <GoalCheck /> : null}
         </section>
       </div>
       {confetti ? (
@@ -110,6 +120,32 @@ export function GoalBars({
         </div>
       ) : null}
     </>
+  );
+}
+
+function focusPage(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const root = document.documentElement;
+  root.style.transformOrigin = `${rect.left + rect.width / 2}px ${rect.top + rect.height / 2}px`;
+  root.style.transition = "transform 0.85s cubic-bezier(0.22, 0.8, 0.28, 1)";
+  root.style.transform = "scale(1.7)";
+}
+
+function releasePage() {
+  const root = document.documentElement;
+  root.style.transform = "scale(1)";
+  window.setTimeout(() => {
+    root.style.transition = "";
+    root.style.transform = "";
+    root.style.transformOrigin = "";
+  }, 900);
+}
+
+function GoalCheck() {
+  return (
+    <div className="goal-check" aria-hidden>
+      <span>✓</span>
+    </div>
   );
 }
 
