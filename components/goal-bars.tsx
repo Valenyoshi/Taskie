@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
 const COLORS = ["#e25b45", "#e8a317", "#1c7c6e", "#fff6d8", "#f3c04a"];
@@ -16,8 +16,8 @@ export function GoalBars({
   weeklyClosed: number;
   weeklyTotal: number;
 }) {
-  const dayRef = useRef<HTMLElement>(null);
-  const weekRef = useRef<HTMLElement>(null);
+  const dayRef = useRef<HTMLDivElement>(null);
+  const weekRef = useRef<HTMLDivElement>(null);
   const [boost, setBoost] = useState({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
   const [check, setCheck] = useState({ day: false, week: false });
   const [leaving, setLeaving] = useState({ day: false, week: false });
@@ -109,8 +109,8 @@ export function GoalBars({
     <>
       <div className="grid grid-cols-2 gap-3">
         {gone.day ? <div /> : (
-          <section ref={dayRef} className={`zone zone-day rise-in ${leaving.day ? "task-leave" : ""}`}>
-            <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
+          <section className={`zone zone-day rise-in ${leaving.day ? "task-leave" : ""}`}>
+            <Meter meterRef={dayRef} label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
             {check.day ? (
               <div className="card-cover" aria-hidden>
                 <span className="card-cover-mark">✓</span>
@@ -119,8 +119,8 @@ export function GoalBars({
           </section>
         )}
         {gone.week ? <div /> : (
-          <section ref={weekRef} className={`zone zone-week rise-in ${leaving.week ? "task-leave" : ""}`}>
-            <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} />
+          <section className={`zone zone-week rise-in ${leaving.week ? "task-leave" : ""}`}>
+            <Meter meterRef={weekRef} label="Semana" done={shown.weekDone} total={shown.weekNeed} />
             {check.week ? (
               <div className="card-cover" aria-hidden>
                 <span className="card-cover-mark">✓</span>
@@ -163,7 +163,7 @@ function focusPage(el: HTMLElement) {
   const rootRect = root.getBoundingClientRect();
   const x = rect.left - rootRect.left + rect.width / 2;
   const y = rect.top - rootRect.top + rect.height / 2;
-  const cover = Math.max(window.innerWidth / rect.width, window.innerHeight / rect.height) * 1.08;
+  const cover = (window.innerWidth / Math.max(rect.width, 1)) * 0.9;
   root.style.transformOrigin = `${x}px ${y}px`;
   root.style.transition = "transform 0.85s cubic-bezier(0.22, 0.8, 0.28, 1)";
   root.style.transform = `scale(${cover})`;
@@ -179,10 +179,20 @@ function releasePage() {
   }, 900);
 }
 
-function Meter({ label, done, total }: { label: string; done: number; total: number }) {
+function Meter({
+  meterRef,
+  label,
+  done,
+  total,
+}: {
+  meterRef: RefObject<HTMLDivElement | null>;
+  label: string;
+  done: number;
+  total: number;
+}) {
   const width = `${total ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0}%`;
   return (
-    <div className="mt-3">
+    <div ref={meterRef} className="mt-3">
       <div className="mb-1.5 flex justify-between text-xs font-bold">
         <span>{label}</span>
         <span>{done}/{total}</span>
