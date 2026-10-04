@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CountUp } from "@/components/count-up";
-import { SchoolIcon } from "@/components/school-icon";
+import { HatIcon, SchoolIcon } from "@/components/school-icon";
 import { REWARDS } from "@/lib/catalog";
 import { rarityLabel, type Rarity } from "@/lib/game";
 
@@ -101,7 +101,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
       </button>
       <div className="gacha-base">
         <div className="points-corral machine">
-          <span className="points-coin" aria-hidden />
+          <HatIcon size={34} />
           <span>
             <span className="points-value">{missing > 0 ? missing : <CountUp value={points} />}</span>
             <span className="points-label">{missing > 0 ? "faltan" : points === 1 ? "sombrero" : "sombreros"}</span>

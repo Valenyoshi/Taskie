@@ -1,4 +1,5 @@
 import { CountUp } from "@/components/count-up";
+import { HatIcon } from "@/components/school-icon";
 import { GoalBars } from "@/components/goal-bars";
 import { SyncButton } from "@/components/sync-button";
 import { TaskCard } from "@/components/task-card";
@@ -18,7 +19,7 @@ export default async function InicioPage() {
   return (
     <div className="flex flex-col gap-4">
       <section className="points-corral rise-in">
-        <span className="points-coin" aria-hidden />
+        <HatIcon />
         <span>
           <span className="points-value">
             <CountUp value={user.points} />
