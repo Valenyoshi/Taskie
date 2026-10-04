@@ -101,7 +101,7 @@ type TaskRow = {
   created_at: string;
 };
 
-const globalForDb = globalThis as unknown as { rachaDb?: Database.Database };
+const globalForDb = globalThis as unknown as { rachaDb?: Database.Database; rachaTuned?: boolean };
 
 function mapUser(row: UserRow): User {
   return {
@@ -268,6 +268,19 @@ export function getDb(): Database.Database {
     globalForDb.rachaDb.exec(
       "UPDATE users SET spins = (SELECT COUNT(*) FROM user_rewards WHERE user_rewards.user_id = users.id)",
     );
+  }
+  if (!globalForDb.rachaTuned) {
+    globalForDb.rachaDb.pragma("journal_mode = WAL");
+    globalForDb.rachaDb.pragma("busy_timeout = 4000");
+    globalForDb.rachaDb.pragma("synchronous = NORMAL");
+    globalForDb.rachaDb.pragma("temp_store = MEMORY");
+    globalForDb.rachaDb.exec(`
+      CREATE INDEX IF NOT EXISTS idx_tasks_user_due ON tasks(user_id, due_at);
+      CREATE INDEX IF NOT EXISTS idx_chat_user_time ON chat_messages(user_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_rewards_user ON user_rewards(user_id);
+      CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+    `);
+    globalForDb.rachaTuned = true;
   }
   return globalForDb.rachaDb;
 }
@@ -497,6 +510,17 @@ export function countDoneTasksByUser(): Record<string, number> {
   return Object.fromEntries(rows.map((row) => [row.userId, row.n]));
 }
 
+export function rewardIdsByUser(): Record<string, string[]> {
+  const rows = getDb().prepare("SELECT user_id, reward_id FROM user_rewards").all() as { user_id: string; reward_id: string }[];
+  const grouped: Record<string, string[]> = {};
+  for (const row of rows) {
+    const list = grouped[row.user_id] ?? [];
+    list.push(row.reward_id);
+    grouped[row.user_id] = list;
+  }
+  return grouped;
+}
+
 export function listRewardIds(userId: string): string[] {
   const rows = getDb()
     .prepare("SELECT reward_id FROM user_rewards WHERE user_id = ? ORDER BY obtained_at ASC")
@@ -513,9 +537,13 @@ export function addReward(userId: string, rewardId: string): boolean {
 
 export function listMessages(userId: string): ChatMessage[] {
   const rows = getDb()
-    .prepare("SELECT id, role, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC")
+    .prepare(
+      "SELECT id, role, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 80",
+    )
     .all(userId) as { id: string; role: "user" | "assistant"; content: string; created_at: string }[];
-  return rows.map((row) => ({ id: row.id, role: row.role, content: row.content, createdAt: row.created_at }));
+  return rows
+    .reverse()
+    .map((row) => ({ id: row.id, role: row.role, content: row.content, createdAt: row.created_at }));
 }
 
 export function addMessage(userId: string, role: "user" | "assistant", content: string): ChatMessage {

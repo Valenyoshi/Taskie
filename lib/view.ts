@@ -1,5 +1,5 @@
 import { ACHIEVEMENTS, REWARDS, frameClass, kindLabel, rewardById, scoreRewards, themeKey } from "./catalog";
-import { countDoneTasksByUser, findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, listUsers, type Task, type User } from "./db";
+import { countDoneTasksByUser, findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, listUsers, rewardIdsByUser, type Task, type User } from "./db";
 import { levelFromTasks, PULL_COST, rarityLabel } from "./game";
 import {
   bestCompletionsSameDay,
@@ -274,8 +274,9 @@ export function rankingData(userId: string) {
   const me = findUserById(userId);
   if (!me) return null;
   const doneByUser = countDoneTasksByUser();
+  const rewards = rewardIdsByUser();
   const rows = listUsers().map((user) => {
-    const ids = listRewardIds(user.id);
+    const ids = rewards[user.id] ?? [];
     return {
       id: user.id,
       name: user.name,

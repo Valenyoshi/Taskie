@@ -32,10 +32,14 @@ export async function runReminders(now = new Date()): Promise<void> {
       const subjects = [...new Set(dueToday.map((task) => task.subject))];
       const body = subjects.slice(0, 4).join(", ");
       for (const sub of subs) {
-        await sendPush(sub, {
-          title: dueToday.length === 1 ? "Hoy tenés 1 tarea" : `Hoy tenés ${dueToday.length} tareas`,
-          body,
-        });
+        try {
+          await sendPush(sub, {
+            title: dueToday.length === 1 ? "Hoy tenés 1 tarea" : `Hoy tenés ${dueToday.length} tareas`,
+            body,
+          });
+        } catch {
+          // Un aviso que falla no frena al resto.
+        }
       }
       logNotification(user.id, "digest", today, today);
     }
@@ -47,10 +51,14 @@ export async function runReminders(now = new Date()): Promise<void> {
       const ref = `${task.id}:${today}`;
       if (hasNotification(user.id, "soon", ref)) continue;
       for (const sub of subs) {
-        await sendPush(sub, {
-          title: `Entrega pronto: ${task.title}`,
-          body: `${task.subject}. Sigue pendiente.`,
-        });
+        try {
+          await sendPush(sub, {
+            title: `Entrega pronto: ${task.title}`,
+            body: `${task.subject}. Sigue pendiente.`,
+          });
+        } catch {
+          // Un aviso que falla no frena al resto.
+        }
       }
       logNotification(user.id, "soon", ref, today);
     }

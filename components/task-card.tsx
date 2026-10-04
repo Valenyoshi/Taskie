@@ -100,8 +100,17 @@ export function TaskCard({ task }: { task: TaskView }) {
     setPhase("loading");
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/tasks/${task.id}/complete`, { method: "POST" });
-    const data = (await res.json()) as { error?: string };
+    let res: Response;
+    let data: { error?: string };
+    try {
+      res = await fetch(`/api/tasks/${task.id}/complete`, { method: "POST" });
+      data = (await res.json()) as { error?: string };
+    } catch {
+      setBusy(false);
+      setPhase("idle");
+      setError("No se pudo marcar.");
+      return;
+    }
     setBusy(false);
     if (!res.ok) {
       setPhase("idle");
@@ -120,8 +129,16 @@ export function TaskCard({ task }: { task: TaskView }) {
     setError(null);
     const body = new FormData();
     body.set("file", file);
-    const res = await fetch(`/api/tasks/${task.id}/file`, { method: "POST", body });
-    const data = (await res.json()) as { error?: string; fileName?: string };
+    let res: Response;
+    let data: { error?: string; fileName?: string };
+    try {
+      res = await fetch(`/api/tasks/${task.id}/file`, { method: "POST", body });
+      data = (await res.json()) as { error?: string; fileName?: string };
+    } catch {
+      setBusy(false);
+      setError("No se pudo subir.");
+      return;
+    }
     setBusy(false);
     if (!res.ok) {
       setError(data.error ?? "No se pudo subir.");

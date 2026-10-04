@@ -11,8 +11,16 @@ export function SyncButton() {
   async function sync() {
     setBusy(true);
     setMessage(null);
-    const res = await fetch("/api/sync", { method: "POST" });
-    const data = (await res.json()) as { error?: string; count?: number };
+    let res: Response;
+    let data: { error?: string; count?: number };
+    try {
+      res = await fetch("/api/sync", { method: "POST" });
+      data = (await res.json()) as { error?: string; count?: number };
+    } catch {
+      setBusy(false);
+      setMessage("No pude actualizar.");
+      return;
+    }
     setBusy(false);
     if (!res.ok) {
       setMessage(data.error ?? "No pude actualizar.");

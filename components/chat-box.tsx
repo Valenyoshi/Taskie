@@ -21,12 +21,20 @@ export function ChatBox({ initial }: { initial: Message[] }) {
     setError(null);
     setBusy(true);
     setMessages((current) => [...current, { id: `local-${Date.now()}`, role: "user", content: message }]);
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
-    const data = (await res.json()) as { error?: string; reply?: Message };
+    let res: Response;
+    let data: { error?: string; reply?: Message };
+    try {
+      res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      data = (await res.json()) as { error?: string; reply?: Message };
+    } catch {
+      setBusy(false);
+      setError("No pude responder.");
+      return;
+    }
     setBusy(false);
     if (!res.ok || !data.reply) {
       setError(data.error ?? "No pude responder.");

@@ -10,7 +10,11 @@ export async function POST(request: Request) {
   if (!message || message.length > 2000) return json({ error: "Escribí una pregunta, de hasta 2000 caracteres." }, 400);
   const history = listMessages(user.id);
   addMessage(user.id, "user", message);
-  const answer = await answerWithModel(message, history, user);
-  const saved = addMessage(user.id, "assistant", answer);
-  return json({ ok: true, reply: saved });
+  try {
+    const answer = await answerWithModel(message, history, user);
+    const saved = addMessage(user.id, "assistant", answer);
+    return json({ ok: true, reply: saved });
+  } catch {
+    return json({ error: "No pude responder ahora." }, 500);
+  }
 }

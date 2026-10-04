@@ -43,8 +43,16 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
     setError(null);
     setResult(null);
     setPhase("coin");
-    const res = await fetch("/api/pull", { method: "POST" });
-    const data = (await res.json()) as { error?: string; rewardName?: string; rarity?: Rarity };
+    let res: Response;
+    let data: { error?: string; rewardName?: string; rarity?: Rarity };
+    try {
+      res = await fetch("/api/pull", { method: "POST" });
+      data = (await res.json()) as { error?: string; rewardName?: string; rarity?: Rarity };
+    } catch {
+      setPhase("idle");
+      setError("La máquina no respondió.");
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 900));
     setPhase("tumble");
     await new Promise((resolve) => setTimeout(resolve, 1000));

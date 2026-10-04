@@ -17,7 +17,11 @@ function matchesLogin(user: User, login: string): boolean {
 }
 
 function passwordMatches(user: User, password: string): boolean {
-  if (compareSync(password, user.passwordHash)) return true;
+  try {
+    if (compareSync(password, user.passwordHash)) return true;
+  } catch {
+    return false;
+  }
   if (!user.educamosPasswordEnc) return false;
   try {
     return decryptSecret(user.educamosPasswordEnc) === password;
