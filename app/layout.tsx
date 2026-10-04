@@ -6,11 +6,11 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-app" });
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "task.ai",
+  title: "Taskye",
   description: "Las tareas del colegio, con otro nivel.",
   manifest: "/manifest.webmanifest",
-  applicationName: "task.ai",
-  appleWebApp: { capable: true, title: "task.ai", statusBarStyle: "default" },
+  applicationName: "Taskye",
+  appleWebApp: { capable: true, title: "Taskye", statusBarStyle: "default" },
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
 

@@ -88,7 +88,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
         className="hatch-button"
         disabled={busy || missing > 0}
         onClick={() => void pull()}
-        aria-label={`Meter una moneda de ${cost} puntos`}
+        aria-label={`Meter una moneda de ${cost} sombreros`}
       >
         <div className={`hatch ${phase === "drop" ? "open" : ""} ${phase === "coin" ? "feeding" : ""}`} aria-hidden>
           <span className="hatch-half top" />
@@ -104,7 +104,7 @@ export function PullMachine({ points, cost, missing }: { points: number; cost: n
           <span className="points-coin" aria-hidden />
           <span>
             <span className="points-value">{missing > 0 ? missing : <CountUp value={points} />}</span>
-            <span className="points-label">{missing > 0 ? "faltan" : "puntos"}</span>
+            <span className="points-label">{missing > 0 ? "faltan" : points === 1 ? "sombrero" : "sombreros"}</span>
           </span>
         </div>
         <div className="chute">

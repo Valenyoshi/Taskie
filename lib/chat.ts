@@ -22,8 +22,8 @@ export function taskSnapshot(user: User, tasks: Task[]): string {
   });
   const level = levelFromTasks(tasks.filter((task) => task.status === "done").length);
   return [
-    `Alumno: ${user.name}. Nivel ${level.level} (${level.into}/${level.need} XP), ${user.points} puntos, racha ${user.streak}.`,
-    `Cada 2 tareas alcanzan para un giro de ${PULL_COST} puntos.`,
+    `Alumno: ${user.name}. Nivel ${level.level} (${level.into}/${level.need} XP), ${user.points} sombreros, racha ${user.streak}.`,
+    `Cada 2 tareas alcanzan para un giro de ${PULL_COST} sombreros.`,
     lines.length ? lines.join("\n") : "No hay tareas cargadas.",
   ].join("\n");
 }
@@ -68,8 +68,8 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   if (/punto|tirada|maquina|máquina/.test(q)) {
     const missing = Math.max(0, PULL_COST - user.points);
     return missing === 0
-      ? `${intro}Tenés ${user.points} puntos. Ya te alcanza para una tirada de ${PULL_COST}.`
-      : `${intro}Tenés ${user.points} puntos. Te faltan ${missing} para una tirada de ${PULL_COST}. Cada 2 tareas alcanzan.`;
+      ? `${intro}Tenés ${user.points} sombreros. Ya te alcanza para una tirada de ${PULL_COST}.`
+      : `${intro}Tenés ${user.points} sombreros. Te faltan ${missing} para una tirada de ${PULL_COST}. Cada 2 tareas alcanzan.`;
   }
 
   if (/nivel|xp|experiencia|racha/.test(q)) {
@@ -77,7 +77,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   }
 
   const next = pending[0];
-  return `${intro}Puedo decirte qué vence hoy, de qué materia es y cómo vas con los puntos. ${
+  return `${intro}Puedo decirte qué vence hoy, de qué materia es y cómo vas con los sombreros. ${
     next ? `Lo próximo es ${next.title}, de ${next.subject}.` : "No tenés tareas pendientes."
   }`;
 }

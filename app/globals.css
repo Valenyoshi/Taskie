@@ -689,12 +689,36 @@
 }
 
 .points-coin {
+  position: relative;
   width: 42px;
-  height: 42px;
+  height: 34px;
   flex: none;
+  background: none;
+  box-shadow: none;
+}
+
+.points-coin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  width: 54%;
+  height: 48%;
+  transform: translateX(-50%);
+  border-radius: 14px 14px 4px 4px;
+  background: var(--ink);
+}
+
+.points-coin::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  left: 0;
+  height: 8px;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 32%, #fff6d0, var(--gold) 48%, #a56b12 80%);
-  box-shadow: inset 0 0 0 3px rgba(255, 248, 220, 0.8);
+  background: var(--gold);
+  box-shadow: 0 2px 0 #a56b12;
 }
 
 .prize-corral .points-coin,

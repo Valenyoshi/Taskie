@@ -1,15 +1,15 @@
-# task.ai
+# Taskye
 
 Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en el navegador de la computadora o del celular, y se puede instalar en la pantalla de inicio.
 
 ## Qué tiene
 
-- Cuenta de task.ai y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
+- Cuenta de Taskye y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
 - Puntos para subir archivos del aula (`https://lms.educamos.com/tucolegio/my/`). Si no cargás ese enlace, se arma con la dirección del colegio.
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
 - Experiencia para el nivel. Hasta el nivel 5 hacen falta 3 tareas, del 5 al 9 hacen falta 4 y desde el 10 hacen falta 5.
-- Puntos, aparte de la XP. Una tirada de la máquina cuesta 50 puntos.
+- Sombreros, aparte de la XP. Una tirada de la máquina cuesta 50 sombreros.
 - Máquina: común 60 %, raro 32 %, súper raro 8 %.
 - Logros, racha por entrar, ranking y un chat para dudas.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
@@ -27,9 +27,9 @@ Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejem
 
 ## Educamos
 
-Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la contraseña de Educamos. La contraseña de task.ai se guarda hasheada y la de Educamos, cifrada. No se muestran de nuevo y no se mandan al chat.
+Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la contraseña de Educamos. La contraseña de Taskye se guarda hasheada y la de Educamos, cifrada. No se muestran de nuevo y no se mandan al chat.
 
-Educamos no publica una API para alumnos. task.ai entra a la web del colegio con tus datos. Si el colegio cambia la página o no deja el acceso automático, la cuenta queda creada, ves el error y podés reintentar con **Actualizar**.
+Educamos no publica una API para alumnos. Taskye entra a la web del colegio con tus datos. Si el colegio cambia la página o no deja el acceso automático, la cuenta queda creada, ves el error y podés reintentar con **Actualizar**.
 
 ## Chat
 
@@ -47,9 +47,9 @@ En Inicio hay un interruptor y un botón **Probar aviso**. Hace falta dar permis
 
 ## Economía
 
-- Tarea a tiempo: 50 XP y 25 puntos.
-- Tarea tarde: 15 XP y 8 puntos. No llena las barras.
-- Día: si completás a tiempo al menos el 60 % de lo que vence hoy, 40 XP y 40 puntos.
-- Semana: si completás a tiempo todo lo que vence esa semana, 120 XP y 100 puntos.
-- Combo, si además cada día con tareas llegó al 60 %: 80 XP y 60 puntos.
+- Tarea a tiempo: 50 XP y 25 sombreros.
+- Tarea tarde: 15 XP y 8 sombreros. No llena las barras.
+- Día: si completás a tiempo al menos el 60 % de lo que vence hoy, 40 XP y 40 sombreros.
+- Semana: si completás a tiempo todo lo que vence esa semana, 120 XP y 100 sombreros.
+- Combo, si además cada día con tareas llegó al 60 %: 80 XP y 60 sombreros.
 - Entrar un día nuevo: 10 XP y un día de racha.

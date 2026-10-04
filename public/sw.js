@@ -1,5 +1,5 @@
 self.addEventListener("push", (event) => {
-  let payload = { title: "task.ai", body: "Tenés tareas pendientes.", url: "/inicio" };
+  let payload = { title: "Taskye", body: "Tenés tareas pendientes.", url: "/inicio" };
   try {
     payload = { ...payload, ...event.data.json() };
   } catch {

@@ -1,6 +1,6 @@
 {
-  "name": "task.ai",
-  "short_name": "task.ai",
+  "name": "Taskye",
+  "short_name": "Taskye",
   "description": "Las tareas del colegio, con otro nivel.",
   "start_url": "/inicio",
   "scope": "/",

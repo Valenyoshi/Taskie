@@ -87,7 +87,7 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
     }
     if (!next) return;
     try {
-      await showNotice("task.ai", "Avisos activos.");
+      await showNotice("Taskye", "Avisos activos.");
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No pude mostrar el aviso.");
     }

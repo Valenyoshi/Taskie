@@ -77,15 +77,15 @@ export function AuthPanel() {
         {mode === "crear" ? (
           <>
             <Field label="Tu nombre" name="name" placeholder="Cómo querés salir en el ranking" />
-            <Field label="Usuario de task.ai" name="username" placeholder="vale.curso" autoComplete="username" />
-            <Field label="Contraseña de task.ai" name="password" type="password" autoComplete="new-password" />
+            <Field label="Usuario de Taskye" name="username" placeholder="vale.curso" autoComplete="username" />
+            <Field label="Contraseña de Taskye" name="password" type="password" autoComplete="new-password" />
             <p className="pt-2 text-sm font-medium">Tu colegio en Educamos</p>
             <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
             <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />
             <Field label="Contraseña de Educamos" name="educamosPassword" type="password" autoComplete="off" />
             <Field label="Enlace del aula" name="lmsUrl" placeholder="https://lms.educamos.com/edison_mza/my/" required={false} />
             <p className="text-xs text-muted-foreground">
-              Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están los puntos para subir archivos.
+              Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están las entregas para subir archivos.
             </p>
           </>
         ) : (

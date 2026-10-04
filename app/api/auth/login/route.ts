@@ -39,8 +39,8 @@ export async function POST(request: Request) {
   if (!user) {
     const known = candidates[0];
     const error = known
-      ? `La contraseña no es la de task.ai. Tu usuario es ${known.username}.`
-      : "No hay una cuenta con ese usuario. Probá con el usuario de task.ai, tu nombre o el de Educamos.";
+      ? `La contraseña no es la de Taskye. Tu usuario es ${known.username}.`
+      : "No hay una cuenta con ese usuario. Probá con el usuario de Taskye, tu nombre o el de Educamos.";
     return json({ error }, 400);
   }
   await startSession(user.id);

@@ -23,7 +23,7 @@ export default async function InicioPage() {
           <span className="points-value">
             <CountUp value={user.points} />
           </span>
-          <span className="points-label">puntos</span>
+          <span className="points-label">{user.points === 1 ? "sombrero" : "sombreros"}</span>
         </span>
       </section>
 
