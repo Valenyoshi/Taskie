@@ -1,29 +1,15 @@
 export function HatIcon({ size = 42 }: { size?: number }) {
   return (
     <svg className="points-coin" width={size} height={size} viewBox="0 0 64 64" aria-hidden>
-      <path d="M2 39c8-8 16-4 30-2 14-2 22-6 30 2-8 8-18 11-30 10C20 50 10 47 2 39z" fill="#c4922a" />
-      <path
-        d="M2 36c8-8 16-4 30-2 14-2 22-6 30 2-8 8-18 11-30 10C20 47 10 44 2 36z"
-        fill="#f6c445"
-        stroke="#c4922a"
-        strokeWidth="2.2"
-        strokeLinejoin="round"
-      />
-      <path d="M12 34c5-2.5 10-3 15-2" fill="none" stroke="#fff6d0" strokeWidth="2" strokeLinecap="round" />
-      <path d="M22 42V30c0-8 4.2-14 10-14s10 6 10 14v12z" fill="#7a4e24" />
-      <path
-        d="M22 40V30c0-8 4.2-14 10-14s10 6 10 14v10"
-        fill="none"
-        stroke="#5c3a16"
-        strokeWidth="2.2"
-        strokeLinejoin="round"
-      />
-      <path d="M27 20c1.6-2 4-2.6 6-1.8" fill="none" stroke="#c4a27a" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M22.5 31h19c-.4 4.6-4 7-9.5 7s-9.1-2.4-9.5-7z" fill="#e25b45" />
-      <circle cx="28" cy="33.6" r="1.25" fill="#f6c445" />
-      <circle cx="32" cy="34.1" r="1.25" fill="#f6c445" />
-      <circle cx="36" cy="33.6" r="1.25" fill="#f6c445" />
-      <path d="M12 39c6 6 14 8 20 8s14-2 20-8c-6 3.5-13 5-20 5s-14-1.5-20-5z" fill="#e8b423" />
+      <path d="M18 36c1 11 6 16 14 16s13-5 14-16c-4 3-9 5-14 5s-10-2-14-5z" fill="#3a312b" stroke="#241c18" strokeWidth="2" />
+      <path d="M4 28 32 40 32 45 4 33Z" fill="#1a1410" />
+      <path d="M60 28 32 40 32 45 60 33Z" fill="#4a403a" />
+      <path d="M4 26 32 14 60 26 32 38Z" fill="#2c241f" stroke="#1a1410" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M12 24 32 16 48 23" fill="none" stroke="#6d6258" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="32" cy="26" r="3.1" fill="#f6c445" stroke="#c4922a" strokeWidth="1.4" />
+      <path d="M34 28c6 4 12 8 16 14" fill="none" stroke="#e8a317" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="50" cy="43" r="2.4" fill="#e25b45" />
+      <path d="M47 45.2 46 56M50 45.5V57M53 45.2 54 56" fill="none" stroke="#e8a317" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
