@@ -111,7 +111,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     }
     setPhase("strike");
     window.dispatchEvent(
-      new CustomEvent("racha-task-done", { detail: { dueToday: task.dueToday, dueWeek: task.dueWeek } }),
+      new CustomEvent("racha-task-done", { detail: { daily: task.countsDaily, weekly: task.countsWeekly } }),
     );
   }
 

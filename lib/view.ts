@@ -45,8 +45,8 @@ export type TaskView = {
   onTime: boolean | null;
   needsFile: boolean;
   kind: "tarea" | "archivo";
-  dueToday: boolean;
-  dueWeek: boolean;
+    countsDaily: boolean;
+    countsWeekly: boolean;
   fileName: string | null;
   educamosUrl: string | null;
   pending: boolean;
@@ -117,12 +117,12 @@ export function toTask(task: Task, timeZone: string): TaskView {
     onTime: task.onTime,
     needsFile: task.needsFile,
     kind: task.source === "lms" ? "archivo" : "tarea",
-    dueToday: localDateString(new Date(task.dueAt), timeZone) === localDateString(new Date(), timeZone),
-    dueWeek: (() => {
+    countsDaily: (() => {
       const due = localDateString(new Date(task.dueAt), timeZone);
-      const start = weekStart(localDateString(new Date(), timeZone));
-      return due >= start && due <= addDays(start, 6);
+      const today = localDateString(new Date(), timeZone);
+      return due <= today && due >= addDays(today, -3);
     })(),
+    countsWeekly: localDateString(new Date(task.dueAt), timeZone) > localDateString(new Date(), timeZone),
     fileName: task.fileName,
     educamosUrl: task.educamosUrl,
     pending: task.status === "pending",
@@ -134,24 +134,25 @@ function doneOn(task: Task, timeZone: string): string | null {
   return localDateString(new Date(task.completedAt), timeZone);
 }
 
-function countsForDay(task: Task, timeZone: string, day: string): boolean {
-  if (localDateString(new Date(task.dueAt), timeZone) === day) return true;
-  return doneOn(task, timeZone) === day;
+function countsForDay(task: Task, timeZone: string, today: string): boolean {
+  const due = localDateString(new Date(task.dueAt), timeZone);
+  if (due > today || due < addDays(today, -3)) return false;
+  if (task.status !== "done") return true;
+  return doneOn(task, timeZone) === today;
 }
 
-function countsForWeek(task: Task, timeZone: string, start: string, end: string): boolean {
+function countsForWeek(task: Task, timeZone: string, today: string): boolean {
   const due = localDateString(new Date(task.dueAt), timeZone);
-  if (due >= start && due <= end) return true;
-  const done = doneOn(task, timeZone);
-  return done != null && done >= start && done <= end;
+  if (due <= today) return false;
+  if (task.status !== "done") return true;
+  return doneOn(task, timeZone) === today;
 }
 
 export function missionView(user: User, tasks: Task[]): MissionView {
   const today = localDateString(new Date(), user.timezone);
   const start = weekStart(today);
-  const end = addDays(start, 6);
   const dueToday = tasks.filter((task) => countsForDay(task, user.timezone, today));
-  const week = tasks.filter((task) => countsForWeek(task, user.timezone, start, end));
+  const week = tasks.filter((task) => countsForWeek(task, user.timezone, today));
   const dailyDone = onTimeTasks(dueToday).length;
   const weeklyDone = onTimeTasks(week).length;
   const dailyClosed = dueToday.filter((task) => task.status === "done").length;

@@ -27,12 +27,12 @@ export function GoalBars({
 
   useEffect(() => {
     function onDone(event: Event) {
-      const detail = (event as CustomEvent<{ dueToday?: boolean; dueWeek?: boolean }>).detail ?? {};
+      const detail = (event as CustomEvent<{ daily?: boolean; weekly?: boolean }>).detail ?? {};
       setBoost((current) => ({
-        dayClosed: current.dayClosed + 1,
-        dayTotal: current.dayTotal + (detail.dueToday ? 0 : 1),
-        weekClosed: current.weekClosed + 1,
-        weekTotal: current.weekTotal + (detail.dueWeek ? 0 : 1),
+        dayClosed: current.dayClosed + (detail.daily ? 1 : 0),
+        dayTotal: current.dayTotal,
+        weekClosed: current.weekClosed + (detail.weekly ? 1 : 0),
+        weekTotal: current.weekTotal,
       }));
     }
     window.addEventListener("racha-task-done", onDone);
@@ -59,8 +59,11 @@ export function GoalBars({
     };
     later(() => {
       if (party.current) return;
-      const previous = sessionStorage.getItem("racha-goals");
-      sessionStorage.setItem("racha-goals", snapshot);
+      const date = new Date().toLocaleDateString("en-CA");
+      const packed = `${date}|${snapshot}`;
+      const raw = sessionStorage.getItem("racha-goals");
+      sessionStorage.setItem("racha-goals", packed);
+      const previous = raw?.startsWith(`${date}|`) ? raw.slice(date.length + 1) : null;
       if (!previous || previous === snapshot) {
         setShown(next);
         setGone({
