@@ -6,11 +6,11 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-app" });
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "Taskye",
+  title: "Taskie",
   description: "Las tareas del colegio, con otro nivel.",
   manifest: "/manifest.webmanifest",
-  applicationName: "Taskye",
-  appleWebApp: { capable: true, title: "Taskye", statusBarStyle: "default" },
+  applicationName: "Taskie",
+  appleWebApp: { capable: true, title: "Taskie", statusBarStyle: "default" },
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
 

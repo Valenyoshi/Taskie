@@ -1,10 +1,10 @@
-# Taskye
+# Taskie
 
 Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en el navegador de la computadora o del celular, y se puede instalar en la pantalla de inicio.
 
 ## Qué tiene
 
-- Cuenta de Taskye y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
+- Cuenta de Taskie y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
 - Puntos para subir archivos del aula (`https://lms.educamos.com/tucolegio/my/`). Si no cargás ese enlace, se arma con la dirección del colegio.
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
@@ -27,9 +27,9 @@ Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejem
 
 ## Educamos
 
-Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la contraseña de Educamos. La contraseña de Taskye se guarda hasheada y la de Educamos, cifrada. No se muestran de nuevo y no se mandan al chat.
+Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la contraseña de Educamos. La contraseña de Taskie se guarda hasheada y la de Educamos, cifrada. No se muestran de nuevo y no se mandan al chat.
 
-Educamos no publica una API para alumnos. Taskye entra a la web del colegio con tus datos. Si el colegio cambia la página o no deja el acceso automático, la cuenta queda creada, ves el error y podés reintentar con **Actualizar**.
+Educamos no publica una API para alumnos. Taskie entra a la web del colegio con tus datos. Si el colegio cambia la página o no deja el acceso automático, la cuenta queda creada, ves el error y podés reintentar con **Actualizar**.
 
 ## Chat
 

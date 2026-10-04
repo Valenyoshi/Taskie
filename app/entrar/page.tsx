@@ -25,7 +25,7 @@ export default async function EntrarPage() {
       ))}
       <div className="relative mx-auto grid min-h-dvh max-w-5xl items-center gap-8 px-5 py-16 md:grid-cols-2">
         <section>
-          <p className="text-sm font-bold tracking-[0.18em] text-coral">Taskye</p>
+          <p className="text-sm font-bold tracking-[0.18em] text-coral">Taskie</p>
           <h1 className="gradient-text mt-3 font-display text-5xl leading-none">Las tareas del colegio, con otro nivel.</h1>
         </section>
         <AuthPanel />

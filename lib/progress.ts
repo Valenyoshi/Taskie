@@ -139,7 +139,7 @@ export function touchOpen(userId: string): string[] {
   let streak = 1;
   if (user.lastOpenDate && addDays(user.lastOpenDate, 1) === today) streak = user.streak + 1;
   const opened = setOpenDay(userId, streak, today, XP.streakOpen);
-  if (opened) lines.push(`Taskye · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${XP.streakOpen} XP.`);
+  if (opened) lines.push(`Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${XP.streakOpen} XP.`);
   applyMissions(userId, lines);
   applyAchievements(userId, lines);
   const afterUser = findUserById(userId);

@@ -77,8 +77,8 @@ export function AuthPanel() {
         {mode === "crear" ? (
           <>
             <Field label="Tu nombre" name="name" placeholder="Cómo querés salir en el ranking" />
-            <Field label="Usuario de Taskye" name="username" placeholder="vale.curso" autoComplete="username" />
-            <Field label="Contraseña de Taskye" name="password" type="password" autoComplete="new-password" />
+            <Field label="Usuario de Taskie" name="username" placeholder="vale.curso" autoComplete="username" />
+            <Field label="Contraseña de Taskie" name="password" type="password" autoComplete="new-password" />
             <p className="pt-2 text-sm font-medium">Tu colegio en Educamos</p>
             <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
             <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />

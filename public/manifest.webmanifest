@@ -1,6 +1,6 @@
 {
-  "name": "Taskye",
-  "short_name": "Taskye",
+  "name": "Taskie",
+  "short_name": "Taskie",
   "description": "Las tareas del colegio, con otro nivel.",
   "start_url": "/inicio",
   "scope": "/",
