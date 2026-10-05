@@ -1010,6 +1010,141 @@
   color: transparent;
 }
 
+.bobby-shop {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shop-counter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  column-gap: 8px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #fffdf8;
+  padding: 12px 12px 0;
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.bobby {
+  display: block;
+  animation: bobby-bob 2.6s ease-in-out infinite;
+}
+
+.shop-bubble {
+  margin: 0 0 16px;
+  border-radius: 18px 18px 18px 6px;
+  background: white;
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.35;
+  box-shadow: 0 4px 0 rgba(44, 36, 31, 0.06);
+}
+
+.shop-floor {
+  grid-column: 1 / -1;
+  height: 16px;
+  margin: 0 -12px;
+  background: linear-gradient(#e7c48a, #c9843a);
+  box-shadow: inset 0 3px 0 #f3e2c4;
+}
+
+.literas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.litera {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) 14px;
+  gap: 4px;
+  border-radius: 16px;
+  background: #6b4423;
+  padding: 8px 6px 8px;
+  box-shadow: 0 8px 0 #4a2e16;
+}
+
+.litera-post,
+.ladder {
+  border-radius: 6px;
+  background: #8a5a22;
+}
+
+.litera-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bunk {
+  display: flex;
+  min-height: 78px;
+  flex-direction: column;
+}
+
+.bunk-slots {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  padding-bottom: 6px;
+}
+
+.bunk-slot {
+  width: 40px;
+  height: 40px;
+  border: 2px dashed rgba(255, 248, 236, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 248, 236, 0.12);
+}
+
+.plank {
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(#f6e2bc, #d7a45a);
+  box-shadow: 0 3px 0 #5c3b16;
+}
+
+.ladder {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding: 8px 0;
+}
+
+.ladder span {
+  display: block;
+  height: 4px;
+  border-radius: 99px;
+  background: #e7c48a;
+}
+
+.shop-empty {
+  margin: 0;
+  text-align: center;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.logros {
+  border-radius: 24px;
+  background: var(--card);
+  padding: 16px 12px;
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+@keyframes bobby-bob {
+  0%,
+  100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
 .ranking-board {
   border-radius: 24px;
   padding: 16px;

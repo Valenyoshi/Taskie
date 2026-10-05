@@ -9,9 +9,9 @@ Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en 
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
 - Experiencia para el nivel. Hasta el nivel 5 hacen falta 3 tareas, del 5 al 9 hacen falta 4 y desde el 10 hacen falta 5.
-- Sombreros, aparte de la XP. Una tirada de la máquina cuesta 50 sombreros.
-- Máquina: común 60 %, raro 32 %, súper raro 8 %.
-- Logros, racha por entrar, ranking y un chat para dudas.
+- Sombreros, aparte de la XP.
+- La tienda de Bobby, con literas para la mercadería.
+- Logros en el ranking, racha por entrar y un chat para dudas.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
 
 ## Cómo correrla

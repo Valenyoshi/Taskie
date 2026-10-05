@@ -275,7 +275,9 @@ export function rankingData(userId: string) {
   if (!me) return null;
   const doneByUser = countDoneTasksByUser();
   const rewards = rewardIdsByUser();
-  const rows = listUsers().map((user) => {
+  const rows = listUsers()
+    .filter((user) => !user.isDemo)
+    .map((user) => {
     const ids = rewards[user.id] ?? [];
     return {
       id: user.id,

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, Gift, House, MessagesSquare, Trophy } from "lucide-react";
+import { Flame, House, MessagesSquare, Store, Trophy } from "lucide-react";
 import { cn } from "cn";
 
 const items = [
   { href: "/inicio", label: "Inicio", icon: House },
   { href: "/materias", label: "Materias", icon: Flame },
-  { href: "/premios", label: "Premios", icon: Gift },
+  { href: "/premios", label: "Tienda", icon: Store },
   { href: "/ranking", label: "Ranking", icon: Trophy },
   { href: "/chat", label: "Chat", icon: MessagesSquare },
 ];

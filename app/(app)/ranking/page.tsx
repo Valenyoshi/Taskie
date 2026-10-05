@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
+import { Medal } from "@/components/medal";
 import { getCurrentUser } from "@/lib/session";
-import { rankingData } from "@/lib/view";
+import { rankingData, rewardsData } from "@/lib/view";
 
 export default async function RankingPage() {
   const session = await getCurrentUser();
   if (!session) redirect("/entrar");
   const data = rankingData(session.id);
-  if (!data) redirect("/entrar");
+  const rewards = rewardsData(session.id);
+  if (!data || !rewards) redirect("/entrar");
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,6 +27,19 @@ export default async function RankingPage() {
           score: `${row.spins} ${row.spins === 1 ? "giro" : "giros"}`,
         }))}
       />
+      <section className="logros">
+        <h2 className="mb-3 font-display text-2xl">Logros</h2>
+        <div className="flex flex-wrap justify-center gap-3">
+          {rewards.achievements.map((achievement) => (
+            <Medal
+              key={achievement.id}
+              unlocked={achievement.unlocked}
+              label={achievement.name}
+              mark={achievement.unlocked ? achievement.name.slice(0, 1) : "?"}
+            />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
