@@ -17,9 +17,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div data-theme={themeKey(sessionUser.equippedTheme)} className="min-h-dvh bg-background text-foreground">
       <SectionWash />
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-5 pb-36">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-5 pt-16 pb-44">
         <LogoutButton />
-        <header className="mb-5 pt-8 text-center">
+        <header className="mb-8 pt-12 text-center">
           <SectionTitle />
           <p className="gradient-text mt-2 font-display text-4xl leading-none">Hola {sessionUser.username}</p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">

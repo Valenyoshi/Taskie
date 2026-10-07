@@ -26,7 +26,7 @@ export function NavBar() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur">
-      <ul className="nav-scroll mx-auto flex max-w-lg overflow-x-auto">
+      <ul className="nav-scroll mx-auto flex max-w-2xl overflow-x-auto">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;

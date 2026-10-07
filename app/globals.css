@@ -1325,17 +1325,23 @@
 
 .lesson-skill {
   display: flex;
-  min-height: 92px;
+  min-height: 128px;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  border-radius: 22px;
+  gap: 12px;
+  border-radius: 26px;
   background: white;
-  padding: 14px;
+  padding: 18px;
   text-align: left;
+  font-size: 1.15rem;
   font-weight: 750;
-  box-shadow: 0 6px 0 #d7c4ff;
+  box-shadow: 0 8px 0 #d7c4ff;
+  animation: lesson-pop 0.45s ease both;
+}
+
+.lesson-skill:hover {
+  transform: translateY(-6px);
 }
 
 .lesson-skill:disabled {
@@ -1381,12 +1387,18 @@
 }
 
 .lesson-option {
-  border-radius: 16px;
+  border-radius: 18px;
   background: white;
-  padding: 14px;
+  padding: 18px;
   text-align: left;
+  font-size: 1.05rem;
   font-weight: 700;
   box-shadow: inset 0 0 0 2px rgba(44, 36, 31, 0.12);
+  transition: transform 0.15s ease;
+}
+
+.lesson-option:hover {
+  transform: translateY(-2px);
 }
 
 .lesson-option.picked {
@@ -1419,8 +1431,41 @@
 
 .lesson-done {
   align-items: center;
-  padding: 28px 8px;
+  padding: 48px 8px;
   text-align: center;
+  animation: lesson-pop 0.4s ease both;
+}
+
+.lesson-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: lesson-pop 0.35s ease both;
+}
+
+.lesson-tag {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lesson-tag.theory {
+  background: #efe4ff;
+  color: #5b35c9;
+}
+
+.lesson-tag.points {
+  background: #fff1cc;
+  color: #8a5a12;
+}
+
+@keyframes lesson-pop {
+  from { transform: translateY(16px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 button,
