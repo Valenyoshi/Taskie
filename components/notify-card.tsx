@@ -94,17 +94,27 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <div className="fixed right-3 bottom-20 z-30 flex flex-col items-end">
-      <button
-        type="button"
-        aria-pressed={on}
-        onClick={() => void toggle()}
-        className={`grid size-12 place-items-center rounded-full shadow ring-1 ring-foreground/10 ${on ? "bg-coral text-white" : "bg-card text-muted-foreground"}`}
-      >
-        <Bell className="size-5" />
-        <span className="sr-only">{on ? "Apagar avisos" : "Prender avisos"}</span>
-      </button>
-      {message ? <p className="mt-1 max-w-40 text-right text-xs font-semibold text-coral">{message}</p> : null}
-    </div>
+    <section className="rounded-3xl bg-card px-4 py-4 ring-1 ring-foreground/10">
+      <div className="flex items-center gap-3">
+        <span className={`grid size-11 shrink-0 place-items-center rounded-2xl ${on ? "bg-coral text-white" : "bg-muted text-muted-foreground"}`}>
+          <Bell className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-2xl leading-none">Avisos</p>
+          <p className="mt-1 text-sm text-muted-foreground">Te recordamos las tareas de hoy y las que vencen pronto.</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          onClick={() => void toggle()}
+          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${on ? "bg-coral" : "bg-muted"}`}
+        >
+          <span className={`absolute top-1 size-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
+          <span className="sr-only">{on ? "Apagar avisos" : "Prender avisos"}</span>
+        </button>
+      </div>
+      {message ? <p className="mt-3 text-sm font-semibold text-coral">{message}</p> : null}
+    </section>
   );
 }

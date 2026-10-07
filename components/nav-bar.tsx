@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, House, MessagesSquare, Store, Trophy } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Flame, Headphones, House, MessagesSquare, Settings, Store, Trophy } from "lucide-react";
 import { cn } from "cn";
 
 const items = [
@@ -11,23 +12,32 @@ const items = [
   { href: "/premios", label: "Tienda", icon: Store },
   { href: "/ranking", label: "Ranking", icon: Trophy },
   { href: "/chat", label: "Chat", icon: MessagesSquare },
+  { href: "/concentracion", label: "Concentración", icon: Headphones },
+  { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [pathname]);
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
+      <ul className="nav-scroll mx-auto flex max-w-lg overflow-x-auto">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
-            <li key={item.href}>
+            <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
                 prefetch
+                ref={active ? activeRef : undefined}
                 className={cn(
-                  "nav-link flex flex-col items-center gap-1 px-1 py-2 text-[11px] font-medium",
+                  "nav-link flex w-[4.7rem] flex-col items-center gap-1 px-1 py-2 text-center text-[11px] leading-tight font-medium",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >

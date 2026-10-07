@@ -1164,6 +1164,22 @@
   background: linear-gradient(180deg, #9dcec4 0%, #d7efe8 52%, #f6efe4 100%);
 }
 
+.section-wash.concentracion {
+  background: linear-gradient(180deg, #7eb8c4 0%, #d5eef2 50%, #f7f1e8 100%);
+}
+
+.section-wash.configuracion {
+  background: linear-gradient(165deg, #e4d9ce 0%, #f6f1ea 55%, #f3e4cc 100%);
+}
+
+.nav-scroll {
+  scrollbar-width: none;
+}
+
+.nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .section-wash.tienda {
   overflow: hidden;
   background: linear-gradient(180deg, #efd2a4 0%, #c4843c 52%, #6b4423 100%);

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import { NavBar } from "@/components/nav-bar";
 import { SectionTitle } from "@/components/section-title";
-import { NotifyToggle } from "@/components/notify-card";
 import { SectionWash } from "@/components/section-wash";
 import { frameClass, themeKey } from "@/lib/catalog";
 import { touchOpen } from "@/lib/progress";
@@ -22,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <LogoutButton />
         <header className="mb-5 pt-8 text-center">
           <SectionTitle />
-          <p className="mt-2 font-display text-3xl leading-none">Hola {sessionUser.username}</p>
+          <p className="gradient-text mt-2 font-display text-4xl leading-none">Hola {sessionUser.username}</p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
             <div
               className={`grid size-9 place-items-center rounded-full bg-secondary text-sm font-display ring-4 ${frameClass(sessionUser.equippedFrame)}`}
@@ -35,7 +34,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
         {children}
-        <NotifyToggle enabled={sessionUser.notificationsEnabled} />
       </div>
       <NavBar />
     </div>
