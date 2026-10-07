@@ -1,5 +1,5 @@
 import type { User } from "./db";
-import { listEnrolledSubjectNames, lmsBase, topicsForSubject } from "./educamos";
+import { listEnrolledSubjectNames, lmsBase, notesForSubject } from "./educamos";
 import { decryptSecret } from "./secret";
 import { dedupeSubjects } from "./subject-color";
 
@@ -123,26 +123,26 @@ function sillyPrompt(value: string): boolean {
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase();
-  return /para que es este repaso|de que materia es|cuanto deberia durar|cuanto dura el repaso|saltear la materia|copiar la entrega|para que es el repaso/.test(text);
+  return /para que es este repaso|para que es el repaso|de que materia es|cuanto deberia durar|cuanto dura el repaso|saltear la materia|copiar la entrega|no se ha visto|no se vio|todavia no|que no vieron|esta en la clase|cual de estos temas|tema de otra materia|algo que todavia/.test(text);
 }
 
-async function classTopics(user: User, subject: string): Promise<string[]> {
-  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return [];
+async function classNotes(user: User, subject: string): Promise<string> {
+  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return "";
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-  if (!classroom) return [];
+  if (!classroom) return "";
   try {
     return await withDeadline(
-      topicsForSubject({
+      notesForSubject({
         lmsUrl: classroom,
         username: user.educamosUsername,
         password: decryptSecret(user.educamosPasswordEnc),
         subject,
       }),
-      7000,
-      [] as string[],
+      14000,
+      "",
     );
   } catch {
-    return [];
+    return "";
   }
 }
 
@@ -173,54 +173,42 @@ export async function subjectChoices(user: User, fromTasks: string[]): Promise<s
 export async function buildLesson(user: User, subject: string): Promise<{ ok: true; lesson: Lesson } | { ok: false; error: string }> {
   const clean = subject.trim().slice(0, 160);
   if (!clean) return { ok: false, error: "Elegí una materia." };
-  const topics = await classTopics(user, clean);
+  const notes = await classNotes(user, clean);
   const prompt = [
     `Materia: ${clean}.`,
-    topics.length ? `Temas de la clase, en orden:\n${topics.map((topic) => `- ${topic}`).join("\n")}` : `No hay índice. Inventá un repaso breve y real de ${clean}, de secundaria.`,
-    "Las preguntas tienen que ser sobre esos temas. Prohibido preguntar para qué es el repaso, de qué materia es o cuánto dura.",
-    "No resuelvas una entrega.",
-    "JSON con title y steps. 2 steps con type teach y text. 4 steps con type quiz, prompt, options de 3, answer 0 1 o 2, y why.",
+    notes
+      ? `Texto que puso el profesor. Explicá solo esto, como lo explicaría él:\n${notes.slice(0, 2800)}`
+      : `No hay apunte del profesor. No inventes la clase.`,
+    "La teoría tiene que explicar esa información, en 2 pasos type teach.",
+    "Las preguntas tienen que comprobar datos de ese texto. 4 pasos type quiz, con options de 3, answer 0 1 o 2, y why.",
+    "Prohibido preguntar qué no se vio, qué tema está en la clase, para qué es el repaso o de qué materia es.",
+    "No escribas la entrega.",
   ].join("\n");
 
+  if (!notes) return { ok: true, lesson: lessonFromNotes(clean, "") };
   try {
     const raw = await modelJson(prompt);
     const lesson = raw ? parseLesson(raw, clean) : null;
-    if (lesson) return { ok: true, lesson };
+    if (lesson && lesson.steps.some((step) => step.kind === "teach" && step.text.length > 40)) return { ok: true, lesson };
   } catch {
-    // Si el modelo no devuelve un repaso usable, se arma con los temas de la clase.
+    // Si el modelo no explica el apunte, se muestran las frases del profesor.
   }
-  return { ok: true, lesson: fallbackLesson(clean, topics) };
+  return { ok: true, lesson: lessonFromNotes(clean, notes) };
 }
 
-export function fallbackLesson(subject: string, topics: string[]): Lesson {
-  const useful = [...new Set(topics.map((topic) => topic.trim()).filter((topic) => topic.length > 2))].slice(0, 6);
-  const focus = useful.length > 0 ? useful : [subject];
-  const teach = useful.length
-    ? `En ${subject} están viendo ${focus.slice(0, 3).join(", ")}.`
-    : `Repaso de ${subject}: quedate con las ideas que el profesor ya explicó en clase.`;
-  const second = focus[3]
-    ? `Más adelante en la misma materia aparece ${focus.slice(3).join(", ")}.`
-    : `Esos temas van en el orden de la clase. Lo que todavía no dieron, no lo tomes como visto.`;
-  const quizzes = [0, 1, 2, 3].map((index) => {
-    const correct = focus[index % focus.length] ?? subject;
-    const others = focus.filter((topic) => topic !== correct);
-    const wrongs = [others[0] ?? "Un tema de otra materia", others[1] ?? "Algo que todavía no dieron"];
-    const options = [correct, wrongs[0], wrongs[1]];
-    return {
-      kind: "quiz" as const,
-      prompt: `Sobre ${subject}: ¿cuál de estos temas está en la clase?`,
-      options,
-      answer: 0,
-      why: `${correct} es parte de lo que están viendo.`,
-    };
-  });
+export function fallbackLesson(subject: string, notes: string): Lesson {
+  return lessonFromNotes(subject, notes);
+}
+
+function lessonFromNotes(subject: string, notes: string): Lesson {
+  const sentences = notes
+    .split(/(?<=[.!?;])\s+|\n+/)
+    .map((line) => line.replace(/^[-•]\s*/, "").trim())
+    .filter((line) => line.length > 40 && !sillyPrompt(line));
+  const chunks = (sentences.length > 0 ? sentences : [`No encontré un apunte del profesor en ${subject} para explicar.`]).slice(0, 3);
   return {
     subject,
-    title: focus[0] && focus[0] !== subject ? focus[0] : `Repaso de ${subject}`,
-    steps: [
-      { kind: "teach", text: teach },
-      { kind: "teach", text: second },
-      ...quizzes,
-    ],
+    title: subject,
+    steps: chunks.map((text) => ({ kind: "teach" as const, text: text.slice(0, 320) })),
   };
 }

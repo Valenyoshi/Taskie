@@ -9,8 +9,8 @@ export async function POST(request: Request) {
   if (!subject || subject.length > 160) return json({ error: "Elegí una materia." }, 400);
   try {
     const result = await buildLesson(user, subject);
-    return json({ ok: true, lesson: result.ok ? result.lesson : fallbackLesson(subject, []) });
+    return json({ ok: true, lesson: result.ok ? result.lesson : fallbackLesson(subject, "") });
   } catch {
-    return json({ ok: true, lesson: fallbackLesson(subject, []) });
+    return json({ ok: true, lesson: fallbackLesson(subject, "") });
   }
 }

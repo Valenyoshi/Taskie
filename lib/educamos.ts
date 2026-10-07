@@ -459,6 +459,32 @@ export async function topicsForSubject(input: {
   return [...new Set(titles)].slice(0, 12);
 }
 
+export async function notesForSubject(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  subject: string;
+}): Promise<string> {
+  const titles = await topicsForSubject(input);
+  const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
+  const cached = lessonCache.get(cacheKey);
+  if (!cached) return titles.join(". ");
+  const wanted = input.subject
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  const course = cached.courses.find((item) => {
+    const name = item.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    return name.includes(wanted) || wanted.includes(name);
+  });
+  if (!course || course.resources.length === 0) return titles.join(". ");
+  const slice = { ...course, resources: course.resources.slice(0, 2) };
+  await readResourceText(input.lmsUrl, input.username, input.password, [slice], new Set());
+  const written = course.resources.map((item) => item.text?.trim()).filter((text): text is string => Boolean(text));
+  const body = written.join("\n").slice(0, 3500);
+  return body || titles.join(". ");
+}
+
 export async function listEnrolledSubjectNames(input: {
   lmsUrl: string;
   username: string;
