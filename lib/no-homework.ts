@@ -53,8 +53,10 @@ function paired(text: string): boolean {
       const from = Math.min(verb, noun);
       const to = Math.max(verb, noun);
       const between = text.slice(from, to);
+      const before = text.slice(Math.max(0, verb - 16), verb);
       if (between.length > 80) continue;
       if (/\bno\b/.test(between)) continue;
+      if (/como se\s*$|como\s*$|explic\w*\s+$/.test(before)) continue;
       return true;
     }
   }
@@ -131,8 +133,9 @@ async function classifyAsk(packet: string): Promise<"ENTREGA" | "EXPLICAR" | "OT
 }
 
 export function looksLikeHandedWork(userText: string, answer: string): boolean {
+  if (explainsHow(userText) || isGreeting(userText)) return false;
   const ask = plainAsk(userText);
-  if (!new RegExp(WORK, "i").test(ask)) return false;
+  if (!asksToDoHomework(ask)) return false;
   const marks = answer.match(/\b(respuesta|punto|ejercicio|consigna)\s*\d+/gi) ?? [];
   return marks.length >= 2 || /\b(texto para entregar|trabajo practico|ensayo final)\b/i.test(fold(answer));
 }

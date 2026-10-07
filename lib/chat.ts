@@ -87,9 +87,8 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
 
 function studySystem(user: User, tasks: Task[], classes = ""): string {
   return [
-    "Regla fija: no entregues la tarea hecha. No escribas el texto para copiar ni las respuestas finales.",
-    "Sí podés explicar el tema, cómo se hace la tarea y qué tiene que hacer el alumno para hacerla.",
-    "Si piden la entrega armada, aunque sea indirecto, negalo y ofrecé la explicación.",
+    "Si te piden que expliques cómo hacer una tarea, qué hay que hacer o de qué se trata, explicalo. No te niegues.",
+    "Solo negá cuando pidan la entrega ya escrita, los ejercicios resueltos o las respuestas para copiar.",
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
     "Ayudás a entender temas, a ver qué tiene pendiente, de qué materia es y cómo organizarse.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
