@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
-const suggestions = ["¿Qué tengo hoy?", "¿De qué materia es?"];
+const suggestions = ["¿Qué tengo hoy?", "Explicame un tema como en clase"];
 
 export function ChatBox({ initial }: { initial: Message[] }) {
   const [messages, setMessages] = useState<Message[]>(initial);
@@ -69,7 +69,7 @@ export function ChatBox({ initial }: { initial: Message[] }) {
             </div>
           ))
         )}
-        {busy ? <p className="text-sm text-muted-foreground">Estoy mirando tus tareas…</p> : null}
+        {busy ? <p className="text-sm text-muted-foreground">Estoy mirando tus clases…</p> : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
       <form

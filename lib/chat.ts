@@ -1,5 +1,7 @@
 import { listTasks, type Task, type User } from "./db";
+import { asksForLesson, fetchTeachingNotes, lmsBase } from "./educamos";
 import { levelFromTasks, PULL_COST } from "./game";
+import { decryptSecret } from "./secret";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
@@ -82,14 +84,53 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   }`;
 }
 
-function studySystem(user: User, tasks: Task[]): string {
+function studySystem(user: User, tasks: Task[], classes = ""): string {
   return [
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
     "Ayudás con las tareas de este alumno: qué tiene que hacer, de qué materia es, cómo organizarse y dudas de estudio.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
+    classes
+      ? [
+          "Si te piden que expliques un tema, hacé de profesor de esa materia.",
+          "Usá solo el bloque Clases: el mismo orden, las mismas palabras y los mismos ejemplos.",
+          "Enseñá lo que la clase enseña. No adelantes lo que no aparece.",
+          "Si el tema no está en las clases, decilo. No lo presentes como si el profesor lo hubiera dado.",
+          "Clases:",
+          classes,
+        ].join("\n")
+      : "",
     "Resumen de la cuenta:",
     taskSnapshot(user, tasks),
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function classNotes(user: User, message: string): Promise<string> {
+  if (!asksForLesson(message) || user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) {
+    return "";
+  }
+  const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
+  if (!classroom) return "";
+  let password = "";
+  try {
+    password = decryptSecret(user.educamosPasswordEnc);
+  } catch {
+    return "No pude abrir las clases. No inventes que las leíste.";
+  }
+  try {
+    const notes = await fetchTeachingNotes({
+      lmsUrl: classroom,
+      username: user.educamosUsername,
+      password,
+      question: message,
+    });
+    if (!notes.ok) return `No pude leer las clases (${notes.error}). No inventes que las viste.`;
+    if (!notes.brief.trim()) return "En el aula no hay material de clase para leer. Decilo, y no inventes una explicación del profesor.";
+    return notes.brief;
+  } catch {
+    return "No pude leer las clases. No inventes que las viste.";
+  }
 }
 
 async function answerWithFreeLlm(
@@ -124,7 +165,8 @@ async function answerWithFreeLlm(
 export async function answerWithModel(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
   const tasks = currentTasks(user);
   const fallback = () => localAnswer(message, user, tasks);
-  const system = studySystem(user, tasks);
+  const classes = await classNotes(user, message);
+  const system = studySystem(user, tasks, classes);
 
   try {
     const free = await answerWithFreeLlm(message, history, system);

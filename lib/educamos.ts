@@ -1,3 +1,7 @@
+import { spawn } from "child_process";
+import { unlink, writeFile } from "fs/promises";
+import { tmpdir } from "os";
+import path from "path";
 import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
@@ -109,6 +113,35 @@ async function request(
   throw new Error("redirect");
 }
 
+async function requestBytes(jar: Jar, url: string): Promise<Buffer | null> {
+  const res = await fetch(url, {
+    redirect: "follow",
+    signal: AbortSignal.timeout(20000),
+    headers: { "user-agent": UA, accept: "*/*", cookie: jar.header() },
+  });
+  jar.store(res);
+  if (!res.ok) return null;
+  const bytes = Buffer.from(await res.arrayBuffer());
+  if (bytes.length < 20 || bytes.length > 4_000_000) return null;
+  return bytes;
+}
+
+async function pdfToText(bytes: Buffer): Promise<string> {
+  const file = path.join(tmpdir(), `taskie-${crypto.randomUUID()}.pdf`);
+  await writeFile(file, bytes);
+  try {
+    return await new Promise((resolve, reject) => {
+      const child = spawn("pdftotext", ["-q", "-enc", "UTF-8", "-nopgbrk", file, "-"]);
+      const chunks: Buffer[] = [];
+      child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+      child.on("error", reject);
+      child.on("close", (code) => (code === 0 ? resolve(Buffer.concat(chunks).toString("utf8")) : reject(new Error("pdf"))));
+    });
+  } finally {
+    await unlink(file).catch(() => undefined);
+  }
+}
+
 function dmyToIso(value: string): string | null {
   const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
@@ -193,42 +226,65 @@ function namedValue(html: string, name: string): string {
   return decodeHtml((byName ?? byValue)?.[1] ?? "");
 }
 
+async function loginLms(
+  lmsUrl: string,
+  username: string,
+  password: string,
+): Promise<{ ok: true; jar: Jar; root: string; sesskey: string } | { ok: false; error: string }> {
+  const root = lmsBase("https://colegio.educamos.com", lmsUrl);
+  if (!root) return { ok: false, error: "El enlace del aula no es válido." };
+  const jar = new Jar();
+  let page = await request(jar, `${root}/login/index.php`);
+  const fields = loginFields(page.text, username, password);
+  const action = formAction(page.text, page.finalUrl);
+  if (!fields || !action) return { ok: false, error: "No encontré la entrada del aula." };
+  page = await request(jar, action, "POST", fields.toString());
+  if (loginFields(page.text, username, password)) {
+    return { ok: false, error: "El aula no aceptó el usuario o la contraseña." };
+  }
+  if (page.text.includes('name="SAMLResponse"')) {
+    const form = page.text.match(/<form\b[\s\S]*?<\/form>/i)?.[0] ?? "";
+    const acs = form.match(/action="([^"]+)"/i)?.[1];
+    const response = namedValue(page.text, "SAMLResponse");
+    if (!acs || !response) return { ok: false, error: "El aula no completó el acceso." };
+    const body = new URLSearchParams();
+    body.set("SAMLResponse", response);
+    const relay = namedValue(page.text, "RelayState");
+    if (relay) body.set("RelayState", relay);
+    await request(jar, new URL(acs, page.finalUrl).href, "POST", body.toString());
+  }
+  page = await request(jar, `${root}/my/`);
+  const sesskey = page.text.match(/"sesskey":"([^"]+)"/)?.[1];
+  if (!sesskey) return { ok: false, error: "Entré, pero no llegué a las clases del aula." };
+  return { ok: true, jar, root, sesskey };
+}
+
+async function moodleCall(jar: Jar, root: string, sesskey: string, calls: { methodname: string; args: Record<string, unknown> }[]) {
+  const payload = JSON.stringify(calls.map((call, index) => ({ index, methodname: call.methodname, args: call.args })));
+  const info = calls.map((call) => call.methodname).join(",");
+  const ajax = await request(
+    jar,
+    `${root}/lib/ajax/service.php?sesskey=${encodeURIComponent(sesskey)}&info=${encodeURIComponent(info)}`,
+    "POST",
+    payload,
+    "application/json",
+  );
+  return JSON.parse(ajax.text) as { data?: unknown; exception?: string; message?: string; error?: string }[];
+}
+
 export async function fetchLmsUploads(input: {
   lmsUrl: string;
   username: string;
   password: string;
   timeZone: string;
 }): Promise<SyncResult> {
-  const root = lmsBase("https://colegio.educamos.com", input.lmsUrl);
-  if (!root) return { ok: false, error: "El enlace del aula no es válido." };
-  const jar = new Jar();
   try {
-    let page = await request(jar, `${root}/login/index.php`);
-    const fields = loginFields(page.text, input.username, input.password);
-    const action = formAction(page.text, page.finalUrl);
-    if (!fields || !action) return { ok: false, error: "No encontré la entrada del aula." };
-    page = await request(jar, action, "POST", fields.toString());
-    if (loginFields(page.text, input.username, input.password)) {
-      return { ok: false, error: "El aula no aceptó el usuario o la contraseña." };
-    }
-    if (page.text.includes('name="SAMLResponse"')) {
-      const form = page.text.match(/<form\b[\s\S]*?<\/form>/i)?.[0] ?? "";
-      const acs = form.match(/action="([^"]+)"/i)?.[1];
-      const response = namedValue(page.text, "SAMLResponse");
-      if (!acs || !response) return { ok: false, error: "El aula no completó el acceso." };
-      const body = new URLSearchParams();
-      body.set("SAMLResponse", response);
-      const relay = namedValue(page.text, "RelayState");
-      if (relay) body.set("RelayState", relay);
-      await request(jar, new URL(acs, page.finalUrl).href, "POST", body.toString());
-    }
-    page = await request(jar, `${root}/my/`);
-    const sesskey = page.text.match(/"sesskey":"([^"]+)"/)?.[1];
-    if (!sesskey) return { ok: false, error: "Entré, pero no llegué a las clases del aula." };
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return session;
+    const { jar, root, sesskey } = session;
     const now = Math.floor(Date.now() / 1000);
-    const payload = JSON.stringify([
+    const parsed = await moodleCall(jar, root, sesskey, [
       {
-        index: 0,
         methodname: "core_calendar_get_action_events_by_timesort",
         args: {
           limitnum: 50,
@@ -238,15 +294,7 @@ export async function fetchLmsUploads(input: {
         },
       },
     ]);
-    const ajax = await request(
-      jar,
-      `${root}/lib/ajax/service.php?sesskey=${encodeURIComponent(sesskey)}&info=core_calendar_get_action_events_by_timesort`,
-      "POST",
-      payload,
-      "application/json",
-    );
-    const parsed = JSON.parse(ajax.text) as { data?: { events?: LmsEvent[] }; error?: string }[];
-    const events = parsed[0]?.data?.events ?? [];
+    const events = (parsed[0]?.data as { events?: LmsEvent[] } | undefined)?.events ?? [];
     const tasks: RemoteTask[] = [];
     const seen = new Set<string>();
     for (const event of events) {
@@ -272,6 +320,217 @@ export async function fetchLmsUploads(input: {
   } catch {
     return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
   }
+}
+
+function htmlToText(value: string): string {
+  return decodeHtml(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function clip(value: string, max: number): string {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max).trim()}…`;
+}
+
+const LESSON_STOP = new Set(
+  "para como esta este esto esa eso son las los una uno del que con por sus les nos estan cuando donde porque sobre entre hacia desde hasta tambien tiene tienen hacer hace puede pueden quiere quiero explicame explica ensename ensena tema clase profesor profe materia algo alguien".split(
+    " ",
+  ),
+);
+
+function lessonWords(value: string): string[] {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !LESSON_STOP.has(word));
+}
+
+export function asksForLesson(message: string): boolean {
+  const q = message.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  return /explic|ensen|que es |que son |como se |como funciona|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema/.test(q);
+}
+
+type LessonPiece = { title: string; text: string };
+type LessonResource = { title: string; section: string; url: string; text?: string };
+type LessonCourse = { id: number; name: string; pieces: LessonPiece[]; resources: LessonResource[] };
+
+const lessonCache = new Map<string, { at: number; courses: LessonCourse[] }>();
+
+type CourseState = {
+  section?: { number?: number; title?: string; rawtitle?: string; visible?: boolean }[];
+  cm?: { name?: string; modname?: string; url?: string; uservisible?: boolean; visible?: boolean; sectionnumber?: number }[];
+};
+
+function parseState(data: unknown): CourseState {
+  let raw = data;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === "object" ? (raw as CourseState) : {};
+}
+
+export async function fetchTeachingNotes(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  question: string;
+}): Promise<{ ok: true; brief: string; courses: number; matched: number } | { ok: false; error: string }> {
+  const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
+  const cached = lessonCache.get(cacheKey);
+  let courses = cached && Date.now() - cached.at < 10 * 60 * 1000 ? cached.courses : null;
+  if (!courses) {
+    const loaded = await loadLessons(input.lmsUrl, input.username, input.password);
+    if (!loaded.ok) return loaded;
+    courses = loaded.courses;
+    lessonCache.set(cacheKey, { at: Date.now(), courses });
+  }
+  const words = new Set(lessonWords(input.question));
+  const ranked = courses
+    .map((course) => {
+      const hay = lessonWords([course.name, ...course.pieces.map((piece) => piece.title), ...course.resources.map((item) => item.title)].join(" "));
+      const nameWords = new Set(lessonWords(course.name));
+      let score = 0;
+      for (const word of words) if (hay.includes(word)) score += nameWords.has(word) ? 4 : 1;
+      return { course, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  const matched = ranked.filter((item) => item.score > 0).slice(0, 2);
+  if (matched.length > 0) {
+    const pending = matched.some((item) => item.course.resources.some((item) => item.text === undefined));
+    if (pending) {
+      const read = await readResourceText(input.lmsUrl, input.username, input.password, matched.map((item) => item.course), words);
+      if (!read.ok) return read;
+    }
+  }
+  return { ok: true, ...briefFromLessons(courses, matched.map((item) => item.course), words) };
+}
+
+async function loadLessons(
+  lmsUrl: string,
+  username: string,
+  password: string,
+): Promise<{ ok: true; courses: LessonCourse[] } | { ok: false; error: string }> {
+  try {
+    const session = await loginLms(lmsUrl, username, password);
+    if (!session.ok) return session;
+    const { jar, root, sesskey } = session;
+    const listed = await moodleCall(jar, root, sesskey, [
+      {
+        methodname: "core_course_get_enrolled_courses_by_timeline_classification",
+        args: { offset: 0, limit: 16, classification: "inprogress", sort: "fullname" },
+      },
+    ]);
+    const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
+      .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
+      .filter((course) => course.id && course.name)
+      .slice(0, 12);
+    if (enrolled.length === 0) return { ok: true, courses: [] };
+    const states = await moodleCall(
+      jar,
+      root,
+      sesskey,
+      enrolled.map((course) => ({ methodname: "core_courseformat_get_state", args: { courseid: course.id } })),
+    );
+    const courses = enrolled.map((course, index) => courseFromState(course.id, course.name, states[index]?.data));
+    return { ok: true, courses };
+  } catch {
+    return { ok: false, error: "No se pudo leer el material de las clases." };
+  }
+}
+
+function courseFromState(id: number, name: string, data: unknown): LessonCourse {
+  const state = parseState(data);
+  const sections = [...(state.section ?? [])].sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+  const pieces: LessonPiece[] = [];
+  const resources: LessonResource[] = [];
+  for (const section of sections) {
+    if (section.visible === false) continue;
+    const title = htmlToText(section.rawtitle || section.title || "");
+    if (title && !/general|tema$/i.test(title)) pieces.push({ title, text: "" });
+    const sectionName = title || "Clase";
+    for (const mod of state.cm ?? []) {
+      if (mod.sectionnumber !== section.number || mod.uservisible === false || mod.visible === false) continue;
+      const modName = htmlToText(mod.name ?? "");
+      const kind = mod.modname ?? "";
+      if (/foro/i.test(kind)) continue;
+      if (modName) pieces.push({ title: modName, text: "" });
+      if (/recurso/i.test(kind) && mod.url) resources.push({ title: modName || "Apunte", section: sectionName, url: mod.url });
+    }
+  }
+  return { id, name, pieces, resources };
+}
+
+async function readResourceText(
+  lmsUrl: string,
+  username: string,
+  password: string,
+  courses: LessonCourse[],
+  words: Set<string>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const session = await loginLms(lmsUrl, username, password);
+    if (!session.ok) return session;
+    for (const course of courses) {
+      const named = course.resources.filter((item) => lessonWords(`${item.title} ${item.section}`).some((word) => words.has(word)));
+      const chosen = (named.length > 0 ? named : course.resources).filter((item) => item.text === undefined).slice(0, 4);
+      for (const item of chosen) {
+        const bytes = await requestBytes(session.jar, item.url);
+        if (!bytes || !bytes.subarray(0, 4).toString("utf8").startsWith("%PDF")) {
+          item.text = "";
+          continue;
+        }
+        try {
+          item.text = clip(htmlToText(await pdfToText(bytes)), 1800);
+        } catch {
+          item.text = "";
+        }
+      }
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo leer los apuntes de la clase." };
+  }
+}
+
+function briefFromLessons(courses: LessonCourse[], matched: LessonCourse[], words: Set<string>): { brief: string; courses: number; matched: number } {
+  const chosen = matched.length > 0 ? matched : courses.slice(0, 8);
+  const lines = [
+    matched.length > 0
+      ? "Material de las clases que coinciden con el tema. Enseñá solo esto, en este orden, y no adelantes lo que no aparece."
+      : "Ninguna clase coincide con el tema. Esto es el índice de lo que sí enseñan. No lo presentes como si hubieran dado otra cosa.",
+  ];
+  let used = 0;
+  for (const course of chosen) {
+    const bits = matched.length === 0 ? course.pieces.slice(0, 12) : course.pieces;
+    const notes = course.resources.filter((item) => item.text);
+    const block = [
+      `Materia: ${course.name}`,
+      ...bits.map((piece) => `- ${piece.title}`),
+      ...notes.map((item) => `Apunte (${item.section} / ${item.title}): ${item.text}`),
+    ].join("\n");
+    if (used + block.length > 10000) break;
+    lines.push(block);
+    used += block.length;
+  }
+  if (words.size === 0 && matched.length === 0) {
+    lines[0] = "No hay un tema concreto. Este es el índice de las clases.";
+  }
+  return { brief: lines.join("\n\n"), courses: courses.length, matched: matched.length };
 }
 
 type LmsEvent = {
