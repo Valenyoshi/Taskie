@@ -11,7 +11,7 @@ Web para ver las tareas de Educamos, entregarlas y ganar experiencia. Se usa en 
 - Experiencia para el nivel. Hasta el nivel 5 hacen falta 3 tareas, del 5 al 9 hacen falta 4 y desde el 10 hacen falta 5.
 - Sombreros, aparte de la XP.
 - La tienda de Bobby, con literas para la mercadería.
-- Logros en el ranking, racha por entrar y un chat para dudas.
+- Logros en el ranking, racha por entrar, y la sección IA: chat y repasos cortos.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
 
 ## Cómo correrla
@@ -31,7 +31,7 @@ Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la
 
 Educamos no publica una API para alumnos. Taskie entra a la web del colegio con tus datos. Si el colegio cambia la página o no deja el acceso automático, la cuenta queda creada, ves el error y podés reintentar con **Actualizar**.
 
-## Chat
+## IA
 
 El chat habla con [FreeLLMAPI](https://freellmapi.co), un enrutador local de modelos gratuitos. En este entorno corre en `http://127.0.0.1:43124`. La cuenta del tablero es `valen@taskie.local` y la clave unificada va en `.env.local`:
 
@@ -41,7 +41,7 @@ FREELLMAPI_API_KEY=freellmapi-tu-clave
 FREELLMAPI_MODEL=kilo-auto/free
 ```
 
-Si le pedís que te explique un tema, o cómo hacer una tarea y qué tenés que hacer, lee el material de tus clases y te lo explica. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
+En Lecciones hay un repaso de menos de 3 minutos por materia, armado con lo que enseñan en clase. Si le pedís que te explique un tema, o cómo hacer una tarea y qué tenés que hacer, lee el material de tus clases y te lo explica. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
 
 ## Avisos
 

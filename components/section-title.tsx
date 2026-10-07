@@ -8,7 +8,7 @@ export function SectionTitle() {
   if (pathname.startsWith("/materias")) title = "Materias";
   else if (pathname.startsWith("/premios")) title = "Tienda de Bobby";
   else if (pathname.startsWith("/ranking")) title = "Ranking";
-  else if (pathname.startsWith("/chat")) title = "Chat";
+  else if (pathname.startsWith("/chat")) title = "IA";
   else if (pathname.startsWith("/concentracion")) title = "Concentración";
   else if (pathname.startsWith("/configuracion")) title = "Configuración";
 

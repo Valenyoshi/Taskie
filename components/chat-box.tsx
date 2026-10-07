@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { ArrowUp } from "lucide-react";
+import { GeminiMark } from "@/components/gemini-mark";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
-const suggestions = ["¿Qué tengo hoy?", "Explicame un tema como en clase"];
+const suggestions = ["¿Qué tengo hoy?", "Explicame cómo hacer una tarea"];
 
 export function ChatBox({ initial }: { initial: Message[] }) {
   const [messages, setMessages] = useState<Message[]>(initial);
@@ -44,51 +44,58 @@ export function ChatBox({ initial }: { initial: Message[] }) {
   }
 
   return (
-    <div className="flex min-h-[70vh] flex-col">
-      <div className="flex flex-1 flex-col gap-3">
+    <div className="gemini-chat">
+      <div className="gemini-thread">
         {messages.length === 0 ? (
-          <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-            <p className="font-display text-xl">Preguntame</p>
-            <div className="mt-3 flex flex-col gap-2">
+          <div className="gemini-empty">
+            <GeminiMark size={56} />
+            <p className="font-display text-3xl">¿En qué te ayudo?</p>
+            <div className="gemini-chips">
               {suggestions.map((item) => (
-                <Button key={item} variant="outline" className="h-auto justify-start py-2 text-left whitespace-normal" onClick={() => void send(item)}>
+                <button key={item} type="button" onClick={() => void send(item)}>
                   {item}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${
-                message.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-card ring-1 ring-foreground/10"
-              }`}
-            >
-              {message.content}
-            </div>
-          ))
+          messages.map((message) =>
+            message.role === "user" ? (
+              <p key={message.id} className="gemini-user">
+                {message.content}
+              </p>
+            ) : (
+              <div key={message.id} className="gemini-reply">
+                <GeminiMark size={22} />
+                <p>{message.content}</p>
+              </div>
+            ),
+          )
         )}
-        {busy ? <p className="text-sm text-muted-foreground">Estoy mirando tus clases…</p> : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {busy ? (
+          <div className="gemini-reply">
+            <GeminiMark size={22} />
+            <p className="text-muted-foreground">Estoy mirando…</p>
+          </div>
+        ) : null}
+        {error ? <p className="text-sm font-semibold text-coral">{error}</p> : null}
       </div>
       <form
-        className="sticky bottom-20 mt-4 flex gap-2"
+        className="gemini-compose"
         onSubmit={(event) => {
           event.preventDefault();
           void send(text);
         }}
       >
-        <Textarea
+        <input
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Escribí tu duda"
-          className="min-h-12"
-          rows={2}
+          placeholder="Preguntale a IA"
+          aria-label="Mensaje"
         />
-        <Button className="h-12" type="submit" disabled={busy || !text.trim()}>
-          Enviar
-        </Button>
+        <button type="submit" disabled={busy || !text.trim()} aria-label="Enviar">
+          <ArrowUp className="size-5" />
+        </button>
       </form>
     </div>
   );

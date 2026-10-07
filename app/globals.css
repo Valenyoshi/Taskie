@@ -1195,7 +1195,232 @@
 }
 
 .section-wash.chat {
-  background: linear-gradient(180deg, #9dcec4 0%, #d7efe8 52%, #f6efe4 100%);
+  background: linear-gradient(180deg, #d5e4ff 0%, #efe4ff 48%, #f7f1e8 100%);
+}
+
+.ia-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 4px;
+}
+
+.ia-switch button {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ia-switch button.on {
+  background: white;
+  box-shadow: 0 4px 0 rgba(75, 139, 255, 0.18);
+}
+
+.gemini-chat {
+  display: flex;
+  min-height: 62vh;
+  flex-direction: column;
+}
+
+.gemini-thread {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gemini-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px 8px 12px;
+  text-align: center;
+}
+
+.gemini-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.gemini-chips button {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgba(75, 139, 255, 0.25);
+}
+
+.gemini-user {
+  align-self: flex-end;
+  max-width: 85%;
+  border-radius: 22px 22px 6px 22px;
+  background: #d3e3fd;
+  padding: 12px 14px;
+  color: #1b2a4a;
+  white-space: pre-wrap;
+}
+
+.gemini-reply {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 100%;
+  white-space: pre-wrap;
+}
+
+.gemini-compose {
+  position: sticky;
+  bottom: 5.2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: white;
+  padding: 6px 6px 6px 16px;
+  box-shadow: 0 8px 0 rgba(122, 92, 255, 0.12), inset 0 0 0 1px rgba(75, 139, 255, 0.28);
+}
+
+.gemini-compose input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  outline: none;
+}
+
+.gemini-compose button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: #1b2a4a;
+  color: white;
+}
+
+.gemini-compose button:disabled {
+  opacity: 0.35;
+}
+
+.lesson-home,
+.lesson-play,
+.lesson-done {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lesson-skill {
+  display: flex;
+  min-height: 92px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 22px;
+  background: white;
+  padding: 14px;
+  text-align: left;
+  font-weight: 750;
+  box-shadow: 0 6px 0 #d7c4ff;
+}
+
+.lesson-skill:disabled {
+  opacity: 0.7;
+}
+
+.lesson-skill-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #7a5cff, #4b8bff);
+  box-shadow: 0 4px 0 #3d2d99;
+}
+
+.lesson-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lesson-exit {
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.lesson-pips {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+
+.lesson-pips span {
+  height: 8px;
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.lesson-pips span.done,
+.lesson-pips span.now {
+  background: #7a5cff;
+}
+
+.lesson-option {
+  border-radius: 16px;
+  background: white;
+  padding: 14px;
+  text-align: left;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px rgba(44, 36, 31, 0.12);
+}
+
+.lesson-option.picked {
+  box-shadow: inset 0 0 0 2px #7a5cff;
+}
+
+.lesson-option.answer {
+  box-shadow: inset 0 0 0 2px #1c7c6e;
+}
+
+.lesson-next {
+  height: 48px;
+  border-radius: 16px;
+  background: #1c7c6e;
+  font-weight: 800;
+  color: white;
+}
+
+.lesson-next:disabled {
+  opacity: 0.45;
+}
+
+.lesson-play.is-right .lesson-next {
+  background: #1c7c6e;
+}
+
+.lesson-play.is-wrong .lesson-next {
+  background: #e25b45;
+}
+
+.lesson-done {
+  align-items: center;
+  padding: 28px 8px;
+  text-align: center;
 }
 
 .section-wash.concentracion {
