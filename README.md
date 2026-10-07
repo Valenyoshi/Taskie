@@ -41,7 +41,7 @@ FREELLMAPI_API_KEY=freellmapi-tu-clave
 FREELLMAPI_MODEL=kilo-auto/free
 ```
 
-Si le pedís que te explique un tema, lee el material de tus clases y responde como el profesor: con lo que sí enseñan y sin adelantar lo que no está. Si le pedís que te haga una tarea, un trabajo o las respuestas para entregar, se niega, también cuando el pedido viene disfrazado. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
+Si le pedís que te explique un tema, o cómo hacer una tarea y qué tenés que hacer, lee el material de tus clases y te lo explica. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
 
 ## Avisos
 
