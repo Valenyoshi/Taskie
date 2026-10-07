@@ -28,10 +28,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+function askPermission(): Promise<NotificationPermission> {
+  if (!("Notification" in window)) return Promise.reject(new Error("Este navegador no muestra avisos."));
+  if (Notification.permission === "granted") return Promise.resolve("granted");
+  if (Notification.permission === "denied") return Promise.resolve("denied");
+  return Notification.requestPermission();
+}
+
 async function showNotice(title: string, body: string): Promise<"push" | "local"> {
-  if (!("Notification" in window)) throw new Error("Este navegador no muestra avisos.");
-  const permission = await withTimeout(Notification.requestPermission(), 4000);
-  if (permission !== "granted") throw new Error("Sin permiso del navegador.");
   if (!("serviceWorker" in navigator)) {
     new Notification(title, { body, icon: "/icon-192.png" });
     return "local";
@@ -74,8 +78,7 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
   const [message, setMessage] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
 
-  async function toggle() {
-    const next = !on;
+  async function toggle(next: boolean, permissionAsk: Promise<NotificationPermission> | null) {
     setOn(next);
     setMessage(null);
     const res = await fetch("/api/push/toggle", {
@@ -88,18 +91,38 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
       setMessage("No se pudo guardar.");
       return;
     }
-    if (!next) return;
+    if (!next || !permissionAsk) return;
     try {
+      const permission = await permissionAsk;
+      if (permission === "denied") {
+        setMessage("El navegador bloqueó los avisos. Tocá el candado de la barra y permitilos.");
+        return;
+      }
+      if (permission !== "granted") {
+        setMessage("Sin el permiso del navegador no puedo avisarte.");
+        return;
+      }
       await showNotice("Taskie", "Avisos activos.");
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No pude mostrar el aviso.");
     }
   }
 
-  async function test() {
+  async function test(permissionAsk: Promise<NotificationPermission>) {
     setTesting(true);
     setMessage(null);
     try {
+      const permission = await permissionAsk;
+      if (permission === "denied") {
+        setMessage("El navegador bloqueó los avisos. Tocá el candado de la barra y permitilos.");
+        setTesting(false);
+        return;
+      }
+      if (permission !== "granted") {
+        setMessage("Sin el permiso del navegador no puedo avisarte.");
+        setTesting(false);
+        return;
+      }
       const where = await showNotice("Taskie", "Así te vamos a avisar cuando tengas tareas para entregar.");
       setMessage(
         where === "push"
@@ -128,7 +151,10 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
           type="button"
           role="switch"
           aria-checked={on}
-          onClick={() => void toggle()}
+          onClick={() => {
+            const next = !on;
+            void toggle(next, next ? askPermission() : null);
+          }}
           className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${on ? "bg-coral" : "bg-muted"}`}
         >
           <span className={`absolute top-1 size-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
@@ -137,7 +163,7 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
       </div>
       <button
         type="button"
-        onClick={() => void test()}
+        onClick={() => void test(askPermission())}
         disabled={testing}
         className="mt-4 h-11 w-full rounded-full bg-coral text-sm font-semibold text-white disabled:opacity-60"
       >
