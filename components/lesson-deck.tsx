@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SubjectMark } from "@/components/subject-mark";
 import type { Lesson, LessonStep } from "@/lib/lessons";
 
 export function LessonDeck({ subjects }: { subjects: string[] }) {
@@ -57,7 +58,7 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
           <div className="grid grid-cols-2 gap-3">
             {subjects.map((subject) => (
               <button key={subject} type="button" className="lesson-skill" disabled={busy !== null} onClick={() => void start(subject)}>
-                <span className="lesson-skill-mark" aria-hidden />
+                <SubjectMark subject={subject} size={40} />
                 <span>{busy === subject ? "Armando…" : subject}</span>
               </button>
             ))}

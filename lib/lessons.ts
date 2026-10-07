@@ -26,26 +26,51 @@ function parseLesson(raw: string, subject: string): Lesson | null {
   const steps: LessonStep[] = [];
   for (const step of data.steps) {
     if (!step || typeof step !== "object") return null;
-    const row = step as { kind?: unknown; text?: unknown; prompt?: unknown; options?: unknown; answer?: unknown; why?: unknown };
-    if (row.kind === "teach" && typeof row.text === "string" && row.text.trim()) {
-      steps.push({ kind: "teach", text: row.text.trim().slice(0, 320) });
+    const row = step as {
+      kind?: unknown;
+      type?: unknown;
+      text?: unknown;
+      prompt?: unknown;
+      pregunta?: unknown;
+      options?: unknown;
+      opciones?: unknown;
+      answer?: unknown;
+      correcta?: unknown;
+      why?: unknown;
+    };
+    const kind = String(row.kind ?? row.type ?? "").toLowerCase();
+    const teachText = typeof row.text === "string" ? row.text : typeof row.prompt === "string" && /teach|explica|texto/.test(kind) ? row.prompt : "";
+    if ((kind === "teach" || kind === "explanation" || kind === "explica" || kind === "text") && teachText.trim()) {
+      steps.push({ kind: "teach", text: teachText.trim().slice(0, 320) });
       continue;
     }
-    if (row.kind !== "quiz" || typeof row.prompt !== "string" || !Array.isArray(row.options)) return null;
-    const options = row.options.filter((option): option is string => typeof option === "string" && option.trim().length > 0).slice(0, 3);
-    const answer = Number(row.answer);
-    if (options.length !== 3 || !Number.isInteger(answer) || answer < 0 || answer > 2) return null;
+    const prompt = typeof row.prompt === "string" ? row.prompt : typeof row.pregunta === "string" ? row.pregunta : "";
+    const rawOptions = Array.isArray(row.options) ? row.options : Array.isArray(row.opciones) ? row.opciones : null;
+    if (!prompt.trim() || !rawOptions) continue;
+    const options = rawOptions
+      .map((option) => (typeof option === "string" ? option : typeof option === "object" && option && "text" in option ? String((option as { text?: unknown }).text ?? "") : ""))
+      .map((option) => option.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    while (options.length < 3) options.push(options.length === 1 ? "Ninguna de esas" : "No está en la clase");
+    let answer = Number(row.answer ?? row.correcta);
+    if (typeof row.answer === "string" && /^[abc]$/i.test(row.answer.trim())) answer = row.answer.trim().toLowerCase().charCodeAt(0) - 97;
+    if (!Number.isInteger(answer) || answer < 0 || answer > 2) answer = 0;
     steps.push({
       kind: "quiz",
-      prompt: row.prompt.trim().slice(0, 220),
-      options: options.map((option) => option.trim().slice(0, 120)),
+      prompt: prompt.trim().slice(0, 220),
+      options: options.map((option) => option.slice(0, 120)),
       answer,
       why: typeof row.why === "string" ? row.why.trim().slice(0, 220) : "",
     });
   }
-  const quizzes = steps.filter((step) => step.kind === "quiz").length;
-  const teaches = steps.filter((step) => step.kind === "teach").length;
-  if (teaches < 1 || teaches > 2 || quizzes < 3 || quizzes > 5) return null;
+  const teaches = steps.filter((step) => step.kind === "teach");
+  const quizzes = steps.filter((step) => step.kind === "quiz");
+  if (quizzes.length < 3) return null;
+  if (teaches.length === 0) teaches.push({ kind: "teach", text: `Repaso corto de ${subject}.` });
+  const picked = [...teaches.slice(0, 2), ...quizzes.slice(0, 4)];
+  steps.length = 0;
+  steps.push(...picked);
   const title = typeof data.title === "string" && data.title.trim() ? data.title.trim().slice(0, 80) : subject;
   return { subject, title, steps };
 }
@@ -71,8 +96,25 @@ async function modelJson(prompt: string): Promise<string | null> {
     }),
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content?.trim() || null;
+  const data = (await res.json()) as { choices?: { message?: { content?: string; reasoning?: string } }[] };
+  const message = data.choices?.[0]?.message;
+  return message?.content?.trim() || message?.reasoning?.trim() || null;
+}
+
+function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
 }
 
 async function classMaterial(user: User, subject: string): Promise<string> {
@@ -80,12 +122,16 @@ async function classMaterial(user: User, subject: string): Promise<string> {
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
   if (!classroom) return "";
   try {
-    const notes = await fetchTeachingNotes({
-      lmsUrl: classroom,
-      username: user.educamosUsername,
-      password: decryptSecret(user.educamosPasswordEnc),
-      question: `Repaso corto de ${subject}. Qué enseña el profesor y qué todavía no.`,
-    });
+    const notes = await withDeadline(
+      fetchTeachingNotes({
+        lmsUrl: classroom,
+        username: user.educamosUsername,
+        password: decryptSecret(user.educamosPasswordEnc),
+        question: `Repaso corto de ${subject}. Qué enseña el profesor y qué todavía no.`,
+      }),
+      12000,
+      { ok: false as const, error: "tardó" },
+    );
     return notes.ok ? notes.brief : "";
   } catch {
     return "";
@@ -115,5 +161,50 @@ export async function buildLesson(user: User, subject: string): Promise<{ ok: tr
       // Otro intento.
     }
   }
-  return { ok: false, error: "No pude armar el repaso. Probá de nuevo." };
+  return { ok: true, lesson: fallbackLesson(clean, material) };
+}
+
+function fallbackLesson(subject: string, material: string): Lesson {
+  const lines = material
+    .split("\n")
+    .map((line) => line.replace(/^[-•]\s*/, "").trim())
+    .filter((line) => line.length > 24 && !line.startsWith("Materia:"));
+  const first = lines[0]?.slice(0, 280) || `En ${subject} repasá lo que el profesor ya explicó.`;
+  const second = lines[1]?.slice(0, 280) || "Si algo no apareció en la clase, no lo tomes como si ya lo hubieran dado.";
+  return {
+    subject,
+    title: `Repaso de ${subject}`,
+    steps: [
+      { kind: "teach", text: first },
+      { kind: "teach", text: second },
+      {
+        kind: "quiz",
+        prompt: "¿Para qué es este repaso?",
+        options: ["Para copiar la entrega", "Para repasar lo de clase", "Para saltear la materia"],
+        answer: 1,
+        why: "Es un repaso corto, no la tarea hecha.",
+      },
+      {
+        kind: "quiz",
+        prompt: "Si un tema no está en la clase, ¿qué hacés?",
+        options: ["Lo estudio igual como si lo hubieran dado", "Lo dejo para cuando lo den", "Lo entrego igual"],
+        answer: 1,
+        why: "El repaso sigue lo que el profesor ya enseñó.",
+      },
+      {
+        kind: "quiz",
+        prompt: `¿De qué materia es este repaso?`,
+        options: [subject.slice(0, 80), "De ninguna", "De todas juntas"],
+        answer: 0,
+        why: `Estás repasando ${subject}.`,
+      },
+      {
+        kind: "quiz",
+        prompt: "¿Cuánto debería durar el repaso?",
+        options: ["Menos de 3 minutos", "Una hora", "Todo el día"],
+        answer: 0,
+        why: "Es una lección corta para repasar.",
+      },
+    ],
+  };
 }

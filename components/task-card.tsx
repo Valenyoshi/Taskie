@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
+import { SubjectMark } from "@/components/subject-mark";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
 
@@ -162,7 +163,8 @@ export function TaskCard({ task }: { task: TaskView }) {
       <div className="flex items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span title={task.subject} className="text-[11px] font-bold" style={{ color }}>
+            <span title={task.subject} className="flex items-center gap-1 text-[11px] font-bold" style={{ color }}>
+              <SubjectMark subject={task.subject} size={18} />
               {shortSubject(task.subject)}
             </span>
             {task.kind === "archivo" ? (

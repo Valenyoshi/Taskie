@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { SubjectMark } from "@/components/subject-mark";
 import { subjectColor } from "@/lib/subject-color";
 import { getCurrentUser } from "@/lib/session";
 import { subjectsData } from "@/lib/view";
@@ -22,8 +23,11 @@ export default async function MateriasPage() {
             className="rounded-2xl bg-card p-4 ring-1 ring-foreground/10"
             style={{ boxShadow: `inset 6px 0 0 ${subjectColor(subject.subject)}` }}
           >
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="font-display text-2xl">{subject.subject}</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="flex min-w-0 items-center gap-2 font-display text-2xl">
+                <SubjectMark subject={subject.subject} size={36} />
+                <span className="truncate">{subject.subject}</span>
+              </h2>
               <span className="text-sm text-muted-foreground">{subject.pending} por hacer</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">

@@ -1423,6 +1423,20 @@
   text-align: center;
 }
 
+button,
+a,
+summary,
+[role="button"],
+[role="tab"],
+[role="switch"],
+label[for] {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
 .section-wash.concentracion {
   background: linear-gradient(180deg, #7eb8c4 0%, #d5eef2 50%, #f7f1e8 100%);
 }
