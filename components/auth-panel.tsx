@@ -97,7 +97,7 @@ export function AuthPanel() {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {syncNote ? <p className="text-sm">{syncNote}</p> : null}
         <Button className="h-11" type="submit" disabled={busy}>
-          {busy ? "Entrando…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
+          {busy ? "Buscando tus tareas…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
         </Button>
       </form>
       <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>

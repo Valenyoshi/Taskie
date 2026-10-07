@@ -31,17 +31,19 @@ export async function runReminders(now = new Date()): Promise<void> {
     if (hour >= 8 && hour <= 20 && dueToday.length > 0 && !hasNotification(user.id, "digest", today)) {
       const subjects = [...new Set(dueToday.map((task) => task.subject))];
       const body = subjects.slice(0, 4).join(", ");
+      let delivered = 0;
       for (const sub of subs) {
         try {
           await sendPush(sub, {
             title: dueToday.length === 1 ? "Hoy tenés 1 tarea" : `Hoy tenés ${dueToday.length} tareas`,
             body,
           });
+          delivered += 1;
         } catch {
           // Un aviso que falla no frena al resto.
         }
       }
-      logNotification(user.id, "digest", today, today);
+      if (delivered > 0) logNotification(user.id, "digest", today, today);
     }
 
     for (const task of tasks) {
@@ -50,17 +52,19 @@ export async function runReminders(now = new Date()): Promise<void> {
       if (delta <= 0 || delta > 6 * 60 * 60 * 1000) continue;
       const ref = `${task.id}:${today}`;
       if (hasNotification(user.id, "soon", ref)) continue;
+      let delivered = 0;
       for (const sub of subs) {
         try {
           await sendPush(sub, {
             title: `Entrega pronto: ${task.title}`,
             body: `${task.subject}. Sigue pendiente.`,
           });
+          delivered += 1;
         } catch {
           // Un aviso que falla no frena al resto.
         }
       }
-      logNotification(user.id, "soon", ref, today);
+      if (delivered > 0) logNotification(user.id, "soon", ref, today);
     }
   }
 }

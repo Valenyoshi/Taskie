@@ -28,13 +28,13 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-async function showNotice(title: string, body: string) {
+async function showNotice(title: string, body: string): Promise<"push" | "local"> {
   if (!("Notification" in window)) throw new Error("Este navegador no muestra avisos.");
   const permission = await withTimeout(Notification.requestPermission(), 4000);
   if (permission !== "granted") throw new Error("Sin permiso del navegador.");
   if (!("serviceWorker" in navigator)) {
     new Notification(title, { body, icon: "/icon-192.png" });
-    return;
+    return "local";
   }
   const registration = await withTimeout(
     navigator.serviceWorker.register("/sw.js").then(() => navigator.serviceWorker.ready),
@@ -56,7 +56,8 @@ async function showNotice(title: string, body: string) {
       body: JSON.stringify(subscription.toJSON()),
     });
     const sent = await fetch("/api/push/test", { method: "POST" });
-    if (sent.ok) return;
+    const result = (await sent.json().catch(() => null)) as { push?: boolean } | null;
+    if (result?.push) return "push" as const;
   } catch {
     // Este navegador no tiene servicio push. El aviso sale igual desde la página.
   }
@@ -65,11 +66,13 @@ async function showNotice(title: string, body: string) {
     icon: "/icon-192.png",
     data: { url: "/inicio" },
   });
+  return "local" as const;
 }
 
 export function NotifyToggle({ enabled }: { enabled: boolean }) {
   const [on, setOn] = useState(enabled);
   const [message, setMessage] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
 
   async function toggle() {
     const next = !on;
@@ -93,6 +96,24 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
     }
   }
 
+  async function test() {
+    setTesting(true);
+    setMessage(null);
+    try {
+      const where = await showNotice("Taskie", "Así te vamos a avisar cuando tengas tareas para entregar.");
+      setMessage(
+        where === "push"
+          ? "Listo. El aviso de prueba ya salió."
+          : on
+            ? "El aviso salió en este navegador. El recordatorio automático llega mejor en Chrome de Android o con la app instalada."
+            : "El aviso salió en este navegador. Prendé el interruptor para que también te avise solo.",
+      );
+    } catch (error) {
+      setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No pude mostrar el aviso.");
+    }
+    setTesting(false);
+  }
+
   return (
     <section className="rounded-3xl bg-card px-4 py-4 ring-1 ring-foreground/10">
       <div className="flex items-center gap-3">
@@ -114,7 +135,15 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
           <span className="sr-only">{on ? "Apagar avisos" : "Prender avisos"}</span>
         </button>
       </div>
-      {message ? <p className="mt-3 text-sm font-semibold text-coral">{message}</p> : null}
+      <button
+        type="button"
+        onClick={() => void test()}
+        disabled={testing}
+        className="mt-4 h-11 w-full rounded-full bg-coral text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {testing ? "Probando…" : "Probar aviso"}
+      </button>
+      {message ? <p className="mt-3 text-sm font-semibold text-foreground">{message}</p> : null}
     </section>
   );
 }

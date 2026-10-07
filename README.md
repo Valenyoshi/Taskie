@@ -45,7 +45,7 @@ Si le pedís que te explique un tema, o cómo hacer una tarea y qué tenés que 
 
 ## Avisos
 
-En Inicio hay un interruptor y un botón **Probar aviso**. Hace falta dar permiso en el navegador. En Android Chrome funcionan en la web y en la app instalada. En iPhone, el aviso push llega cuando el sitio está agregado a la pantalla de inicio.
+Al entrar, Taskie busca de nuevo las tareas del colegio. En Configuración hay un interruptor y un botón **Probar aviso**. Hace falta dar permiso en el navegador. En Android Chrome funcionan en la web y en la app instalada. En iPhone, el aviso push llega cuando el sitio está agregado a la pantalla de inicio. Los recordatorios usan las mismas tareas pendientes que Inicio.
 
 ## Economía
 

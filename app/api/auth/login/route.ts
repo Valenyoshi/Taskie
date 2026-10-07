@@ -3,6 +3,7 @@ import { listUsers, type User } from "@/lib/db";
 import { json } from "@/lib/http";
 import { decryptSecret } from "@/lib/secret";
 import { startSession } from "@/lib/session";
+import { syncUser } from "@/lib/sync";
 
 function same(left: string, right: string): boolean {
   return left.trim().toLocaleLowerCase("es") === right.trim().toLocaleLowerCase("es");
@@ -44,5 +45,14 @@ export async function POST(request: Request) {
     return json({ error }, 400);
   }
   await startSession(user.id);
-  return json({ ok: true });
+  let syncError: string | null = null;
+  if (!user.isDemo) {
+    try {
+      const sync = await syncUser(user.id);
+      syncError = sync.ok ? null : sync.error ?? "No pude traer las tareas.";
+    } catch {
+      syncError = "No pude traer las tareas. En Inicio podés reintentar con Actualizar.";
+    }
+  }
+  return json({ ok: true, syncError });
 }
