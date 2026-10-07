@@ -420,6 +420,70 @@ export async function fetchTeachingNotes(input: {
   return { ok: true, ...briefFromLessons(courses, matched.map((item) => item.course), words) };
 }
 
+export async function topicsForSubject(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  subject: string;
+}): Promise<string[]> {
+  const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
+  let courses = lessonCache.get(cacheKey);
+  if (!courses || Date.now() - courses.at >= 10 * 60 * 1000) {
+    const loaded = await loadLessons(input.lmsUrl, input.username, input.password);
+    if (!loaded.ok) return [];
+    courses = { at: Date.now(), courses: loaded.courses };
+    lessonCache.set(cacheKey, courses);
+  }
+  const wanted = input.subject
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const ranked = courses.courses
+    .map((course) => {
+      const name = course.name
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .toLowerCase();
+      const score = wanted && (name.includes(wanted) || wanted.includes(name)) ? 5 : name.split(/\s+/).filter((word) => word.length > 3 && wanted.includes(word)).length;
+      return { course, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  const course = ranked[0]?.score ? ranked[0].course : null;
+  if (!course) return [];
+  const titles = course.pieces
+    .map((piece) => piece.title.trim())
+    .filter((title) => title.length > 2 && !/foro|avisos|^general$|^tema$/i.test(title));
+  return [...new Set(titles)].slice(0, 12);
+}
+
+export async function listEnrolledSubjectNames(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+}): Promise<string[]> {
+  const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
+  const cached = lessonCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.courses.map((course) => course.name);
+  try {
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return [];
+    const listed = await moodleCall(session.jar, session.root, session.sesskey, [
+      {
+        methodname: "core_course_get_enrolled_courses_by_timeline_classification",
+        args: { offset: 0, limit: 24, classification: "inprogress", sort: "fullname" },
+      },
+    ]);
+    return ((listed[0]?.data as { courses?: { fullname?: string }[] } | undefined)?.courses ?? [])
+      .map((course) => htmlToText(course.fullname ?? ""))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 async function loadLessons(
   lmsUrl: string,
   username: string,

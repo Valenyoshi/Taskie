@@ -118,12 +118,14 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
           ))}
         </div>
       </div>
+      <div key={step} className="lesson-card">
+      {current.kind === "teach" ? <p className="lesson-tag theory">Teoría</p> : null}
       <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">{lesson.title}</p>
       {current.kind === "teach" ? (
-        <p className="font-display text-2xl leading-snug">{current.text}</p>
+        <p className="font-display text-3xl leading-snug">{current.text}</p>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="font-display text-2xl leading-snug">{current.prompt}</p>
+          <p className="font-display text-3xl leading-snug">{current.prompt}</p>
           {current.options.map((option, index) => (
               <button
               key={`${option}-${index}`}
@@ -138,6 +140,7 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
           {checked ? <p className="text-sm font-semibold">{current.why}</p> : null}
         </div>
       )}
+      </div>
       <button type="button" className="lesson-next" disabled={current.kind === "quiz" && picked === null} onClick={advance}>
         {current.kind === "quiz" && !checked ? "Comprobar" : last ? "Terminar" : "Continuar"}
       </button>

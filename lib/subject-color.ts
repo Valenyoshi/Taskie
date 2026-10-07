@@ -21,6 +21,29 @@ export function shortSubject(subject: string): string {
   return piece.length > 18 ? `${piece.slice(0, 16)}…` : piece;
 }
 
+export function subjectKey(subject: string): string {
+  return fold(subject)
+    .replace(/[º°]/g, " ")
+    .replace(/\b\d+\b/g, " ")
+    .replace(/\b(es|ano|turno|manana|tarde|division|div|curso)\b/g, " ")
+    .replace(/\b[a-z]\b/g, " ")
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function dedupeSubjects(names: string[]): string[] {
+  const best = new Map<string, string>();
+  for (const name of names) {
+    const key = subjectKey(name);
+    if (!key) continue;
+    const display = name.replace(/\s+\d+\s*[º°].*$/i, "").trim() || name;
+    const prev = best.get(key);
+    if (!prev || display.length < prev.length) best.set(key, display);
+  }
+  return [...best.values()].sort((a, b) => a.localeCompare(b, "es"));
+}
+
 export function subjectColor(subject: string): string {
   const name = fold(subject);
   const known = named.find((entry) => entry.test.test(name));

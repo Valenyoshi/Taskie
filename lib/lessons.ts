@@ -1,6 +1,7 @@
 import type { User } from "./db";
-import { fetchTeachingNotes, lmsBase } from "./educamos";
+import { listEnrolledSubjectNames, lmsBase, topicsForSubject } from "./educamos";
 import { decryptSecret } from "./secret";
+import { dedupeSubjects } from "./subject-color";
 
 export type TeachStep = { kind: "teach"; text: string };
 export type QuizStep = { kind: "quiz"; prompt: string; options: string[]; answer: number; why: string };
@@ -40,13 +41,13 @@ function parseLesson(raw: string, subject: string): Lesson | null {
     };
     const kind = String(row.kind ?? row.type ?? "").toLowerCase();
     const teachText = typeof row.text === "string" ? row.text : typeof row.prompt === "string" && /teach|explica|texto/.test(kind) ? row.prompt : "";
-    if ((kind === "teach" || kind === "explanation" || kind === "explica" || kind === "text") && teachText.trim()) {
+    if ((kind === "teach" || kind === "explanation" || kind === "explica" || kind === "text") && teachText.trim() && !sillyPrompt(teachText)) {
       steps.push({ kind: "teach", text: teachText.trim().slice(0, 320) });
       continue;
     }
     const prompt = typeof row.prompt === "string" ? row.prompt : typeof row.pregunta === "string" ? row.pregunta : "";
     const rawOptions = Array.isArray(row.options) ? row.options : Array.isArray(row.opciones) ? row.opciones : null;
-    if (!prompt.trim() || !rawOptions) continue;
+    if (!prompt.trim() || !rawOptions || sillyPrompt(prompt)) continue;
     const options = rawOptions
       .map((option) => (typeof option === "string" ? option : typeof option === "object" && option && "text" in option ? String((option as { text?: unknown }).text ?? "") : ""))
       .map((option) => option.trim())
@@ -82,7 +83,7 @@ async function modelJson(prompt: string): Promise<string | null> {
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    signal: AbortSignal.timeout(40000),
+    signal: AbortSignal.timeout(22000),
     body: JSON.stringify({
       model: process.env.FREELLMAPI_MODEL || "kilo-auto/free",
       messages: [
@@ -117,94 +118,109 @@ function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<
   });
 }
 
-async function classMaterial(user: User, subject: string): Promise<string> {
-  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return "";
+function sillyPrompt(value: string): boolean {
+  const text = value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return /para que es este repaso|de que materia es|cuanto deberia durar|cuanto dura el repaso|saltear la materia|copiar la entrega|para que es el repaso/.test(text);
+}
+
+async function classTopics(user: User, subject: string): Promise<string[]> {
+  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return [];
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-  if (!classroom) return "";
+  if (!classroom) return [];
   try {
-    const notes = await withDeadline(
-      fetchTeachingNotes({
+    return await withDeadline(
+      topicsForSubject({
         lmsUrl: classroom,
         username: user.educamosUsername,
         password: decryptSecret(user.educamosPasswordEnc),
-        question: `Repaso corto de ${subject}. Qué enseña el profesor y qué todavía no.`,
+        subject,
       }),
-      12000,
-      { ok: false as const, error: "tardó" },
+      7000,
+      [] as string[],
     );
-    return notes.ok ? notes.brief : "";
   } catch {
-    return "";
+    return [];
   }
+}
+
+export async function subjectChoices(user: User, fromTasks: string[]): Promise<string[]> {
+  const names = new Set(fromTasks.map((subject) => subject.trim()).filter(Boolean));
+  if (!user.isDemo && user.educamosUrl && user.educamosUsername && user.educamosPasswordEnc) {
+    const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
+    if (classroom) {
+      try {
+        const enrolled = await withDeadline(
+          listEnrolledSubjectNames({
+            lmsUrl: classroom,
+            username: user.educamosUsername,
+            password: decryptSecret(user.educamosPasswordEnc),
+          }),
+          8000,
+          [] as string[],
+        );
+        for (const name of enrolled) names.add(name);
+      } catch {
+        // Si el aula no abre, quedan las materias que ya tienen tareas.
+      }
+    }
+  }
+  return dedupeSubjects([...names]);
 }
 
 export async function buildLesson(user: User, subject: string): Promise<{ ok: true; lesson: Lesson } | { ok: false; error: string }> {
-  const clean = subject.trim().slice(0, 80);
+  const clean = subject.trim().slice(0, 160);
   if (!clean) return { ok: false, error: "Elegí una materia." };
-  const material = await classMaterial(user, clean);
+  const topics = await classTopics(user, clean);
   const prompt = [
     `Materia: ${clean}.`,
-    "Armá un repaso de menos de 3 minutos, con lo que el profesor enseña.",
-    "No resuelvas una entrega ni copies una tarea.",
-    "JSON con title y steps. Exactamente 2 steps kind teach (text, máximo 2 oraciones) y 4 kind quiz.",
-    "Cada quiz tiene prompt, options de 3 textos cortos, answer 0 1 o 2, y why de una oración.",
-    material ? `Clases:\n${material.slice(0, 6000)}` : "No hay apuntes. Hacé un repaso breve del nombre de la materia y decilo en el primer teach.",
+    topics.length ? `Temas de la clase, en orden:\n${topics.map((topic) => `- ${topic}`).join("\n")}` : `No hay índice. Inventá un repaso breve y real de ${clean}, de secundaria.`,
+    "Las preguntas tienen que ser sobre esos temas. Prohibido preguntar para qué es el repaso, de qué materia es o cuánto dura.",
+    "No resuelvas una entrega.",
+    "JSON con title y steps. 2 steps con type teach y text. 4 steps con type quiz, prompt, options de 3, answer 0 1 o 2, y why.",
   ].join("\n");
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const raw = await modelJson(attempt === 0 ? prompt : `${prompt}\nEl intento anterior no era JSON válido. Devolvé solo el objeto.`);
-      if (!raw) continue;
-      const lesson = parseLesson(raw, clean);
-      if (lesson) return { ok: true, lesson };
-    } catch {
-      // Otro intento.
-    }
+  try {
+    const raw = await modelJson(prompt);
+    const lesson = raw ? parseLesson(raw, clean) : null;
+    if (lesson) return { ok: true, lesson };
+  } catch {
+    // Si el modelo no devuelve un repaso usable, se arma con los temas de la clase.
   }
-  return { ok: true, lesson: fallbackLesson(clean, material) };
+  return { ok: true, lesson: fallbackLesson(clean, topics) };
 }
 
-function fallbackLesson(subject: string, material: string): Lesson {
-  const lines = material
-    .split("\n")
-    .map((line) => line.replace(/^[-•]\s*/, "").trim())
-    .filter((line) => line.length > 24 && !line.startsWith("Materia:"));
-  const first = lines[0]?.slice(0, 280) || `En ${subject} repasá lo que el profesor ya explicó.`;
-  const second = lines[1]?.slice(0, 280) || "Si algo no apareció en la clase, no lo tomes como si ya lo hubieran dado.";
+export function fallbackLesson(subject: string, topics: string[]): Lesson {
+  const useful = [...new Set(topics.map((topic) => topic.trim()).filter((topic) => topic.length > 2))].slice(0, 6);
+  const focus = useful.length > 0 ? useful : [subject];
+  const teach = useful.length
+    ? `En ${subject} están viendo ${focus.slice(0, 3).join(", ")}.`
+    : `Repaso de ${subject}: quedate con las ideas que el profesor ya explicó en clase.`;
+  const second = focus[3]
+    ? `Más adelante en la misma materia aparece ${focus.slice(3).join(", ")}.`
+    : `Esos temas van en el orden de la clase. Lo que todavía no dieron, no lo tomes como visto.`;
+  const quizzes = [0, 1, 2, 3].map((index) => {
+    const correct = focus[index % focus.length] ?? subject;
+    const others = focus.filter((topic) => topic !== correct);
+    const wrongs = [others[0] ?? "Un tema de otra materia", others[1] ?? "Algo que todavía no dieron"];
+    const options = [correct, wrongs[0], wrongs[1]];
+    return {
+      kind: "quiz" as const,
+      prompt: `Sobre ${subject}: ¿cuál de estos temas está en la clase?`,
+      options,
+      answer: 0,
+      why: `${correct} es parte de lo que están viendo.`,
+    };
+  });
   return {
     subject,
-    title: `Repaso de ${subject}`,
+    title: focus[0] && focus[0] !== subject ? focus[0] : `Repaso de ${subject}`,
     steps: [
-      { kind: "teach", text: first },
+      { kind: "teach", text: teach },
       { kind: "teach", text: second },
-      {
-        kind: "quiz",
-        prompt: "¿Para qué es este repaso?",
-        options: ["Para copiar la entrega", "Para repasar lo de clase", "Para saltear la materia"],
-        answer: 1,
-        why: "Es un repaso corto, no la tarea hecha.",
-      },
-      {
-        kind: "quiz",
-        prompt: "Si un tema no está en la clase, ¿qué hacés?",
-        options: ["Lo estudio igual como si lo hubieran dado", "Lo dejo para cuando lo den", "Lo entrego igual"],
-        answer: 1,
-        why: "El repaso sigue lo que el profesor ya enseñó.",
-      },
-      {
-        kind: "quiz",
-        prompt: `¿De qué materia es este repaso?`,
-        options: [subject.slice(0, 80), "De ninguna", "De todas juntas"],
-        answer: 0,
-        why: `Estás repasando ${subject}.`,
-      },
-      {
-        kind: "quiz",
-        prompt: "¿Cuánto debería durar el repaso?",
-        options: ["Menos de 3 minutos", "Una hora", "Todo el día"],
-        answer: 0,
-        why: "Es una lección corta para repasar.",
-      },
+      ...quizzes,
     ],
   };
 }
