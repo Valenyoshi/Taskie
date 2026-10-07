@@ -469,7 +469,7 @@ function courseFromState(id: number, name: string, data: unknown): LessonCourse 
       const kind = mod.modname ?? "";
       if (/foro/i.test(kind)) continue;
       if (modName) pieces.push({ title: modName, text: "" });
-      if (/recurso/i.test(kind) && mod.url) resources.push({ title: modName || "Apunte", section: sectionName, url: mod.url });
+      if (/recurso|resource|archivo/i.test(kind) && mod.url) resources.push({ title: modName || "Apunte", section: sectionName, url: mod.url });
     }
   }
   return { id, name, pieces, resources };
