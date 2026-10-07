@@ -34,7 +34,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   const todayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);
   const pending = tasks.filter((task) => task.status === "pending");
   const level = levelFromTasks(tasks.filter((task) => task.status === "done").length);
-  const intro = process.env.GEMINI_API_KEY
+  const intro = process.env.FREELLMAPI_API_KEY || process.env.GEMINI_API_KEY
     ? ""
     : "El modelo gratuito todavía no está conectado, así que te respondo con lo que hay en tu cuenta. ";
 
@@ -82,19 +82,61 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   }`;
 }
 
-export async function answerWithModel(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
-  const tasks = currentTasks(user);
-  const fallback = () => localAnswer(message, user, tasks);
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return fallback();
-
-  const system = [
+function studySystem(user: User, tasks: Task[]): string {
+  return [
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
     "Ayudás con las tareas de este alumno: qué tiene que hacer, de qué materia es, cómo organizarse y dudas de estudio.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
     "Resumen de la cuenta:",
     taskSnapshot(user, tasks),
   ].join("\n");
+}
+
+async function answerWithFreeLlm(
+  message: string,
+  history: { role: "user" | "assistant"; content: string }[],
+  system: string,
+): Promise<string | null> {
+  const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
+  const key = process.env.FREELLMAPI_API_KEY;
+  if (!base || !key) return null;
+  const model = process.env.FREELLMAPI_MODEL || "kilo-auto/free";
+  const messages = [
+    { role: "system", content: system },
+    ...history.slice(-10).map((item) => ({ role: item.role, content: item.content })),
+    { role: "user", content: message },
+  ];
+  const res = await fetch(`${base}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${key}`,
+    },
+    signal: AbortSignal.timeout(25000),
+    body: JSON.stringify({ model, messages }),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim();
+  return text || null;
+}
+
+export async function answerWithModel(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
+  const tasks = currentTasks(user);
+  const fallback = () => localAnswer(message, user, tasks);
+  const system = studySystem(user, tasks);
+
+  try {
+    const free = await answerWithFreeLlm(message, history, system);
+    if (free) return free;
+  } catch {
+    // Si FreeLLMAPI no responde, seguimos con el otro modelo o con los datos locales.
+  }
+
+  const key = process.env.GEMINI_API_KEY;
+  const triedFree = Boolean(process.env.FREELLMAPI_API_KEY && process.env.FREELLMAPI_BASE_URL);
+  if (!triedFree && !key) return fallback();
+  if (!key) return `El modelo no respondió. ${fallback()}`;
 
   const contents = [
     ...history.slice(-10).map((item) => ({

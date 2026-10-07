@@ -33,13 +33,15 @@ Educamos no publica una API para alumnos. Taskie entra a la web del colegio con 
 
 ## Chat
 
-Sin configuración, el chat responde con tus tareas, materias, fechas y misiones. Para usar el modelo gratuito Gemini Flash, creá un archivo `.env.local` con:
+El chat habla con [FreeLLMAPI](https://freellmapi.co), un enrutador local de modelos gratuitos. En este entorno corre en `http://127.0.0.1:43124`. La cuenta del tablero es `valen@taskie.local` y la clave unificada va en `.env.local`:
 
 ```bash
-GEMINI_API_KEY=tu_clave
+FREELLMAPI_BASE_URL=http://127.0.0.1:43124/v1
+FREELLMAPI_API_KEY=freellmapi-tu-clave
+FREELLMAPI_MODEL=kilo-auto/free
 ```
 
-El ejemplo está en `.env.example`. La clave sale del plan gratuito de Google AI Studio.
+Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
 
 ## Avisos
 
