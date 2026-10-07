@@ -1,6 +1,7 @@
 import { CountUp } from "@/components/count-up";
 import { HatIcon } from "@/components/school-icon";
 import { GoalBars } from "@/components/goal-bars";
+import { StreakFlame } from "@/components/streak-flame";
 import { SyncButton } from "@/components/sync-button";
 import { TaskCard } from "@/components/task-card";
 import { getCurrentUser } from "@/lib/session";
@@ -18,6 +19,7 @@ export default async function InicioPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <StreakFlame days={user.streak} />
       <section className="points-corral rise-in">
         <HatIcon />
         <span>

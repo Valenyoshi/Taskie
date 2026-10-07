@@ -28,9 +28,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               {sessionUser.name.slice(0, 1).toUpperCase()}
             </div>
-            <p className="streak-pill">
-              {sessionUser.streak} {sessionUser.streak === 1 ? "día" : "días"}
-            </p>
           </div>
         </header>
         {children}
