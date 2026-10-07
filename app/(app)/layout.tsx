@@ -3,6 +3,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { NavBar } from "@/components/nav-bar";
 import { SectionTitle } from "@/components/section-title";
 import { NotifyToggle } from "@/components/notify-card";
+import { SectionWash } from "@/components/section-wash";
 import { frameClass, themeKey } from "@/lib/catalog";
 import { touchOpen } from "@/lib/progress";
 import { getCurrentUser } from "@/lib/session";
@@ -16,7 +17,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div data-theme={themeKey(sessionUser.equippedTheme)} className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-5 pb-36">
+      <SectionWash />
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pt-5 pb-36">
         <LogoutButton />
         <header className="mb-5 pt-8 text-center">
           <SectionTitle />
