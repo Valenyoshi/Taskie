@@ -231,10 +231,8 @@ function conversationQuestion(message: string, history: { role: "user" | "assist
   return [...previousQuestions, message].join(" ");
 }
 
-function compactTaskRequest(message: string, history: { role: "user" | "assistant"; content: string }[]): boolean {
-  return /que es lo que tengo que hacer|que tengo que hacer|que hay que hacer|que pide|resum|resumido|breve|corto/.test(
-    fold(conversationQuestion(message, history)),
-  );
+function compactTaskRequest(message: string): boolean {
+  return /que es lo que tengo que hacer|que tengo que hacer|que hay que hacer|que pide|resum|resumido|breve|corto/.test(fold(message));
 }
 
 function compactTaskAnswer(classes: string): string {
@@ -256,6 +254,42 @@ function compactTaskAnswer(classes: string): string {
   return summaries.length
     ? `En resumen, tenés que:\n${summaries.join("\n")}`
     : "En resumen, revisá la consigna de la plataforma y entregá el archivo que indica.";
+}
+
+function taskHowToRequest(message: string): boolean {
+  return /como puedo hacer|como hacer|como se hace|como la hago|como lo hago|por donde empiezo|no entiendo como/.test(fold(message));
+}
+
+function taskGuideAnswer(classes: string): string {
+  const block = classes.split(/\n(?=Tarea: )/).find((item) => item.includes("Tarea: "));
+  if (!block) return "Empezá separando cada ejercicio en Entrada, Procesamiento y Salida. Después probalo en PSeInt y guardá el resultado en PDF.";
+  const platform = block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "";
+  const related = [...platform.matchAll(/Material relacionado — ([^:]+):([\s\S]*?)(?=Material relacionado — |$)/g)];
+  const main = related.find((match) => /pseint|ejercicios para resolver/i.test(match[1]))?.[2] ?? platform;
+  const exercises = [...main.matchAll(/\b\d+\.\s+(.{2,80}?)(?=\s+(?:Crear|Solicitar|Un jugador|Luego|El programa|Si|En un)\b)/g)]
+    .map((match) => match[1].replace(/\s+/g, " ").trim())
+    .filter((value, index, all) => all.indexOf(value) === index)
+    .slice(0, 8);
+  const steps = exercises.map((title, index) => {
+    const name = fold(title);
+    const number = index + 3;
+    if (/saludar|nombre/.test(name)) return `${number}. Pedí el nombre, guardalo y mostrá un saludo.`;
+    if (/edad/.test(name)) return `${number}. Pedí la edad, guardala y mostrá el valor.`;
+    if (/sumar|suma/.test(name)) return `${number}. Pedí dos números, sumalos y mostrá el resultado.`;
+    if (/mayor/.test(name)) return `${number}. Pedí dos números, comparalos e indicá cuál es mayor o si son iguales.`;
+    if (/continuar|vidas/.test(name)) return `${number}. Pedí la cantidad de vidas y usá una condición para mostrar el mensaje correspondiente.`;
+    if (/daño|dano/.test(name)) return `${number}. Empezá con 3 vidas, preguntá si recibió daño y actualizá el valor.`;
+    if (/contador|puntos/.test(name)) return `${number}. Repetí la carga 5 veces, acumulá los puntos y mostrá el total.`;
+    return `${number}. Leé la consigna, separá los datos de entrada, el cálculo y el resultado.`;
+  });
+  return [
+    "Para hacerla:",
+    "1. Abrí PSeInt y creá un algoritmo separado para cada ejercicio.",
+    "2. En cada uno pensá: qué datos entran, qué cálculo o condición necesitás y qué tenés que mostrar.",
+    ...steps,
+    `${steps.length + 3}. Probá cada algoritmo con los ejemplos de la consigna y corregí los errores.`,
+    `${steps.length + 4}. Guardá los ejercicios juntos en un PDF y subilo a la entrega.`,
+  ].join("\n");
 }
 
 async function answerWithFreeLlm(
@@ -293,8 +327,10 @@ export async function answerWithModel(message: string, history: { role: "user" |
   const tasks = currentTasks(user);
   const lookupMessage = conversationQuestion(message, history);
   const classes = await classNotes(user, lookupMessage, tasks);
-  const compact = classes && compactTaskRequest(message, history) ? compactTaskAnswer(classes) : "";
+  const guide = classes && taskHowToRequest(message) ? taskGuideAnswer(classes) : "";
+  const compact = classes && compactTaskRequest(message) ? compactTaskAnswer(classes) : "";
   const fallback = () =>
+    guide ||
     compact ||
     (classes
       ? `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`
@@ -303,6 +339,7 @@ export async function answerWithModel(message: string, history: { role: "user" |
   const keep = (answer: string) => {
     const blocked = blockedAnswer(message, answer);
     if (blocked) return blocked;
+    if (guide) return guide;
     if (compact) return compact;
     if (
       classes &&
