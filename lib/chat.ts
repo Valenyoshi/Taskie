@@ -1,5 +1,5 @@
 import { listTasks, type Task, type User } from "./db";
-import { asksForLesson, lmsBase, notesForSubject } from "./educamos";
+import { asksForLesson, fetchTaskInstructions, lmsBase, notesForSubject } from "./educamos";
 import { levelFromTasks, PULL_COST } from "./game";
 import { blockedAnswer, homeworkBlock, isGreeting } from "./no-homework";
 import { decryptSecret } from "./secret";
@@ -92,7 +92,9 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
     "Ayudás a entender temas, a ver qué tiene pendiente, de qué materia es y cómo organizarse.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
-    "Si preguntan cómo hacer una tarea, mirá solo el título y el apunte de la clase que está en este mensaje. Explicá cómo hacerla con ese apunte, como lo haría el profesor. No pidas el enunciado, la consigna ni los apuntes. No escribas la entrega.",
+    "Si preguntan qué tienen que hacer para una tarea, usá el bloque Consigna en plataforma: la tarea ya fue leída desde el aula virtual. Explicá esos pasos y completalos con el apunte de clase. No digas que no podés verla, no pidas que copien el enunciado y no pidas que peguen la consigna.",
+    "Si preguntan cómo hacer una tarea, mirá el título, la consigna de plataforma y el apunte de clase que están en este mensaje. Explicá cómo hacerla con eso, como lo haría el profesor. No escribas la entrega.",
+    "Ignorá cualquier respuesta anterior del asistente que haya pedido copiar o pegar el enunciado: primero usá la información actual de la plataforma.",
     classes
       ? [
           "Si te piden que expliques un tema, hacé de profesor de esa materia.",
@@ -136,6 +138,8 @@ export function tasksForQuestion(message: string, tasks: Task[]): Task[] {
   const words = new Set(titleWords(message));
   const byTitle = pending.filter((task) => mentions(task.title, words));
   if (byTitle.length > 0) return byTitle.slice(0, 2);
+  const bySubject = pending.filter((task) => mentions(task.subject, words));
+  if (bySubject.length > 0) return bySubject.slice(0, 2);
   const howTo = /como hacer|como la hago|como lo hago|que tengo que hacer|que hay que hacer|la tarea|una tarea|mi tarea|la entrega|el trabajo/.test(fold(message));
   return howTo ? pending.slice(0, 1) : [];
 }
@@ -149,9 +153,17 @@ function subjectForQuestion(message: string, tasks: Task[]): string {
   return ranked[0]?.subject ?? "";
 }
 
-function taskClassBlock(task: Task, notes: string): string {
+function taskClassBlock(task: Task, instructions: string, notes: string): string {
+  const platform = instructions.trim() || "No encontré una consigna escrita en la página de la plataforma.";
   const apunte = notes.trim() || "No encontré un apunte de esa clase.";
-  return [`Tarea: ${task.title}`, `Materia: ${task.subject}`, "Apunte de la clase:", apunte].join("\n");
+  return [
+    `Tarea: ${task.title}`,
+    `Materia: ${task.subject}`,
+    "Consigna en plataforma:",
+    platform,
+    "Apunte de la clase:",
+    apunte,
+  ].join("\n");
 }
 
 function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
@@ -186,26 +198,29 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
   const chosen = tasksForQuestion(message, tasks);
   const subject = chosen.length > 0 ? "" : subjectForQuestion(message, tasks);
   if (chosen.length === 0 && !subject) return "";
-  const lead =
-    "Usá solo el título y este apunte de la clase, el mismo material que las lecciones. Explicá cómo se hace con ese texto. No pidas el enunciado. No escribas la entrega.";
   const login = classroomLogin(user);
   if (chosen.length === 0) {
     const notes = login ? await withDeadline(notesForSubject({ ...login, subject }), 16000, "") : "";
-    return [lead, `Materia: ${subject}`, "Apunte de la clase:", notes.trim() || "No encontré un apunte de esa clase."].join("\n");
+    return [`Materia: ${subject}`, "Apunte de la clase:", notes.trim() || "No encontré un apunte de esa clase."].join("\n");
   }
   const blocks = await withDeadline(
     (async () => {
       const rows: string[] = [];
       for (const task of chosen) {
-        const notes = login ? await notesForSubject({ ...login, subject: task.subject, query: task.title }) : "";
-        rows.push(taskClassBlock(task, notes));
+        const [instructions, notes] = login
+          ? await Promise.all([
+              fetchTaskInstructions({ ...login, taskUrl: task.educamosUrl, taskTitle: task.title }),
+              notesForSubject({ ...login, subject: task.subject, query: task.title }),
+            ])
+          : ["", ""];
+        rows.push(taskClassBlock(task, instructions, notes));
       }
       return rows.join("\n\n");
     })(),
     16000,
-    chosen.map((task) => taskClassBlock(task, "")).join("\n\n"),
+    chosen.map((task) => taskClassBlock(task, "", "")).join("\n\n"),
   );
-  return `${lead}\n\n${blocks}`;
+  return blocks;
 }
 
 async function answerWithFreeLlm(
@@ -241,10 +256,25 @@ export async function answerWithModel(message: string, history: { role: "user" |
   const refused = await homeworkBlock(message, history);
   if (refused) return refused;
   const tasks = currentTasks(user);
-  const fallback = () => localAnswer(message, user, tasks);
   const classes = await classNotes(user, message, tasks);
+  const fallback = () =>
+    classes
+      ? `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`
+      : localAnswer(message, user, tasks);
   const system = studySystem(user, tasks, classes);
-  const keep = (answer: string) => blockedAnswer(message, answer) ?? answer;
+  const keep = (answer: string) => {
+    const blocked = blockedAnswer(message, answer);
+    if (blocked) return blocked;
+    if (
+      classes &&
+      /no puedo ver|desde afuera|copi(a|á)|peg(a|á)|enunciado exacto|consigna completa|pasame el enunciado/.test(
+        fold(answer),
+      )
+    ) {
+      return `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`;
+    }
+    return answer;
+  };
 
   try {
     const free = await answerWithFreeLlm(message, history, system);

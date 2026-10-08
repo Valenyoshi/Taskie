@@ -335,6 +335,99 @@ function htmlToText(value: string): string {
     .trim();
 }
 
+function elementInnerHtml(html: string, marker: RegExp): string {
+  const match = marker.exec(html);
+  if (!match || match.index === undefined) return "";
+  const openEnd = html.indexOf(">", match.index);
+  if (openEnd < 0) return "";
+  let depth = 1;
+  const tags = /<\/?div\b[^>]*>/gi;
+  tags.lastIndex = openEnd + 1;
+  let tag: RegExpExecArray | null;
+  while ((tag = tags.exec(html))) {
+    if (tag[0].startsWith("</")) depth -= 1;
+    else if (!tag[0].endsWith("/>")) depth += 1;
+    if (depth === 0) return html.slice(openEnd + 1, tag.index);
+  }
+  return "";
+}
+
+function assignmentInstructions(html: string): string {
+  const raw =
+    elementInnerHtml(html, /<div\b[^>]*\bid=["']intro["'][^>]*>/i) ||
+    elementInnerHtml(html, /<div\b[^>]*class=["'][^"']*activity-description[^"']*["'][^>]*>/i) ||
+    "";
+  return clip(htmlToText(raw), 5000);
+}
+
+function activityWords(value: string): string[] {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !/^(para|como|esta|este|las|los|una|del|que|con|por|entrega|espacio|tarea|trabajo)$/.test(word));
+}
+
+function relatedActivityLinks(html: string, taskTitle: string): { url: string; title: string; score: number }[] {
+  const wanted = new Set(activityWords(taskTitle));
+  const rows: { url: string; title: string; score: number }[] = [];
+  const seen = new Set<string>();
+  const option = /<option\b[^>]*value=["']([^"']+)["'][^>]*>([\s\S]*?)<\/option>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = option.exec(html))) {
+    const title = htmlToText(match[2]);
+    const url = match[1];
+    if (!title || !url || !/\/mod\/(?:page|resource|folder)\//i.test(url)) continue;
+    if (/instalador|descargar|download/i.test(title) || seen.has(url)) continue;
+    const score = activityWords(title).filter((word) => wanted.has(word)).length;
+    if (score > 0) {
+      seen.add(url);
+      rows.push({ url, title, score });
+    }
+  }
+  return rows.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 3);
+}
+
+function relatedActivityText(html: string): string {
+  const raw =
+    elementInnerHtml(html, /<div\b[^>]*class=["'][^"']*\bgeneralbox\b[^"']*["'][^>]*>/i) ||
+    elementInnerHtml(html, /<div\b[^>]*id=["']region-main["'][^>]*>/i) ||
+    "";
+  return clip(htmlToText(raw), 4500);
+}
+
+export async function fetchTaskInstructions(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  taskUrl: string | null;
+  taskTitle?: string;
+}): Promise<string> {
+  if (!input.taskUrl || !/\/mod\/assign\/view\.php(?:\?|$)/i.test(input.taskUrl)) return "";
+  try {
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return "";
+    const page = await request(session.jar, input.taskUrl);
+    if (page.status < 200 || page.status >= 300) return "";
+    const parts = [assignmentInstructions(page.text)].filter(Boolean);
+    if (input.taskTitle) {
+      for (const link of relatedActivityLinks(page.text, input.taskTitle)) {
+        const relatedUrl = /^https?:\/\//i.test(link.url)
+          ? link.url
+          : `${session.root}/${link.url.replace(/^\/+/, "")}`;
+        const related = await request(session.jar, relatedUrl);
+        if (related.status < 200 || related.status >= 300) continue;
+        const text = relatedActivityText(related.text);
+        if (text) parts.push(`Material relacionado — ${link.title}: ${text}`);
+      }
+    }
+    return clip(parts.join("\n\n"), 8500);
+  } catch {
+    return "";
+  }
+}
+
 function clip(value: string, max: number): string {
   const clean = value.replace(/\s+/g, " ").trim();
   if (clean.length <= max) return clean;
