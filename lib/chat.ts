@@ -92,6 +92,7 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
     "Ayudás a entender temas, a ver qué tiene pendiente, de qué materia es y cómo organizarse.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
+    "Si preguntan cómo hacer un trabajo o una entrega, usá las entregas y las clases que ya están en este mensaje. No les pidas el enunciado, la consigna ni los apuntes.",
     classes
       ? [
           "Si te piden que expliques un tema, hacé de profesor de esa materia.",
@@ -109,30 +110,44 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     .join("\n");
 }
 
-async function classNotes(user: User, message: string): Promise<string> {
-  if (!asksForLesson(message) || user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) {
-    return "";
+function workGuide(tasks: Task[], user: User): string {
+  const pending = tasks.filter((task) => task.status === "pending").slice(0, 8);
+  if (pending.length === 0) return "No hay entregas pendientes cargadas.";
+  return pending
+    .map((task) => {
+      const detail = task.description && !/punto de entrega del aula/i.test(task.description) ? ` ${task.description}` : "";
+      return `- ${task.subject}: ${task.title}.${detail} ${dueLabel(task.dueAt, user.timezone)}.`;
+    })
+    .join("\n");
+}
+
+async function classNotes(user: User, message: string, tasks: Task[]): Promise<string> {
+  const pending = tasks.filter((task) => task.status === "pending");
+  const guide = workGuide(tasks, user);
+  if (!asksForLesson(message)) return "";
+  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) {
+    return `Entregas pendientes. No le pidas el enunciado al alumno.\n${guide}`;
   }
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-  if (!classroom) return "";
+  if (!classroom) return `Entregas pendientes. No le pidas el enunciado al alumno.\n${guide}`;
   let password = "";
   try {
     password = decryptSecret(user.educamosPasswordEnc);
   } catch {
-    return "No pude abrir las clases. No inventes que las leíste.";
+    return `No pude abrir las clases.\n${guide}`;
   }
+  const focus = pending.map((task) => `${task.subject} ${task.title}`).join(". ");
   try {
     const notes = await fetchTeachingNotes({
       lmsUrl: classroom,
       username: user.educamosUsername,
       password,
-      question: message,
+      question: `${message}\n${focus}`,
     });
-    if (!notes.ok) return `No pude leer las clases (${notes.error}). No inventes que las viste.`;
-    if (!notes.brief.trim()) return "En el aula no hay material de clase para leer. Decilo, y no inventes una explicación del profesor.";
-    return notes.brief;
+    const classes = notes.ok && notes.brief.trim() ? notes.brief : "No pude leer el material de las clases.";
+    return `Entregas pendientes. Ya están acá: no le pidas la consigna al alumno. Explicale cómo hacerlas con esto y con las clases.\n${guide}\n\n${classes}`;
   } catch {
-    return "No pude leer las clases. No inventes que las viste.";
+    return `No pude leer las clases.\n${guide}`;
   }
 }
 
@@ -170,7 +185,7 @@ export async function answerWithModel(message: string, history: { role: "user" |
   if (refused) return refused;
   const tasks = currentTasks(user);
   const fallback = () => localAnswer(message, user, tasks);
-  const classes = await classNotes(user, message);
+  const classes = await classNotes(user, message, tasks);
   const system = studySystem(user, tasks, classes);
   const keep = (answer: string) => blockedAnswer(message, answer) ?? answer;
 

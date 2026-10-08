@@ -358,7 +358,7 @@ function lessonWords(value: string): string[] {
 
 export function asksForLesson(message: string): boolean {
   const q = message.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  return /explic|ensen|que es |que son |como se |como funciona|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema/.test(q);
+  return /explic|ensen|que es |que son |como se |como hacer|como la hago|como lo hago|que tengo que hacer|que hay que hacer|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema|entrega|trabajo/.test(q);
 }
 
 type LessonPiece = { title: string; text: string };
@@ -580,8 +580,14 @@ async function readResourceText(
       const chosen = (named.length > 0 ? named : course.resources).filter((item) => item.text === undefined).slice(0, 4);
       for (const item of chosen) {
         const bytes = await requestBytes(session.jar, item.url);
-        if (!bytes || !bytes.subarray(0, 4).toString("utf8").startsWith("%PDF")) {
+        const head = bytes?.subarray(0, 5).toString("utf8") ?? "";
+        if (!bytes) {
           item.text = "";
+          continue;
+        }
+        if (!head.startsWith("%PDF")) {
+          const html = bytes.toString("utf8");
+          item.text = /<html|<p|<div/i.test(html) ? clip(htmlToText(html), 1500) : "";
           continue;
         }
         try {
