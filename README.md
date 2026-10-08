@@ -41,7 +41,7 @@ FREELLMAPI_API_KEY=freellmapi-tu-clave
 FREELLMAPI_MODEL=kilo-auto/free
 ```
 
-En Lecciones hay un repaso de menos de 3 minutos por materia, armado con lo que enseñan en clase. Si le pedís que te explique un tema, o cómo hacer una tarea y qué tenés que hacer, lee el material de tus clases y te lo explica. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
+En Lecciones hay un repaso de menos de 3 minutos por materia, armado con lo que enseñan en clase. Si le pedís cómo hacer una tarea, mira solo el título y busca el apunte de esa clase, igual que las lecciones. Si le pedís que te explique un tema, usa ese mismo material. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
 
 ## Avisos
 

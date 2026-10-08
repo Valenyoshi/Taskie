@@ -459,11 +459,20 @@ export async function topicsForSubject(input: {
   return [...new Set(titles)].slice(0, 12);
 }
 
+function resourceScore(item: LessonResource, words: Set<string>): number {
+  if (words.size === 0) return 0;
+  const hay = new Set(lessonWords(`${item.title} ${item.section}`));
+  let score = 0;
+  for (const word of words) if (hay.has(word)) score += 1;
+  return score;
+}
+
 export async function notesForSubject(input: {
   lmsUrl: string;
   username: string;
   password: string;
   subject: string;
+  query?: string;
 }): Promise<string> {
   const titles = await topicsForSubject(input);
   const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
@@ -478,9 +487,14 @@ export async function notesForSubject(input: {
     return name.includes(wanted) || wanted.includes(name);
   });
   if (!course || course.resources.length === 0) return titles.join(". ");
-  const slice = { ...course, resources: course.resources.slice(0, 2) };
-  await readResourceText(input.lmsUrl, input.username, input.password, [slice], new Set());
-  const written = course.resources.map((item) => item.text?.trim()).filter((text): text is string => Boolean(text));
+  const words = new Set(lessonWords(input.query ?? ""));
+  const ranked = course.resources
+    .map((item, index) => ({ item, index, score: resourceScore(item, words) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+  const hits = words.size > 0 ? ranked.filter((row) => row.score > 0) : [];
+  const chosen = (hits.length > 0 ? hits : ranked).slice(0, 2).map((row) => row.item);
+  await readResourceText(input.lmsUrl, input.username, input.password, [{ ...course, resources: chosen }], words);
+  const written = chosen.map((item) => item.text?.trim()).filter((text): text is string => Boolean(text));
   const body = written.join("\n").slice(0, 3500);
   return body || titles.join(". ");
 }
