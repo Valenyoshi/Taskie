@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { unlink, writeFile } from "fs/promises";
+import { readFile, unlink, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
@@ -124,6 +124,37 @@ async function requestBytes(jar: Jar, url: string): Promise<Buffer | null> {
   const bytes = Buffer.from(await res.arrayBuffer());
   if (bytes.length < 20 || bytes.length > 4_000_000) return null;
   return bytes;
+}
+
+async function requestMultipart(
+  jar: Jar,
+  url: string,
+  form: FormData,
+): Promise<{ status: number; text: string; finalUrl: string }> {
+  let current = url;
+  for (let hop = 0; hop < 12; hop++) {
+    const res = await fetch(current, {
+      method: "POST",
+      body: form,
+      redirect: "manual",
+      signal: AbortSignal.timeout(20000),
+      headers: {
+        "user-agent": UA,
+        accept: "application/json,text/html",
+        cookie: jar.header(),
+        origin: new URL(current).origin,
+      },
+    });
+    jar.store(res);
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) break;
+      current = new URL(location, current).href;
+      continue;
+    }
+    return { status: res.status, text: await res.text(), finalUrl: current };
+  }
+  throw new Error("redirect");
 }
 
 async function pdfToText(bytes: Buffer): Promise<string> {
@@ -257,6 +288,97 @@ async function loginLms(
   const sesskey = page.text.match(/"sesskey":"([^"]+)"/)?.[1];
   if (!sesskey) return { ok: false, error: "Entré, pero no llegué a las clases del aula." };
   return { ok: true, jar, root, sesskey };
+}
+
+function tagAttribute(tag: string, name: string): string {
+  const match = new RegExp(`\\b${name}=["']([^"']*)["']`, "i").exec(tag);
+  return match ? decodeHtml(match[1]) : "";
+}
+
+function hiddenFormFields(html: string): URLSearchParams {
+  const fields = new URLSearchParams();
+  for (const match of html.matchAll(/<input\b[^>]*>/gi)) {
+    const tag = match[0];
+    if (tagAttribute(tag, "type").toLowerCase() !== "hidden") continue;
+    const name = tagAttribute(tag, "name");
+    if (name) fields.set(name, tagAttribute(tag, "value"));
+  }
+  return fields;
+}
+
+function fileManagerConfig(html: string): { itemId: string; clientId: string; contextId: string } | null {
+  const itemId = hiddenFormFields(html).get("files_filemanager") ?? "";
+  const initAt = html.indexOf("M.form_filemanager.init");
+  const config = initAt >= 0 ? html.slice(initAt, initAt + 12000) : html;
+  const clientId = /"client_id":"([^"]+)"/.exec(config)?.[1] ?? "";
+  const contextId = /"context":\{"id":(\d+)/.exec(config)?.[1] ?? "";
+  return itemId && clientId && contextId ? { itemId, clientId, contextId } : null;
+}
+
+export async function submitLmsAssignment(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  taskUrl: string | null;
+  filePath: string;
+  fileName: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input.taskUrl || !/\/mod\/assign\/view\.php(?:\?|$)/i.test(input.taskUrl)) {
+    return { ok: false, error: "La tarea no tiene un enlace válido del aula." };
+  }
+  try {
+    const bytes = await readFile(input.filePath);
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return session;
+    const editUrl = `${input.taskUrl}${input.taskUrl.includes("?") ? "&" : "?"}action=editsubmission`;
+    const edit = await request(session.jar, editUrl);
+    if (edit.status < 200 || edit.status >= 300) return { ok: false, error: "No pude abrir la entrega del aula." };
+    const manager = fileManagerConfig(edit.text);
+    if (!manager) return { ok: false, error: "No encontré el espacio para subir el archivo." };
+
+    const extension = input.fileName.split(".").pop()?.toLowerCase() ?? "";
+    const upload = new FormData();
+    upload.set("repo_id", "3");
+    upload.set("p", "");
+    upload.set("page", "");
+    upload.set("env", "filemanager");
+    upload.set("sesskey", session.sesskey);
+    upload.set("client_id", manager.clientId);
+    upload.set("itemid", manager.itemId);
+    upload.set("maxbytes", "10485760");
+    upload.set("areamaxbytes", "-1");
+    upload.set("ctx_id", manager.contextId);
+    upload.set("savepath", "/");
+    upload.set("title", input.fileName);
+    upload.set("author", "");
+    upload.set("license", "unknown");
+    upload.set("accepted_types[]", `.${extension}`);
+    upload.append("repo_upload_file", new Blob([bytes]), input.fileName);
+    const uploaded = await requestMultipart(session.jar, `${session.root}/repository/repository_ajax.php?action=upload`, upload);
+    if (uploaded.status < 200 || uploaded.status >= 300) return { ok: false, error: "El aula rechazó la subida del archivo." };
+    let uploadData: { error?: unknown; msg?: string };
+    try {
+      uploadData = JSON.parse(uploaded.text) as { error?: unknown; msg?: string };
+    } catch {
+      return { ok: false, error: "El aula no confirmó la subida del archivo." };
+    }
+    if (uploadData.error) return { ok: false, error: uploadData.msg || "El aula rechazó la subida del archivo." };
+
+    const form = hiddenFormFields(edit.text);
+    form.set("files_filemanager", manager.itemId);
+    form.set("submitbutton", "Guardar cambios");
+    const saved = await request(session.jar, edit.finalUrl, "POST", form.toString());
+    if (saved.status < 200 || saved.status >= 300) return { ok: false, error: "El aula no guardó la entrega." };
+    const validation = /id=["']id_error_files_filemanager["'][^>]*>([\s\S]*?)<\/div>/i.exec(saved.text)?.[1] ?? "";
+    const validationText = htmlToText(validation);
+    if (validationText) return { ok: false, error: validationText };
+    if (/Todavía no se han realizado envíos/i.test(saved.text) || /name=["']action["'][^>]*value=["']savesubmission["']/i.test(saved.text)) {
+      return { ok: false, error: "El aula no confirmó la entrega." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo enviar el archivo al aula." };
+  }
 }
 
 async function moodleCall(jar: Jar, root: string, sesskey: string, calls: { methodname: string; args: Record<string, unknown> }[]) {
