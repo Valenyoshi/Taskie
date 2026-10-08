@@ -223,6 +223,41 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
   return blocks;
 }
 
+function conversationQuestion(message: string, history: { role: "user" | "assistant"; content: string }[]): string {
+  const previousQuestions = history
+    .filter((item) => item.role === "user")
+    .slice(-3)
+    .map((item) => item.content);
+  return [...previousQuestions, message].join(" ");
+}
+
+function compactTaskRequest(message: string, history: { role: "user" | "assistant"; content: string }[]): boolean {
+  return /que es lo que tengo que hacer|que tengo que hacer|que hay que hacer|que pide|resum|resumido|breve|corto/.test(
+    fold(conversationQuestion(message, history)),
+  );
+}
+
+function compactTaskAnswer(classes: string): string {
+  const blocks = classes.split(/\n(?=Tarea: )/).filter((block) => block.includes("Tarea: "));
+  const summaries = blocks.map((block) => {
+    const title = block.match(/^Tarea:\s*(.+)$/m)?.[1]?.trim() ?? "la tarea";
+    const subject = block.match(/^Materia:\s*(.+)$/m)?.[1]?.trim() ?? "";
+    const platform = block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "";
+    const related = [...platform.matchAll(/Material relacionado — ([^:]+):([\s\S]*?)(?=Material relacionado — |$)/g)];
+    const main = related.find((match) => /pseint|ejercicios para resolver/i.test(match[1]))?.[2] ?? platform;
+    const exercises = [...main.matchAll(/\b\d+\.\s+(.{2,80}?)(?=\s+(?:Crear|Solicitar|Un jugador|Luego|El programa|Si|En un)\b)/g)]
+      .map((match) => match[1].replace(/\s+/g, " ").trim())
+      .filter((value, index, all) => all.indexOf(value) === index)
+      .slice(0, 8);
+    const delivery = /formato\s*\.pdf/i.test(platform) ? "Entregarlo en PDF." : "";
+    const details = exercises.length > 0 ? `Resolver: ${exercises.join("; ")}.` : "Seguir la consigna de la plataforma.";
+    return `- ${title}${subject ? ` (${subject})` : ""}. ${details} ${delivery}`.trim();
+  });
+  return summaries.length
+    ? `En resumen, tenés que:\n${summaries.join("\n")}`
+    : "En resumen, revisá la consigna de la plataforma y entregá el archivo que indica.";
+}
+
 async function answerWithFreeLlm(
   message: string,
   history: { role: "user" | "assistant"; content: string }[],
@@ -256,15 +291,19 @@ export async function answerWithModel(message: string, history: { role: "user" |
   const refused = await homeworkBlock(message, history);
   if (refused) return refused;
   const tasks = currentTasks(user);
-  const classes = await classNotes(user, message, tasks);
+  const lookupMessage = conversationQuestion(message, history);
+  const classes = await classNotes(user, lookupMessage, tasks);
+  const compact = classes && compactTaskRequest(message, history) ? compactTaskAnswer(classes) : "";
   const fallback = () =>
-    classes
+    compact ||
+    (classes
       ? `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`
-      : localAnswer(message, user, tasks);
+      : localAnswer(message, user, tasks));
   const system = studySystem(user, tasks, classes);
   const keep = (answer: string) => {
     const blocked = blockedAnswer(message, answer);
     if (blocked) return blocked;
+    if (compact) return compact;
     if (
       classes &&
       /no puedo ver|desde afuera|copi(a|á)|peg(a|á)|enunciado exacto|consigna completa|pasame el enunciado/.test(
