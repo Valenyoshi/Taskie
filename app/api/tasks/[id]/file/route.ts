@@ -1,9 +1,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { attachFile, getTask } from "@/lib/db";
+import { fetchTaskAcceptedTypes, lmsBase } from "@/lib/educamos";
 import { isUser, json, requireUser } from "@/lib/http";
+import { decryptSecret } from "@/lib/secret";
 
 const ALLOWED = new Set(["pdf", "doc", "docx", "png", "jpg", "jpeg", "txt", "ppt", "pptx", "odt", "zip"]);
+
+function matchesAcceptedType(ext: string, mime: string, acceptedType: string): boolean {
+  const type = acceptedType.trim().toLowerCase();
+  if (type === "*/*" || type === `.${ext}`) return true;
+  if (type.endsWith("/*")) return mime.toLowerCase().startsWith(`${type.slice(0, -1)}`);
+  return type === mime.toLowerCase();
+}
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -18,6 +27,25 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (file.size > 8 * 1024 * 1024) return json({ error: "El archivo pesa más de 8 MB." }, 400);
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (!ALLOWED.has(ext)) return json({ error: "Ese tipo de archivo no entra. Usá PDF, imagen, Word o texto." }, 400);
+  if (task.source === "lms" && user.educamosUrl && user.educamosUsername && user.educamosPasswordEnc) {
+    const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
+    if (classroom) {
+      try {
+        const acceptedTypes = await fetchTaskAcceptedTypes({
+          lmsUrl: classroom,
+          username: user.educamosUsername,
+          password: decryptSecret(user.educamosPasswordEnc),
+          taskUrl: task.educamosUrl,
+        });
+        if (acceptedTypes.length > 0 && !acceptedTypes.some((type) => matchesAcceptedType(ext, file.type, type))) {
+          const label = acceptedTypes.map((type) => type.replace(/^\./, "").toUpperCase()).join(", ");
+          return json({ error: `La plataforma solo permite este formato: ${label}.` }, 400);
+        }
+      } catch {
+        // La entrega remota volverá a validar el formato al confirmar.
+      }
+    }
+  }
 
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/\.{2,}/g, ".").slice(0, 80);
   if (!safe || safe === "." || safe === "..") return json({ error: "Ese nombre de archivo no sirve." }, 400);

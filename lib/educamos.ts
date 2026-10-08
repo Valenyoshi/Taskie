@@ -315,6 +315,44 @@ function fileManagerConfig(html: string): { itemId: string; clientId: string; co
   return itemId && clientId && contextId ? { itemId, clientId, contextId } : null;
 }
 
+function acceptedTypesFromPage(html: string): string[] {
+  const initAt = html.indexOf("M.form_filemanager.init");
+  const config = initAt >= 0 ? html.slice(initAt, initAt + 12000) : html;
+  const raw = /"accepted_types":\[([^\]]*)\]/.exec(config)?.[1];
+  if (!raw) return [];
+  try {
+    const types = JSON.parse(`[${raw}]`) as unknown;
+    return Array.isArray(types) ? types.filter((type): type is string => typeof type === "string" && type.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+const acceptedTypesCache = new Map<string, { at: number; types: string[] }>();
+
+export async function fetchTaskAcceptedTypes(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  taskUrl: string | null;
+}): Promise<string[]> {
+  if (!input.taskUrl || !/\/mod\/assign\/view\.php(?:\?|$)/i.test(input.taskUrl)) return [];
+  const cacheKey = `${input.lmsUrl}|${input.username}|${input.taskUrl}`;
+  const cached = acceptedTypesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.types;
+  try {
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return [];
+    const editUrl = `${input.taskUrl}${input.taskUrl.includes("?") ? "&" : "?"}action=editsubmission`;
+    const page = await request(session.jar, editUrl);
+    const types = page.status >= 200 && page.status < 300 ? acceptedTypesFromPage(page.text) : [];
+    acceptedTypesCache.set(cacheKey, { at: Date.now(), types });
+    return types;
+  } catch {
+    return [];
+  }
+}
+
 export async function submitLmsAssignment(input: {
   lmsUrl: string;
   username: string;

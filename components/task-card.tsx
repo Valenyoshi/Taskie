@@ -31,6 +31,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     task.pending ? "idle" : "settled",
   );
   const [fileName, setFileName] = useState(task.fileName);
+  const [acceptedTypes, setAcceptedTypes] = useState<string[] | null>(null);
   const [open, setOpen] = useState(task.kind === "archivo");
   const [refused, setRefused] = useState(false);
   const needsUpload = task.kind === "archivo";
@@ -39,6 +40,22 @@ export function TaskCard({ task }: { task: TaskView }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const color = subjectColor(task.subject);
   const struck = phase === "strike" || phase === "check" || phase === "leave" || phase === "settled";
+
+  useEffect(() => {
+    if (!needsUpload || !task.pending) return;
+    let alive = true;
+    void fetch(`/api/tasks/${task.id}/file/rules`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { acceptedTypes?: string[] } | null) => {
+        if (alive) setAcceptedTypes(data?.acceptedTypes ?? []);
+      })
+      .catch(() => {
+        if (alive) setAcceptedTypes([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [needsUpload, task.id, task.pending]);
 
   useLayoutEffect(() => {
     const card = cardRef.current;
@@ -217,6 +234,13 @@ export function TaskCard({ task }: { task: TaskView }) {
       {open || task.kind === "archivo" ? (
         <div className="space-y-2 px-3 pb-3 text-sm">
           {task.description ? <p>{task.description}</p> : null}
+          {needsUpload ? (
+            <p className="rounded-xl bg-gold/15 px-3 py-2 text-xs font-semibold text-foreground/80">
+              {acceptedTypes && acceptedTypes.length > 0
+                ? `La plataforma solo acepta: ${acceptedTypes.map((type) => type.replace(/^\./, "").toUpperCase()).join(", ")}.`
+                : "La plataforma pide un archivo para esta entrega."}
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">{task.dueLabel}</p>
           {task.pending ? (
             <label className="inline-flex h-9 cursor-pointer items-center rounded-full bg-secondary px-3 text-sm font-medium">
@@ -224,6 +248,7 @@ export function TaskCard({ task }: { task: TaskView }) {
               <input
                 type="file"
                 disabled={busy}
+                accept={acceptedTypes?.length ? acceptedTypes.join(",") : undefined}
                 className="sr-only"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
