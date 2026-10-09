@@ -266,7 +266,8 @@ function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
 type AutoLesson = { subject: string; title: string; lesson: Lesson };
 
 const autoLessonCache = new Map<string, { at: number; lessons: AutoLesson[] }>();
-const OLD_CLASS_TITLE = /diagn[oó]stic|presentaci[oó]n|acuerdo pedag[oó]gico|bienvenid|actividad inicial/i;
+const NON_LESSON_TITLE =
+  /diagn[oó]stic|presentaci[oó]n|acuerdo pedag[oó]gico|bienvenid|actividad inicial|r[uú]brica|evaluaci[oó]n|grupos?\b|player\b|material gris|gu[ií]a\s+(?:para\s+el\s+)?proyecto/i;
 
 async function lessonTopics(user: User, subject: string): Promise<string[]> {
   if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return [];
@@ -279,7 +280,7 @@ async function lessonTopics(user: User, subject: string): Promise<string[]> {
       password: decryptSecret(user.educamosPasswordEnc),
       subject,
     });
-    return topics.filter((topic) => !OLD_CLASS_TITLE.test(topic)).slice(-2);
+    return topics.filter((topic) => !NON_LESSON_TITLE.test(topic)).slice(-2);
   } catch {
     return [];
   }
@@ -321,6 +322,6 @@ export function hasRecentLessonSubject(user: User, subject: string): boolean {
   const start = addDays(today, -7);
   return listTasks(user.id).some((task) => {
     const day = localDateString(new Date(task.dueAt), user.timezone);
-    return task.subject === subject && day >= start && day <= today && !OLD_CLASS_TITLE.test(task.title);
+    return task.subject === subject && day >= start && day <= today && !NON_LESSON_TITLE.test(task.title);
   });
 }

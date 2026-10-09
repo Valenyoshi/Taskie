@@ -733,7 +733,7 @@ export async function recentClassTopics(input: {
   });
   if (!course) return [];
   const source = course.resources.length > 0 ? course.resources.map((item) => item.title) : course.pieces.map((item) => item.title);
-  return [...new Set(source.map((title) => title.trim()).filter(Boolean))].slice(-3);
+  return [...new Set(source.map((title) => title.trim()).filter(Boolean))].slice(-12);
 }
 
 function resourceScore(item: LessonResource, words: Set<string>): number {
