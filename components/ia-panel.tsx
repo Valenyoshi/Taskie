@@ -6,7 +6,7 @@ import { LessonDeck } from "@/components/lesson-deck";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
-export function IaPanel({ initial, subjects }: { initial: Message[]; subjects: string[] }) {
+export function IaPanel({ initial, subjects, streak }: { initial: Message[]; subjects: string[]; streak: number }) {
   const [mode, setMode] = useState<"chat" | "lecciones">("chat");
 
   return (
@@ -25,7 +25,7 @@ export function IaPanel({ initial, subjects }: { initial: Message[]; subjects: s
           Lecciones
         </button>
       </div>
-      {mode === "chat" ? <ChatBox initial={initial} /> : <LessonDeck subjects={subjects} />}
+      {mode === "chat" ? <ChatBox initial={initial} /> : <LessonDeck subjects={subjects} streak={streak} />}
     </div>
   );
 }

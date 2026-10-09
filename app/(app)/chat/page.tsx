@@ -9,5 +9,5 @@ export default async function ChatPage() {
   if (!session) redirect("/entrar");
   const messages = listMessages(session.id);
   const subjects = await subjectChoices(session, listTasks(session.id).map((task) => task.subject));
-  return <IaPanel initial={messages} subjects={subjects} />;
+  return <IaPanel initial={messages} subjects={subjects} streak={session.streak} />;
 }

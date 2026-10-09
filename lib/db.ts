@@ -349,13 +349,13 @@ export function spendPoints(userId: string, points: number): boolean {
   return result.changes === 1;
 }
 
-export function setOpenDay(userId: string, streak: number, day: string, xpGain: number): boolean {
+export function setOpenDay(userId: string, streak: number, day: string, xpGain: number, pointsGain = 0): boolean {
   const result = getDb()
     .prepare(
-      `UPDATE users SET streak = ?, last_open_date = ?, xp = xp + ?
+      `UPDATE users SET streak = ?, last_open_date = ?, xp = xp + ?, points = points + ?
        WHERE id = ? AND (last_open_date IS NULL OR last_open_date != ?)`,
     )
-    .run(streak, day, xpGain, userId, day);
+    .run(streak, day, xpGain, pointsGain, userId, day);
   return result.changes === 1;
 }
 

@@ -5,6 +5,7 @@ export const XP = {
   weekly: 120,
   combo: 80,
   streakOpen: 10,
+  lesson: 5,
   duplicate: 20,
 } as const;
 
@@ -14,6 +15,8 @@ export const POINTS = {
   daily: 40,
   weekly: 100,
   combo: 60,
+  streakOpen: 5,
+  lesson: 3,
 } as const;
 
 export const PULL_COST = 50;

@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { RewardPopup } from "@/components/reward-popup";
 import { SubjectMark } from "@/components/subject-mark";
 import type { Lesson, LessonStep } from "@/lib/lessons";
 
-export function LessonDeck({ subjects }: { subjects: string[] }) {
+type LessonReward = { first: boolean; xp: number; points: number };
+
+export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: number }) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -13,6 +16,7 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [reward, setReward] = useState<LessonReward | null>(null);
 
   async function start(subject: string) {
     setBusy(subject);
@@ -25,7 +29,7 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ subject }),
       });
-      const data = (await res.json()) as { error?: string; lesson?: Lesson };
+      const data = (await res.json()) as { error?: string; lesson?: Lesson; reward?: LessonReward };
       if (!res.ok || !data.lesson) {
         setError(data.error ?? "No pude armar el repaso.");
         setBusy(null);
@@ -36,6 +40,7 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
       setPicked(null);
       setChecked(false);
       setScore(0);
+      setReward(data.reward?.first ? data.reward : null);
     } catch {
       setError("No pude armar el repaso.");
     }
@@ -69,18 +74,33 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
     );
   }
 
+  const rewardPopup = reward ? (
+    <RewardPopup
+      open
+      title="¡Lección empezada!"
+      description={`Completá el repaso de ${lesson.subject} y seguí sumando.`}
+      streak={streak}
+      xp={reward.xp}
+      points={reward.points}
+      onClose={() => setReward(null)}
+    />
+  ) : null;
+
   if (done) {
     const quizzes = lesson.steps.filter((item) => item.kind === "quiz").length;
     return (
-      <div className="lesson-done">
-        <p className="font-display text-4xl">Repaso listo</p>
-        <p className="text-lg">
-          {score} de {quizzes} en {lesson.subject}
-        </p>
-        <button type="button" className="lesson-next" onClick={reset}>
-          Otra materia
-        </button>
-      </div>
+      <>
+        <div className="lesson-done">
+          <p className="font-display text-4xl">Repaso listo</p>
+          <p className="text-lg">
+            {score} de {quizzes} en {lesson.subject}
+          </p>
+          <button type="button" className="lesson-next" onClick={reset}>
+            Otra materia
+          </button>
+        </div>
+        {rewardPopup}
+      </>
     );
   }
 
@@ -107,43 +127,46 @@ export function LessonDeck({ subjects }: { subjects: string[] }) {
   const wrong = current.kind === "quiz" && checked && picked !== current.answer;
 
   return (
-    <div className={`lesson-play ${correct ? "is-right" : ""} ${wrong ? "is-wrong" : ""}`}>
-      <div className="lesson-top">
-        <button type="button" className="lesson-exit" onClick={reset} aria-label="Salir del repaso">
-          ×
+    <>
+      <div className={`lesson-play ${correct ? "is-right" : ""} ${wrong ? "is-wrong" : ""}`}>
+        <div className="lesson-top">
+          <button type="button" className="lesson-exit" onClick={reset} aria-label="Salir del repaso">
+            ×
+          </button>
+          <div className="lesson-pips" aria-hidden>
+            {lesson.steps.map((_, index) => (
+              <span key={index} className={index < step ? "done" : index === step ? "now" : ""} />
+            ))}
+          </div>
+        </div>
+        <div key={step} className="lesson-card">
+          {current.kind === "teach" ? <p className="lesson-tag theory">Teoría</p> : null}
+          <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">{lesson.title}</p>
+          {current.kind === "teach" ? (
+            <p className="font-display text-3xl leading-snug">{current.text}</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="font-display text-3xl leading-snug">{current.prompt}</p>
+              {current.options.map((option, index) => (
+                <button
+                  key={`${option}-${index}`}
+                  type="button"
+                  disabled={checked}
+                  className={`lesson-option ${picked === index ? "picked" : ""} ${checked && index === current.answer ? "answer" : ""}`}
+                  onClick={() => setPicked(index)}
+                >
+                  {option}
+                </button>
+              ))}
+              {checked ? <p className="text-sm font-semibold">{current.why}</p> : null}
+            </div>
+          )}
+        </div>
+        <button type="button" className="lesson-next" disabled={current.kind === "quiz" && picked === null} onClick={advance}>
+          {current.kind === "quiz" && !checked ? "Comprobar" : last ? "Terminar" : "Continuar"}
         </button>
-        <div className="lesson-pips" aria-hidden>
-          {lesson.steps.map((_, index) => (
-            <span key={index} className={index < step ? "done" : index === step ? "now" : ""} />
-          ))}
-        </div>
       </div>
-      <div key={step} className="lesson-card">
-      {current.kind === "teach" ? <p className="lesson-tag theory">Teoría</p> : null}
-      <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">{lesson.title}</p>
-      {current.kind === "teach" ? (
-        <p className="font-display text-3xl leading-snug">{current.text}</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <p className="font-display text-3xl leading-snug">{current.prompt}</p>
-          {current.options.map((option, index) => (
-              <button
-              key={`${option}-${index}`}
-              type="button"
-              disabled={checked}
-              className={`lesson-option ${picked === index ? "picked" : ""} ${checked && index === current.answer ? "answer" : ""}`}
-              onClick={() => setPicked(index)}
-            >
-              {option}
-            </button>
-          ))}
-          {checked ? <p className="text-sm font-semibold">{current.why}</p> : null}
-        </div>
-      )}
-      </div>
-      <button type="button" className="lesson-next" disabled={current.kind === "quiz" && picked === null} onClick={advance}>
-        {current.kind === "quiz" && !checked ? "Comprobar" : last ? "Terminar" : "Continuar"}
-      </button>
-    </div>
+      {rewardPopup}
+    </>
   );
 }

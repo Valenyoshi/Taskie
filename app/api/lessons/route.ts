@@ -1,5 +1,6 @@
 import { buildLesson, fallbackLesson } from "@/lib/lessons";
 import { isUser, json, requireUser } from "@/lib/http";
+import { claimLesson } from "@/lib/progress";
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -9,8 +10,10 @@ export async function POST(request: Request) {
   if (!subject || subject.length > 160) return json({ error: "Elegí una materia." }, 400);
   try {
     const result = await buildLesson(user, subject);
-    return json({ ok: true, lesson: result.ok ? result.lesson : fallbackLesson(subject, "") });
+    const reward = claimLesson(user.id, subject);
+    return json({ ok: true, lesson: result.ok ? result.lesson : fallbackLesson(subject, ""), reward });
   } catch {
-    return json({ ok: true, lesson: fallbackLesson(subject, "") });
+    const reward = claimLesson(user.id, subject);
+    return json({ ok: true, lesson: fallbackLesson(subject, ""), reward });
   }
 }

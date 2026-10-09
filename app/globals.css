@@ -1463,8 +1463,17 @@
   color: #8a5a12;
 }
 
+.reward-popup {
+  animation: reward-pop 0.35s ease both;
+}
+
 @keyframes lesson-pop {
   from { transform: translateY(16px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes reward-pop {
+  from { transform: translateY(18px) scale(0.92); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
 

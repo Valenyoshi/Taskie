@@ -138,8 +138,12 @@ export function touchOpen(userId: string): string[] {
   const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
   let streak = 1;
   if (user.lastOpenDate && addDays(user.lastOpenDate, 1) === today) streak = user.streak + 1;
-  const opened = setOpenDay(userId, streak, today, XP.streakOpen);
-  if (opened) lines.push(`Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${XP.streakOpen} XP.`);
+  const opened = setOpenDay(userId, streak, today, XP.streakOpen, POINTS.streakOpen);
+  if (opened) {
+    lines.push(
+      `Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${XP.streakOpen} XP y +${POINTS.streakOpen} sombreros.`,
+    );
+  }
   applyMissions(userId, lines);
   applyAchievements(userId, lines);
   const afterUser = findUserById(userId);
@@ -148,6 +152,18 @@ export function touchOpen(userId: string): string[] {
     if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
   }
   return lines;
+}
+
+export function claimLesson(userId: string, subject: string): { first: boolean; xp: number; points: number } {
+  const user = findUserById(userId);
+  if (!user) return { first: false, xp: 0, points: 0 };
+  const day = localDateString(new Date(), user.timezone);
+  const periodKey = `${day}:${subject.trim().toLowerCase()}`;
+  if (!addClaim(userId, "lesson", periodKey, XP.lesson, POINTS.lesson)) {
+    return { first: false, xp: 0, points: 0 };
+  }
+  addXpPoints(userId, XP.lesson, POINTS.lesson);
+  return { first: true, xp: XP.lesson, points: POINTS.lesson };
 }
 
 export function deliverTask(userId: string, taskId: string): { ok: true; lines: string[] } | { ok: false; error: string } {
