@@ -712,6 +712,30 @@ export async function topicsForSubject(input: {
   return [...new Set(titles)].slice(0, 12);
 }
 
+export async function recentClassTopics(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  subject: string;
+}): Promise<string[]> {
+  const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
+  let cached = lessonCache.get(cacheKey);
+  if (!cached || Date.now() - cached.at >= 10 * 60 * 1000) {
+    const loaded = await loadLessons(input.lmsUrl, input.username, input.password);
+    if (!loaded.ok) return [];
+    cached = { at: Date.now(), courses: loaded.courses };
+    lessonCache.set(cacheKey, cached);
+  }
+  const wanted = input.subject.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const course = cached.courses.find((item) => {
+    const name = item.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    return name.includes(wanted) || wanted.includes(name);
+  });
+  if (!course) return [];
+  const source = course.resources.length > 0 ? course.resources.map((item) => item.title) : course.pieces.map((item) => item.title);
+  return [...new Set(source.map((title) => title.trim()).filter(Boolean))].slice(-3);
+}
+
 function resourceScore(item: LessonResource, words: Set<string>): number {
   if (words.size === 0) return 0;
   const hay = new Set(lessonWords(`${item.title} ${item.section}`));

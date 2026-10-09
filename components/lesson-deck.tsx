@@ -124,6 +124,9 @@ export function LessonDeck({ streak }: { streak: number }) {
     return (
       <>
         <div className="lesson-done">
+          <div className="lesson-done-badge" aria-hidden>
+            🏆
+          </div>
           <p className="font-display text-4xl">Repaso listo</p>
           <p className="text-lg">
             {score} de {quizzes} en {lesson.subject}
@@ -171,9 +174,12 @@ export function LessonDeck({ streak }: { streak: number }) {
               <span key={index} className={index < step ? "done" : index === step ? "now" : ""} />
             ))}
           </div>
+          <span className="lesson-step-count">
+            {step + 1}/{lesson.steps.length}
+          </span>
         </div>
         <div key={step} className="lesson-card">
-          {current.kind === "teach" ? <p className="lesson-tag theory">Teoría</p> : null}
+          {current.kind === "teach" ? <p className="lesson-tag theory">Idea clave</p> : null}
           <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">{lesson.title}</p>
           {current.kind === "teach" ? (
             <p className="font-display text-3xl leading-snug">{current.text}</p>
@@ -191,7 +197,11 @@ export function LessonDeck({ streak }: { streak: number }) {
                   {option}
                 </button>
               ))}
-              {checked ? <p className="text-sm font-semibold">{current.why}</p> : null}
+              {checked ? (
+                <p className={`lesson-feedback ${correct ? "right" : "wrong"}`} aria-live="polite">
+                  <strong>{correct ? "¡Correcto!" : "Casi."}</strong> {current.why}
+                </p>
+              ) : null}
             </div>
           )}
         </div>

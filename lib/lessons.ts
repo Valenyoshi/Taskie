@@ -1,5 +1,5 @@
 import type { User } from "./db";
-import { listEnrolledSubjectNames, lmsBase, notesForSubject } from "./educamos";
+import { listEnrolledSubjectNames, lmsBase, notesForSubject, recentClassTopics } from "./educamos";
 import { decryptSecret } from "./secret";
 import { dedupeSubjects } from "./subject-color";
 import { listTasks } from "./db";
@@ -211,10 +211,24 @@ function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
     .map((line) => line.replace(/^[-•]\s*/, "").trim())
     .filter((line) => line.length > 40 && !sillyPrompt(line));
   const chunks = (sentences.length > 0 ? sentences : [`No encontré un apunte del profesor en ${subject} para explicar.`]).slice(0, 3);
+  const teaches: LessonStep[] = chunks.slice(0, 2).map((text) => ({ kind: "teach" as const, text: text.slice(0, 320) }));
+  const quizzes: LessonStep[] = sentences.length
+    ? chunks.map((text, index) => ({
+        kind: "quiz" as const,
+        prompt: `Según la clase, ¿qué idea aparece en el apunte ${index + 1}?`,
+        options: [
+          text.slice(0, 110),
+          "Una idea que no aparece en el material.",
+          "No se puede saber con esta clase.",
+        ],
+        answer: 0,
+        why: "Esa idea está escrita en el material de la clase.",
+      }))
+    : [];
   return {
     subject,
     title: topic || subject,
-    steps: chunks.map((text) => ({ kind: "teach" as const, text: text.slice(0, 320) })),
+    steps: [...teaches, ...quizzes],
   };
 }
 
@@ -224,17 +238,20 @@ const autoLessonCache = new Map<string, { at: number; lessons: AutoLesson[] }>()
 const OLD_CLASS_TITLE = /diagn[oó]stic|presentaci[oó]n|acuerdo pedag[oó]gico|bienvenid|actividad inicial/i;
 
 async function lessonTopics(user: User, subject: string): Promise<string[]> {
-  const now = new Date();
-  const today = localDateString(now, user.timezone);
-  const start = addDays(today, -7);
-  const recent = listTasks(user.id)
-    .filter((task) => {
-      const day = localDateString(new Date(task.dueAt), user.timezone);
-      return task.subject === subject && day >= start && day <= today && !OLD_CLASS_TITLE.test(task.title);
-    })
-    .map((task) => task.title.trim())
-    .filter(Boolean);
-  return [...new Set(recent)].slice(0, 2);
+  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return [];
+  try {
+    const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
+    if (!classroom) return [];
+    const topics = await recentClassTopics({
+      lmsUrl: classroom,
+      username: user.educamosUsername,
+      password: decryptSecret(user.educamosPasswordEnc),
+      subject,
+    });
+    return topics.filter((topic) => !OLD_CLASS_TITLE.test(topic)).slice(-2);
+  } catch {
+    return [];
+  }
 }
 
 export async function autoLessons(user: User, subjects: string[]): Promise<AutoLesson[]> {
@@ -250,7 +267,8 @@ export async function autoLessons(user: User, subjects: string[]): Promise<AutoL
         return Promise.all(
           topics.map(async (topic) => {
             const result = await buildLesson(user, subject, topic);
-            return result.ok ? { subject, title: result.lesson.title, lesson: result.lesson } : null;
+            if (!result.ok || !result.lesson.steps.some((step) => step.kind === "quiz")) return null;
+            return { subject, title: result.lesson.title, lesson: result.lesson };
           }),
         );
       }),

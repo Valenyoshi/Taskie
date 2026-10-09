@@ -1425,17 +1425,20 @@
   justify-content: space-between;
   gap: 12px;
   border-radius: 26px;
-  background: white;
+  background: linear-gradient(145deg, #fff, #fff4e0);
   padding: 18px;
   text-align: left;
   font-size: 1.15rem;
   font-weight: 750;
   box-shadow: 0 8px 0 #d7c4ff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   animation: lesson-pop 0.45s ease both;
 }
 
 .lesson-skill:hover {
   transform: translateY(-6px);
+  filter: saturate(1.08);
+  box-shadow: 0 11px 0 #d7c4ff;
 }
 
 .lesson-skill:disabled {
@@ -1454,6 +1457,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.lesson-step-count {
+  min-width: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 4px 8px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .lesson-exit {
@@ -1482,13 +1495,13 @@
 
 .lesson-option {
   border-radius: 18px;
-  background: white;
+  background: linear-gradient(145deg, #fff, #fff8ed);
   padding: 18px;
   text-align: left;
   font-size: 1.05rem;
   font-weight: 700;
   box-shadow: inset 0 0 0 2px rgba(44, 36, 31, 0.12);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .lesson-option:hover {
@@ -1496,19 +1509,50 @@
 }
 
 .lesson-option.picked {
-  box-shadow: inset 0 0 0 2px #7a5cff;
+  background: #efe4ff;
+  box-shadow: inset 0 0 0 2px #7a5cff, 0 4px 0 #c9b4f1;
 }
 
 .lesson-option.answer {
   box-shadow: inset 0 0 0 2px #1c7c6e;
 }
 
+.lesson-feedback {
+  border-radius: 16px;
+  padding: 11px 13px;
+  font-size: 0.9rem;
+  animation: lesson-feedback-pop 0.25s ease both;
+}
+
+.lesson-feedback.right {
+  background: #d8f3e5;
+  color: #12613f;
+}
+
+.lesson-feedback.wrong {
+  background: #fbe0d8;
+  color: #8f3525;
+}
+
 .lesson-next {
   height: 48px;
   border-radius: 16px;
-  background: #1c7c6e;
+  background: linear-gradient(135deg, #249484, #176d61);
   font-weight: 800;
   color: white;
+  box-shadow: 0 5px 0 #10564d;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.lesson-next:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #10564d;
+}
+
+.lesson-next:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #10564d;
 }
 
 .lesson-next:disabled {
@@ -1528,6 +1572,18 @@
   padding: 48px 8px;
   text-align: center;
   animation: lesson-pop 0.4s ease both;
+}
+
+.lesson-done-badge {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border-radius: 24px;
+  background: #fff1bf;
+  font-size: 2.4rem;
+  box-shadow: 0 7px 0 #e8c96c;
+  animation: medal-pop 0.55s ease both;
 }
 
 .lesson-card {
@@ -1563,6 +1619,11 @@
 
 @keyframes lesson-pop {
   from { transform: translateY(16px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes lesson-feedback-pop {
+  from { transform: translateY(5px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
 
