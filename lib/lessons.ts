@@ -251,16 +251,16 @@ function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
   const chunks = (sentences.length > 0 ? sentences : [`No encontré un apunte del profesor en ${subject} para explicar.`]).slice(0, 3);
   const teaches: LessonStep[] = chunks.slice(0, 2).map((text) => ({ kind: "teach" as const, text: text.slice(0, 320) }));
   const quizzes: LessonStep[] = sentences.length
-    ? chunks.map((text, index) => ({
+    ? chunks.map((text) => ({
         kind: "quiz" as const,
-        prompt: `Según la clase, ¿qué idea aparece en el apunte ${index + 1}?`,
+        prompt: "¿Cuál de estas afirmaciones coincide con lo que explica la clase?",
         options: [
           cleanLessonText(text).slice(0, 110),
           "Una idea que no aparece en el material.",
           "No se puede saber con esta clase.",
         ],
         answer: 0,
-        why: "Esa idea está escrita en el material de la clase.",
+        why: "Esa afirmación coincide con la información de la clase.",
       }))
     : [];
   return {
