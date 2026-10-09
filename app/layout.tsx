@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
+import { NavigationLoader } from "@/components/navigation-loader";
 import "./globals.css";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-app" });
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="es" className={`${outfit.variable} ${fraunces.variable}`}>
       <body className="antialiased">
         {children}
+        <NavigationLoader />
         <p className="pointer-events-none fixed top-3 right-3 z-30 text-[11px] font-semibold tracking-wide text-muted-foreground">
           made by Valen
         </p>
