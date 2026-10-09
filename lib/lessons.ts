@@ -1,5 +1,5 @@
 import type { User } from "./db";
-import { listEnrolledSubjectNames, lmsBase, notesForSubject, topicsForSubject } from "./educamos";
+import { listEnrolledSubjectNames, lmsBase, notesForSubject } from "./educamos";
 import { decryptSecret } from "./secret";
 import { dedupeSubjects } from "./subject-color";
 import { listTasks } from "./db";
@@ -221,6 +221,7 @@ function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
 type AutoLesson = { subject: string; title: string; lesson: Lesson };
 
 const autoLessonCache = new Map<string, { at: number; lessons: AutoLesson[] }>();
+const OLD_CLASS_TITLE = /diagn[oó]stic|presentaci[oó]n|acuerdo pedag[oó]gico|bienvenid|actividad inicial/i;
 
 async function lessonTopics(user: User, subject: string): Promise<string[]> {
   const now = new Date();
@@ -229,29 +230,11 @@ async function lessonTopics(user: User, subject: string): Promise<string[]> {
   const recent = listTasks(user.id)
     .filter((task) => {
       const day = localDateString(new Date(task.dueAt), user.timezone);
-      return task.subject === subject && day >= start && day <= today;
+      return task.subject === subject && day >= start && day <= today && !OLD_CLASS_TITLE.test(task.title);
     })
     .map((task) => task.title.trim())
     .filter(Boolean);
-  const topics = new Set(recent);
-  if (!user.isDemo && user.educamosUrl && user.educamosUsername && user.educamosPasswordEnc) {
-    try {
-      const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-      if (classroom) {
-        for (const topic of await topicsForSubject({
-          lmsUrl: classroom,
-          username: user.educamosUsername,
-          password: decryptSecret(user.educamosPasswordEnc),
-          subject,
-        })) {
-          topics.add(topic);
-        }
-      }
-    } catch {
-      // Las tareas recientes alcanzan para mostrar una propuesta si el aula no responde.
-    }
-  }
-  return [...topics].slice(0, 2);
+  return [...new Set(recent)].slice(0, 2);
 }
 
 export async function autoLessons(user: User, subjects: string[]): Promise<AutoLesson[]> {
@@ -263,9 +246,9 @@ export async function autoLessons(user: User, subjects: string[]): Promise<AutoL
     await Promise.all(
       unique.map(async (subject) => {
         const topics = await lessonTopics(user, subject);
-        const choices = topics.length > 0 ? topics : [subject];
+        if (topics.length === 0) return [];
         return Promise.all(
-          choices.slice(0, 2).map(async (topic) => {
+          topics.map(async (topic) => {
             const result = await buildLesson(user, subject, topic);
             return result.ok ? { subject, title: result.lesson.title, lesson: result.lesson } : null;
           }),
@@ -282,4 +265,13 @@ export async function autoLessons(user: User, subjects: string[]): Promise<AutoL
 export function cachedAutoLesson(userId: string, subject: string, title: string): Lesson | null {
   const cached = autoLessonCache.get(userId);
   return cached?.lessons.find((item) => item.subject === subject && item.title === title)?.lesson ?? null;
+}
+
+export function hasRecentLessonSubject(user: User, subject: string): boolean {
+  const today = localDateString(new Date(), user.timezone);
+  const start = addDays(today, -7);
+  return listTasks(user.id).some((task) => {
+    const day = localDateString(new Date(task.dueAt), user.timezone);
+    return task.subject === subject && day >= start && day <= today && !OLD_CLASS_TITLE.test(task.title);
+  });
 }

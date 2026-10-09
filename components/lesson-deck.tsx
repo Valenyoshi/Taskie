@@ -7,7 +7,7 @@ import type { Lesson, LessonStep } from "@/lib/lessons";
 
 type LessonReward = { first: boolean; points: number };
 
-export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: number }) {
+export function LessonDeck({ streak }: { streak: number }) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -82,8 +82,10 @@ export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: n
         </p>
         {loadingAvailable ? (
           <div className="rounded-3xl bg-card px-4 py-8 text-center font-display text-xl">Preparando tus lecciones…</div>
-        ) : available.length === 0 && subjects.length === 0 ? (
-          <p className="rounded-3xl bg-card px-4 py-6 text-center font-display text-xl">Cuando tengas materias, aparecen acá.</p>
+        ) : available.length === 0 ? (
+          <p className="rounded-3xl bg-card px-4 py-6 text-center font-display text-xl">
+            No encontré tareas de los últimos 7 días para preparar un repaso.
+          </p>
         ) : available.length > 0 ? (
           <div className="grid gap-3">
             {available.map((item) => (
@@ -100,16 +102,7 @@ export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: n
               </button>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {subjects.map((subject) => (
-              <button key={subject} type="button" className="lesson-skill" disabled={busy !== null} onClick={() => void start(subject)}>
-                <SubjectMark subject={subject} size={40} />
-                <span>{busy === subject ? "Armando…" : subject}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        ) : null}
         {error ? <p className="text-sm font-semibold text-coral">{error}</p> : null}
       </div>
     );

@@ -1,4 +1,4 @@
-import { autoLessons, buildLesson, cachedAutoLesson, fallbackLesson, subjectChoices } from "@/lib/lessons";
+import { autoLessons, buildLesson, cachedAutoLesson, fallbackLesson, hasRecentLessonSubject, subjectChoices } from "@/lib/lessons";
 import { listTasks } from "@/lib/db";
 import { isUser, json, requireUser } from "@/lib/http";
 import { claimLesson } from "@/lib/progress";
@@ -18,6 +18,9 @@ export async function POST(request: Request) {
   const subject = body?.subject?.trim() ?? "";
   const topic = body?.topic?.trim() ?? "";
   if (!subject || subject.length > 160) return json({ error: "Elegí una materia." }, 400);
+  if (!hasRecentLessonSubject(user, subject)) {
+    return json({ error: "No hay tareas de esa materia en los últimos 7 días." }, 400);
+  }
   try {
     const cached = topic ? cachedAutoLesson(user.id, subject, topic) : null;
     const result = cached ? { ok: true as const, lesson: cached } : await buildLesson(user, subject, topic);
