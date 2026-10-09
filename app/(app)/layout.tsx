@@ -47,7 +47,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         xp={XP.streakOpen}
         points={POINTS.streakOpen}
         storageKey={rewardKey}
-        onClose={() => undefined}
       />
     </div>
   );

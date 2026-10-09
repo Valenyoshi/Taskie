@@ -10,7 +10,7 @@ type RewardPopupProps = {
   xp: number;
   points: number;
   storageKey?: string;
-  onClose: () => void;
+  onClose?: () => void;
 };
 
 export function RewardPopup({
@@ -46,7 +46,7 @@ export function RewardPopup({
 
   function close() {
     setVisible(false);
-    onClose();
+    onClose?.();
   }
 
   return (
