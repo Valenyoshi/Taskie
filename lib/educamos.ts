@@ -776,7 +776,10 @@ export async function notesForSubject(input: {
   const written = chosen
     .map((item) => {
       const text = item.text?.trim() ?? "";
-      return text && compact(text) !== compact(item.title) ? text : "";
+      const normalizedText = compact(text);
+      const normalizedTitle = compact(item.title);
+      const remaining = normalizedText.startsWith(normalizedTitle) ? normalizedText.slice(normalizedTitle.length) : normalizedText;
+      return text && remaining.length >= 80 ? text : "";
     })
     .filter((text): text is string => Boolean(text));
   const body = written.join("\n").slice(0, 3500);
@@ -885,7 +888,8 @@ async function readResourceText(
         }
         if (!head.startsWith("%PDF")) {
           const html = bytes.toString("utf8");
-          item.text = /<html|<p|<div/i.test(html) ? clip(htmlToText(html), 1500) : "";
+          const text = htmlToText(html);
+          item.text = text.length >= 30 && /^[\x09-\x7E\u00A0-\uFFFF\r\n]*$/.test(text) ? clip(text, 1800) : "";
           continue;
         }
         try {

@@ -220,8 +220,8 @@ export async function buildLesson(user: User, subject: string, topic = ""): Prom
     notes
       ? `Texto que puso el profesor. Explicá solo esto, como lo explicaría él:\n${cleanLessonText(notes).slice(0, 2800)}`
       : `No hay apunte del profesor. No inventes la clase.`,
-    "La teoría tiene que explicar esa información, en 2 pasos type teach.",
-    "Las preguntas tienen que comprobar datos de ese texto. 4 pasos type quiz, con options de 3, answer 0 1 o 2, y why.",
+    "La teoría tiene que enseñar esa información en 2 pasos type teach, con afirmaciones claras y completas. Nunca escribas preguntas en los pasos teach.",
+    "Después agregá 4 pasos type quiz para comprobar datos del texto, con options de 3, answer 0 1 o 2, y why.",
     "Prohibido preguntar qué no se vio, qué tema está en la clase, para qué es el repaso o de qué materia es.",
     "No escribas la entrega.",
   ].join("\n");
