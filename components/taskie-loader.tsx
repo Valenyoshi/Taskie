@@ -4,7 +4,7 @@ export function TaskieLoader() {
       <div className="taskie-loader-logo" aria-hidden>
         <svg viewBox="0 0 96 96" width="72" height="72">
           <rect x="22" y="14" width="52" height="68" rx="7" fill="#fffaf0" stroke="#e8a317" strokeWidth="3" />
-          <path d="M32 31h30M32 42h25M32 53h18" stroke="#e8d9bd" strokeWidth="3" strokeLinecap="round" />
+          <path className="taskie-loader-lines" d="M32 31h30M32 42h25M32 53h18" stroke="#e8d9bd" strokeWidth="3" strokeLinecap="round" />
           <path className="taskie-loader-pencil" d="m31 66 22-22 7 7-22 22-9 2z" fill="#e25b45" stroke="#a83b2c" strokeWidth="2" strokeLinejoin="round" />
           <path className="taskie-loader-pencil-tip" d="m29 75 2-9 7 7z" fill="#f5cd30" stroke="#a83b2c" strokeWidth="2" strokeLinejoin="round" />
           <path className="taskie-loader-check" d="m29 58 9 9 28-29" fill="none" stroke="#1c9b68" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
