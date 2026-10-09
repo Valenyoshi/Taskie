@@ -750,11 +750,12 @@ export async function notesForSubject(input: {
   password: string;
   subject: string;
   query?: string;
+  requireText?: boolean;
 }): Promise<string> {
   const titles = await topicsForSubject(input);
   const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
   const cached = lessonCache.get(cacheKey);
-  if (!cached) return titles.join(". ");
+  if (!cached) return input.requireText ? "" : titles.join(". ");
   const wanted = input.subject
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -763,7 +764,7 @@ export async function notesForSubject(input: {
     const name = item.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
     return name.includes(wanted) || wanted.includes(name);
   });
-  if (!course || course.resources.length === 0) return titles.join(". ");
+  if (!course || course.resources.length === 0) return input.requireText ? "" : titles.join(". ");
   const words = new Set(lessonWords(input.query ?? ""));
   const ranked = course.resources
     .map((item, index) => ({ item, index, score: resourceScore(item, words) }))
@@ -771,9 +772,15 @@ export async function notesForSubject(input: {
   const hits = words.size > 0 ? ranked.filter((row) => row.score > 0) : [];
   const chosen = (hits.length > 0 ? hits : ranked).slice(0, 2).map((row) => row.item);
   await readResourceText(input.lmsUrl, input.username, input.password, [{ ...course, resources: chosen }], words);
-  const written = chosen.map((item) => item.text?.trim()).filter((text): text is string => Boolean(text));
+  const compact = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase();
+  const written = chosen
+    .map((item) => {
+      const text = item.text?.trim() ?? "";
+      return text && compact(text) !== compact(item.title) ? text : "";
+    })
+    .filter((text): text is string => Boolean(text));
   const body = written.join("\n").slice(0, 3500);
-  return body || titles.join(". ");
+  return body || (input.requireText ? "" : titles.join(". "));
 }
 
 export async function listEnrolledSubjectNames(input: {

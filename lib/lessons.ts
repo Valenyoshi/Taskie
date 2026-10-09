@@ -71,7 +71,8 @@ function parseLesson(raw: string, subject: string): Lesson | null {
     if (
       (kind === "teach" || kind === "explanation" || kind === "explica" || kind === "text") &&
       readableLessonText(teachText) &&
-      !sillyPrompt(cleanTeach)
+      !sillyPrompt(cleanTeach) &&
+      !looksLikeQuestion(cleanTeach)
     ) {
       steps.push({ kind: "teach", text: cleanTeach.slice(0, 320) });
       continue;
@@ -158,6 +159,10 @@ function sillyPrompt(value: string): boolean {
   return /para que es este repaso|para que es el repaso|de que materia es|cuanto deberia durar|cuanto dura el repaso|saltear la materia|copiar la entrega|no se ha visto|no se vio|todavia no|que no vieron|esta en la clase|cual de estos temas|tema de otra materia|algo que todavia/.test(text);
 }
 
+function looksLikeQuestion(value: string): boolean {
+  return /[¿?]/.test(value) || /^(qu[eé]|c[oó]mo|cu[aá]l|por qu[eé]|verdadero|falso)\b/i.test(value.trim());
+}
+
 async function classNotes(user: User, subject: string, query = ""): Promise<string> {
   if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return "";
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
@@ -170,6 +175,7 @@ async function classNotes(user: User, subject: string, query = ""): Promise<stri
         password: decryptSecret(user.educamosPasswordEnc),
         subject,
         query,
+        requireText: true,
       }),
       14000,
       "",
@@ -240,7 +246,7 @@ function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
   const sentences = source
     .split(/(?<=[.!?;])\s+|\n+/)
     .map((line) => line.replace(/^[-•]\s*/, "").trim())
-    .filter((line) => line.length > 40 && !sillyPrompt(line));
+    .filter((line) => line.length > 40 && !sillyPrompt(line) && !looksLikeQuestion(line));
   const chunks = (sentences.length > 0 ? sentences : [`No encontré un apunte del profesor en ${subject} para explicar.`]).slice(0, 3);
   const teaches: LessonStep[] = chunks.slice(0, 2).map((text) => ({ kind: "teach" as const, text: text.slice(0, 320) }));
   const quizzes: LessonStep[] = sentences.length
