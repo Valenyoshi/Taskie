@@ -213,7 +213,8 @@ export async function buildLesson(user: User, subject: string, topic = ""): Prom
   const clean = subject.trim().slice(0, 160);
   if (!clean) return { ok: false, error: "Elegí una materia." };
   const focus = topic.trim().slice(0, 160);
-  const notes = await classNotes(user, clean, focus);
+  const rawNotes = await classNotes(user, clean, focus);
+  const notes = NON_LESSON_CONTENT.test(rawNotes) ? "" : rawNotes;
   const prompt = [
     `Materia: ${clean}.`,
     focus ? `Tema elegido por el alumno: ${focus}. Priorizá ese tema si aparece en el material.` : "",
@@ -274,6 +275,8 @@ type AutoLesson = { subject: string; title: string; lesson: Lesson };
 const autoLessonCache = new Map<string, { at: number; lessons: AutoLesson[] }>();
 const NON_LESSON_TITLE =
   /diagn[oó]stic|presentaci[oó]n|acuerdo pedag[oó]gico|bienvenid|actividad inicial|r[uú]brica|evaluaci[oó]n|grupos?\b|player\b|material gris|gu[ií]a\s+(?:para\s+el\s+)?proyecto/i;
+const NON_LESSON_CONTENT =
+  /nombre\s+y\s+apellido|profesor(?:a)?\s*:|formato\s+a\s+presentar|envi[aá]ndolo\s+a|subobjetivos|objetivo\s*[_—-]{2,}|[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
 
 async function lessonTopics(user: User, subject: string): Promise<string[]> {
   if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return [];
