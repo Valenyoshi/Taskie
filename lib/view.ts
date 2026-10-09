@@ -6,7 +6,6 @@ import {
   onTimeTasks,
   subjectDayProgress,
   tasksInWeek,
-  tasksOnDay,
 } from "./goals";
 import { addDays, dueLabel, localDateString, pendingIsCurrent, weekStart } from "./time";
 
