@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { Flame, Headphones, House, Settings, Sparkles, Store, Trophy } from "lucide-react";
+import { Flame, House, Settings, Sparkles, Store } from "lucide-react";
 import { cn } from "cn";
 
 const items = [
   { href: "/inicio", label: "Inicio", icon: House },
   { href: "/materias", label: "Materias", icon: Flame },
   { href: "/premios", label: "Tienda", icon: Store },
-  { href: "/ranking", label: "Ranking", icon: Trophy },
   { href: "/chat", label: "IA", icon: Sparkles },
-  { href: "/concentracion", label: "Concentración", icon: Headphones },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 

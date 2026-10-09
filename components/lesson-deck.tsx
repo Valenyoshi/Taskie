@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RewardPopup } from "@/components/reward-popup";
 import { SubjectMark } from "@/components/subject-mark";
 import type { Lesson, LessonStep } from "@/lib/lessons";
 
-type LessonReward = { first: boolean; xp: number; points: number };
+type LessonReward = { first: boolean; points: number };
 
 export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: number }) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -14,20 +14,40 @@ export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: n
   const [checked, setChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [available, setAvailable] = useState<Lesson[]>([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [reward, setReward] = useState<LessonReward | null>(null);
 
-  async function start(subject: string) {
+  useEffect(() => {
+    let alive = true;
+    void fetch("/api/lessons")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { lessons?: Lesson[] } | null) => {
+        if (!alive) return;
+        setAvailable(data?.lessons ?? []);
+        setLoadingAvailable(false);
+      })
+      .catch(() => {
+        if (alive) setLoadingAvailable(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function start(subject: string, topic = "") {
     setBusy(subject);
     setError(null);
     setLesson(null);
     setDone(false);
+    setReward(null);
     try {
       const res = await fetch("/api/lessons", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subject }),
+        body: JSON.stringify({ subject, topic }),
       });
       const data = (await res.json()) as { error?: string; lesson?: Lesson; reward?: LessonReward };
       if (!res.ok || !data.lesson) {
@@ -51,14 +71,35 @@ export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: n
     setLesson(null);
     setDone(false);
     setError(null);
+    setReward(null);
   }
 
   if (!lesson) {
     return (
       <div className="lesson-home">
-        <p className="text-sm font-semibold text-muted-foreground">Repasos de menos de 3 minutos, con lo que dan en clase.</p>
-        {subjects.length === 0 ? (
+        <p className="text-sm font-semibold text-muted-foreground">
+          Elegí un tema de lo trabajado en los últimos días. Los repasos ya están preparados.
+        </p>
+        {loadingAvailable ? (
+          <div className="rounded-3xl bg-card px-4 py-8 text-center font-display text-xl">Preparando tus lecciones…</div>
+        ) : available.length === 0 && subjects.length === 0 ? (
           <p className="rounded-3xl bg-card px-4 py-6 text-center font-display text-xl">Cuando tengas materias, aparecen acá.</p>
+        ) : available.length > 0 ? (
+          <div className="grid gap-3">
+            {available.map((item) => (
+              <button
+                key={`${item.subject}-${item.title}`}
+                type="button"
+                className="lesson-skill min-h-0"
+                disabled={busy !== null}
+                onClick={() => void start(item.subject, item.title)}
+              >
+                <SubjectMark subject={item.subject} size={40} />
+                <span className="text-sm text-muted-foreground">{item.subject}</span>
+                <span>{busy === item.subject ? "Abriendo…" : item.title}</span>
+              </button>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {subjects.map((subject) => (
@@ -80,7 +121,6 @@ export function LessonDeck({ subjects, streak }: { subjects: string[]; streak: n
       title="¡Lección empezada!"
       description={`Completá el repaso de ${lesson.subject} y seguí sumando.`}
       streak={streak}
-      xp={reward.xp}
       points={reward.points}
       onClose={() => setReward(null)}
     />

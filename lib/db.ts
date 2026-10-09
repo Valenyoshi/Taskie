@@ -10,7 +10,6 @@ export type User = {
   educamosUrl: string | null;
   educamosUsername: string | null;
   educamosPasswordEnc: string | null;
-  xp: number;
   points: number;
   streak: number;
   lastOpenDate: string | null;
@@ -113,7 +112,6 @@ function mapUser(row: UserRow): User {
     educamosUsername: row.educamos_username,
     educamosPasswordEnc: row.educamos_password_enc,
     lmsUrl: row.lms_url ?? null,
-    xp: row.xp,
     points: row.points,
     streak: row.streak,
     lastOpenDate: row.last_open_date,
@@ -338,8 +336,8 @@ export function listUsers(): User[] {
   return rows.map(mapUser);
 }
 
-export function addXpPoints(userId: string, xp: number, points: number): void {
-  getDb().prepare("UPDATE users SET xp = xp + ?, points = points + ? WHERE id = ?").run(xp, points, userId);
+export function addPoints(userId: string, points: number): void {
+  getDb().prepare("UPDATE users SET points = points + ? WHERE id = ?").run(points, userId);
 }
 
 export function spendPoints(userId: string, points: number): boolean {
@@ -349,13 +347,13 @@ export function spendPoints(userId: string, points: number): boolean {
   return result.changes === 1;
 }
 
-export function setOpenDay(userId: string, streak: number, day: string, xpGain: number, pointsGain = 0): boolean {
+export function setOpenDay(userId: string, streak: number, day: string, pointsGain: number): boolean {
   const result = getDb()
     .prepare(
-      `UPDATE users SET streak = ?, last_open_date = ?, xp = xp + ?, points = points + ?
+      `UPDATE users SET streak = ?, last_open_date = ?, points = points + ?
        WHERE id = ? AND (last_open_date IS NULL OR last_open_date != ?)`,
     )
-    .run(streak, day, xpGain, pointsGain, userId, day);
+    .run(streak, day, pointsGain, userId, day);
   return result.changes === 1;
 }
 
@@ -479,13 +477,13 @@ export function hasClaim(userId: string, kind: string, periodKey: string): boole
   return Boolean(row);
 }
 
-export function addClaim(userId: string, kind: string, periodKey: string, xp: number, points: number): boolean {
+export function addClaim(userId: string, kind: string, periodKey: string, points: number): boolean {
   const result = getDb()
     .prepare(
       `INSERT OR IGNORE INTO mission_claims (user_id, kind, period_key, xp, points, claimed_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .run(userId, kind, periodKey, xp, points, new Date().toISOString());
+    .run(userId, kind, periodKey, 0, points, new Date().toISOString());
   return result.changes === 1;
 }
 

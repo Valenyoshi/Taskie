@@ -76,7 +76,7 @@ export function AuthPanel() {
       <form className="mt-5 flex flex-col gap-3" onSubmit={onSubmit}>
         {mode === "crear" ? (
           <>
-            <Field label="Tu nombre" name="name" placeholder="Cómo querés salir en el ranking" />
+            <Field label="Tu nombre" name="name" placeholder="Cómo querés que te llamemos" />
             <Field label="Usuario de Taskie" name="username" placeholder="vale.curso" autoComplete="username" />
             <Field label="Contraseña de Taskie" name="password" type="password" autoComplete="new-password" />
             <p className="pt-2 text-sm font-medium">Tu colegio en Educamos</p>

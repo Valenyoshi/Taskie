@@ -1,7 +1,9 @@
 import type { User } from "./db";
-import { listEnrolledSubjectNames, lmsBase, notesForSubject } from "./educamos";
+import { listEnrolledSubjectNames, lmsBase, notesForSubject, topicsForSubject } from "./educamos";
 import { decryptSecret } from "./secret";
 import { dedupeSubjects } from "./subject-color";
+import { listTasks } from "./db";
+import { addDays, localDateString } from "./time";
 
 export type TeachStep = { kind: "teach"; text: string };
 export type QuizStep = { kind: "quiz"; prompt: string; options: string[]; answer: number; why: string };
@@ -126,7 +128,7 @@ function sillyPrompt(value: string): boolean {
   return /para que es este repaso|para que es el repaso|de que materia es|cuanto deberia durar|cuanto dura el repaso|saltear la materia|copiar la entrega|no se ha visto|no se vio|todavia no|que no vieron|esta en la clase|cual de estos temas|tema de otra materia|algo que todavia/.test(text);
 }
 
-async function classNotes(user: User, subject: string): Promise<string> {
+async function classNotes(user: User, subject: string, query = ""): Promise<string> {
   if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return "";
   const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
   if (!classroom) return "";
@@ -137,6 +139,7 @@ async function classNotes(user: User, subject: string): Promise<string> {
         username: user.educamosUsername,
         password: decryptSecret(user.educamosPasswordEnc),
         subject,
+        query,
       }),
       14000,
       "",
@@ -170,12 +173,14 @@ export async function subjectChoices(user: User, fromTasks: string[]): Promise<s
   return dedupeSubjects([...names]);
 }
 
-export async function buildLesson(user: User, subject: string): Promise<{ ok: true; lesson: Lesson } | { ok: false; error: string }> {
+export async function buildLesson(user: User, subject: string, topic = ""): Promise<{ ok: true; lesson: Lesson } | { ok: false; error: string }> {
   const clean = subject.trim().slice(0, 160);
   if (!clean) return { ok: false, error: "Elegí una materia." };
-  const notes = await classNotes(user, clean);
+  const focus = topic.trim().slice(0, 160);
+  const notes = await classNotes(user, clean, focus);
   const prompt = [
     `Materia: ${clean}.`,
+    focus ? `Tema elegido por el alumno: ${focus}. Priorizá ese tema si aparece en el material.` : "",
     notes
       ? `Texto que puso el profesor. Explicá solo esto, como lo explicaría él:\n${notes.slice(0, 2800)}`
       : `No hay apunte del profesor. No inventes la clase.`,
@@ -185,7 +190,7 @@ export async function buildLesson(user: User, subject: string): Promise<{ ok: tr
     "No escribas la entrega.",
   ].join("\n");
 
-  if (!notes) return { ok: true, lesson: lessonFromNotes(clean, "") };
+  if (!notes) return { ok: true, lesson: lessonFromNotes(clean, "", focus) };
   try {
     const raw = await modelJson(prompt);
     const lesson = raw ? parseLesson(raw, clean) : null;
@@ -193,14 +198,14 @@ export async function buildLesson(user: User, subject: string): Promise<{ ok: tr
   } catch {
     // Si el modelo no explica el apunte, se muestran las frases del profesor.
   }
-  return { ok: true, lesson: lessonFromNotes(clean, notes) };
+  return { ok: true, lesson: lessonFromNotes(clean, notes, focus) };
 }
 
-export function fallbackLesson(subject: string, notes: string): Lesson {
-  return lessonFromNotes(subject, notes);
+export function fallbackLesson(subject: string, notes: string, topic = ""): Lesson {
+  return lessonFromNotes(subject, notes, topic);
 }
 
-function lessonFromNotes(subject: string, notes: string): Lesson {
+function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
   const sentences = notes
     .split(/(?<=[.!?;])\s+|\n+/)
     .map((line) => line.replace(/^[-•]\s*/, "").trim())
@@ -208,7 +213,73 @@ function lessonFromNotes(subject: string, notes: string): Lesson {
   const chunks = (sentences.length > 0 ? sentences : [`No encontré un apunte del profesor en ${subject} para explicar.`]).slice(0, 3);
   return {
     subject,
-    title: subject,
+    title: topic || subject,
     steps: chunks.map((text) => ({ kind: "teach" as const, text: text.slice(0, 320) })),
   };
+}
+
+type AutoLesson = { subject: string; title: string; lesson: Lesson };
+
+const autoLessonCache = new Map<string, { at: number; lessons: AutoLesson[] }>();
+
+async function lessonTopics(user: User, subject: string): Promise<string[]> {
+  const now = new Date();
+  const today = localDateString(now, user.timezone);
+  const start = addDays(today, -7);
+  const recent = listTasks(user.id)
+    .filter((task) => {
+      const day = localDateString(new Date(task.dueAt), user.timezone);
+      return task.subject === subject && day >= start && day <= today;
+    })
+    .map((task) => task.title.trim())
+    .filter(Boolean);
+  const topics = new Set(recent);
+  if (!user.isDemo && user.educamosUrl && user.educamosUsername && user.educamosPasswordEnc) {
+    try {
+      const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
+      if (classroom) {
+        for (const topic of await topicsForSubject({
+          lmsUrl: classroom,
+          username: user.educamosUsername,
+          password: decryptSecret(user.educamosPasswordEnc),
+          subject,
+        })) {
+          topics.add(topic);
+        }
+      }
+    } catch {
+      // Las tareas recientes alcanzan para mostrar una propuesta si el aula no responde.
+    }
+  }
+  return [...topics].slice(0, 2);
+}
+
+export async function autoLessons(user: User, subjects: string[]): Promise<AutoLesson[]> {
+  const key = user.id;
+  const cached = autoLessonCache.get(key);
+  if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.lessons;
+  const unique = dedupeSubjects(subjects).slice(0, 12);
+  const lessons = (
+    await Promise.all(
+      unique.map(async (subject) => {
+        const topics = await lessonTopics(user, subject);
+        const choices = topics.length > 0 ? topics : [subject];
+        return Promise.all(
+          choices.slice(0, 2).map(async (topic) => {
+            const result = await buildLesson(user, subject, topic);
+            return result.ok ? { subject, title: result.lesson.title, lesson: result.lesson } : null;
+          }),
+        );
+      }),
+    )
+  )
+    .flat()
+    .filter((item): item is AutoLesson => item !== null);
+  autoLessonCache.set(key, { at: Date.now(), lessons });
+  return lessons;
+}
+
+export function cachedAutoLesson(userId: string, subject: string, title: string): Lesson | null {
+  const cached = autoLessonCache.get(userId);
+  return cached?.lessons.find((item) => item.subject === subject && item.title === title)?.lesson ?? null;
 }

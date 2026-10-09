@@ -1,6 +1,6 @@
-import { ACHIEVEMENTS, REWARDS, frameClass, kindLabel, rewardById, scoreRewards, themeKey } from "./catalog";
-import { countDoneTasksByUser, findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, listUsers, rewardIdsByUser, type Task, type User } from "./db";
-import { levelFromTasks, PULL_COST, rarityLabel } from "./game";
+import { ACHIEVEMENTS, REWARDS, frameClass, kindLabel, rewardById, themeKey } from "./catalog";
+import { findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, type Task, type User } from "./db";
+import { PULL_COST, rarityLabel } from "./game";
 import {
   bestCompletionsSameDay,
   onTimeTasks,
@@ -14,12 +14,8 @@ export type PublicUser = {
   id: string;
   name: string;
   username: string;
-  xp: number;
   points: number;
   streak: number;
-  level: number;
-  into: number;
-  need: number;
   notificationsEnabled: boolean;
   equippedTheme: string | null;
   equippedFrame: string | null;
@@ -68,19 +64,14 @@ export type MissionView = {
   comboReady: boolean;
 };
 
-export function toPublic(user: User, completed = 0): PublicUser {
-  const level = levelFromTasks(completed);
+export function toPublic(user: User): PublicUser {
   const title = user.equippedTitle ? rewardById(user.equippedTitle) : undefined;
   return {
     id: user.id,
     name: user.name,
     username: user.username,
-    xp: user.xp,
     points: user.points,
     streak: user.streak,
-    level: level.level,
-    into: level.into,
-    need: level.need,
     notificationsEnabled: user.notificationsEnabled,
     equippedTheme: user.equippedTheme,
     equippedFrame: user.equippedFrame,
@@ -181,9 +172,8 @@ export function homeData(userId: string) {
     (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone),
   );
   const views = tasks.map((task) => toTask(task, user.timezone));
-  const completed = tasks.filter((task) => task.status === "done").length;
   return {
-    user: toPublic(user, completed),
+    user: toPublic(user),
     missions: missionView(user, tasks),
     pending: views.filter((task) => task.pending),
     done: views.filter((task) => !task.pending),
@@ -236,8 +226,7 @@ export function rewardsData(userId: string) {
     unlocked: unlocked.has(achievement.id),
     progress: progressLabel(achievement.id, user, tasks, week.length, onTimeTasks(week).length),
   }));
-  const completed = tasks.filter((task) => task.status === "done").length;
-  return { user: toPublic(user, completed), items, achievements, pullCost: PULL_COST, missing: Math.max(0, PULL_COST - user.points) };
+  return { user: toPublic(user), items, achievements, pullCost: PULL_COST, missing: Math.max(0, PULL_COST - user.points) };
 }
 
 function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number, weekDone: number): string {
@@ -255,12 +244,6 @@ function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number,
       return `${Math.min(14, user.streak)}/14`;
     case "streak_30":
       return `${Math.min(30, user.streak)}/30`;
-    case "level_5":
-      return `nivel ${Math.min(5, levelFromTasks(tasks.filter((task) => task.status === "done").length).level)}/5`;
-    case "level_10":
-      return `nivel ${Math.min(10, levelFromTasks(tasks.filter((task) => task.status === "done").length).level)}/10`;
-    case "level_20":
-      return `nivel ${Math.min(20, levelFromTasks(tasks.filter((task) => task.status === "done").length).level)}/20`;
     case "perfect_week":
       return `${weekDone}/${weekTotal || 0} esta semana`;
     case "subject_day":
@@ -268,29 +251,4 @@ function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number,
     default:
       return "";
   }
-}
-
-export function rankingData(userId: string) {
-  const me = findUserById(userId);
-  if (!me) return null;
-  const doneByUser = countDoneTasksByUser();
-  const rewards = rewardIdsByUser();
-  const rows = listUsers()
-    .filter((user) => !user.isDemo)
-    .map((user) => {
-    const ids = rewards[user.id] ?? [];
-    return {
-      id: user.id,
-      name: user.name,
-      xp: user.xp,
-      level: levelFromTasks(doneByUser[user.id] ?? 0).level,
-      prizeScore: scoreRewards(ids),
-      prizes: ids.length,
-      spins: user.spins,
-      me: user.id === userId,
-    };
-  });
-  const byXp = [...rows].sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name, "es"));
-  const byPrizes = [...rows].sort((a, b) => b.spins - a.spins || b.prizeScore - a.prizeScore || a.name.localeCompare(b.name, "es"));
-  return { user: toPublic(me), byXp, byPrizes, alone: rows.length === 1 };
 }

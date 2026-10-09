@@ -32,7 +32,7 @@ export default async function MateriasPage() {
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-xp"
+                className="h-full rounded-full bg-gold"
                 style={{ width: `${subject.total ? Math.round((subject.done / subject.total) * 100) : 0}%` }}
               />
             </div>

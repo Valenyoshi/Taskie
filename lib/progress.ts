@@ -3,7 +3,7 @@ import {
   addAchievement,
   addClaim,
   addReward,
-  addXpPoints,
+  addPoints,
   completeTask as markTaskDone,
   findUserById,
   getTask,
@@ -19,7 +19,7 @@ import {
   type Task,
   type User,
 } from "./db";
-import { POINTS, PULL_COST, XP, levelFromTasks, rollRarity } from "./game";
+import { POINTS, PULL_COST, rollRarity } from "./game";
 import {
   dailyMet,
   daysHitInWeek,
@@ -38,15 +38,14 @@ function claim(
   userId: string,
   kind: string,
   periodKey: string,
-  xp: number,
   points: number,
   label: string,
   lines: string[],
 ): void {
   if (hasClaim(userId, kind, periodKey)) return;
-  if (!addClaim(userId, kind, periodKey, xp, points)) return;
-  addXpPoints(userId, xp, points);
-  lines.push(`${label}: +${xp} XP y +${points} sombreros.`);
+  if (!addClaim(userId, kind, periodKey, points)) return;
+  addPoints(userId, points);
+  lines.push(`${label}: +${points} sombreros.`);
 }
 
 export function applyMissions(userId: string, lines: string[]): void {
@@ -61,13 +60,13 @@ export function applyMissions(userId: string, lines: string[]): void {
       const due = tasksOnDay(tasks, user.timezone, day);
       if (!dailyMet(due)) continue;
       const done = onTimeTasks(due).length;
-      claim(userId, "daily", day, XP.daily, POINTS.daily, `Misión diaria (${done}/${due.length})`, lines);
+      claim(userId, "daily", day, POINTS.daily, `Misión diaria (${done}/${due.length})`, lines);
     }
     const weekTasks = tasksInWeek(tasks, user.timezone, start);
     if (!weekPerfect(weekTasks)) continue;
-    claim(userId, "weekly", start, XP.weekly, POINTS.weekly, "Misión semanal", lines);
+    claim(userId, "weekly", start, POINTS.weekly, "Misión semanal", lines);
     if (daysHitInWeek(tasks, user.timezone, start)) {
-      claim(userId, "combo", start, XP.combo, POINTS.combo, "Combo de la semana", lines);
+      claim(userId, "combo", start, POINTS.combo, "Combo de la semana", lines);
     }
   }
 }
@@ -101,12 +100,6 @@ function achievementMet(id: AchievementId, user: User, tasks: Task[]): boolean {
       return flags.pulled;
     case "super_rare":
       return flags.foundSuper;
-    case "level_5":
-      return flags.level >= 5;
-    case "level_10":
-      return flags.level >= 10;
-    case "level_20":
-      return flags.level >= 20;
   }
 }
 
@@ -122,8 +115,8 @@ export function applyAchievements(userId: string, lines: string[]): void {
       if (owned.has(achievement.id)) continue;
       if (!achievementMet(achievement.id, user, tasks)) continue;
       if (!addAchievement(userId, achievement.id)) continue;
-      addXpPoints(userId, achievement.xp, achievement.points);
-      lines.push(`Logro ${achievement.name}: +${achievement.xp} XP y +${achievement.points} sombreros.`);
+      addPoints(userId, achievement.points);
+      lines.push(`Logro ${achievement.name}: +${achievement.points} sombreros.`);
       changed = true;
     }
   }
@@ -135,35 +128,27 @@ export function touchOpen(userId: string): string[] {
   if (!user) return lines;
   const today = localDateString(new Date(), user.timezone);
   if (user.lastOpenDate === today) return lines;
-  const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
   let streak = 1;
   if (user.lastOpenDate && addDays(user.lastOpenDate, 1) === today) streak = user.streak + 1;
-  const opened = setOpenDay(userId, streak, today, XP.streakOpen, POINTS.streakOpen);
+  const opened = setOpenDay(userId, streak, today, POINTS.streakOpen);
   if (opened) {
-    lines.push(
-      `Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${XP.streakOpen} XP y +${POINTS.streakOpen} sombreros.`,
-    );
+    lines.push(`Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${POINTS.streakOpen} sombreros.`);
   }
   applyMissions(userId, lines);
   applyAchievements(userId, lines);
-  const afterUser = findUserById(userId);
-  if (afterUser) {
-    const after = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
-    if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
-  }
   return lines;
 }
 
-export function claimLesson(userId: string, subject: string): { first: boolean; xp: number; points: number } {
+export function claimLesson(userId: string, subject: string): { first: boolean; points: number } {
   const user = findUserById(userId);
-  if (!user) return { first: false, xp: 0, points: 0 };
+  if (!user) return { first: false, points: 0 };
   const day = localDateString(new Date(), user.timezone);
   const periodKey = `${day}:${subject.trim().toLowerCase()}`;
-  if (!addClaim(userId, "lesson", periodKey, XP.lesson, POINTS.lesson)) {
-    return { first: false, xp: 0, points: 0 };
+  if (!addClaim(userId, "lesson", periodKey, POINTS.lesson)) {
+    return { first: false, points: 0 };
   }
-  addXpPoints(userId, XP.lesson, POINTS.lesson);
-  return { first: true, xp: XP.lesson, points: POINTS.lesson };
+  addPoints(userId, POINTS.lesson);
+  return { first: true, points: POINTS.lesson };
 }
 
 export function deliverTask(userId: string, taskId: string): { ok: true; lines: string[] } | { ok: false; error: string } {
@@ -177,23 +162,15 @@ export function deliverTask(userId: string, taskId: string): { ok: true; lines: 
   const result = transaction(() => {
     const current = findUserById(userId);
     if (!current) return { ok: false as const, error: "No encontré tu cuenta." };
-    const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
     const completedAt = new Date().toISOString();
     const onTime = new Date(completedAt).getTime() <= new Date(task.dueAt).getTime();
     if (!markTaskDone(taskId, userId, completedAt, onTime)) {
       return { ok: false as const, error: "Esa tarea ya está entregada." };
     }
     const points = Math.round((onTime ? POINTS.onTime : POINTS.late) * (task.source === "lms" ? 1.25 : 1));
-    const xp = onTime ? XP.onTime : XP.late;
-    addXpPoints(userId, xp, points);
-    lines.push(onTime ? `Entrega a tiempo: +${xp} XP y +${points} sombreros.` : `Entrega tarde: +${xp} XP y +${points} sombreros.`);
+    lines.push(onTime ? `Entrega a tiempo: +${points} sombreros.` : `Entrega tarde: +${points} sombreros.`);
     applyMissions(userId, lines);
     applyAchievements(userId, lines);
-    const afterUser = findUserById(userId);
-    if (afterUser) {
-      const after = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
-      if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
-    }
     return { ok: true as const, lines };
   });
   return result;
@@ -215,7 +192,6 @@ export function buyPull(userId: string):
   return transaction(() => {
     const beforeUser = findUserById(userId);
     if (!beforeUser) return { ok: false as const, error: "No encontré tu cuenta." };
-    const before = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
     if (!spendPoints(userId, PULL_COST)) {
       return { ok: false as const, error: `Te faltan sombreros para una tirada.` };
     }
@@ -223,19 +199,14 @@ export function buyPull(userId: string):
     const duplicate = owned.has(reward.id);
     const lines = [`Tirada: −${PULL_COST} sombreros.`];
     if (duplicate) {
-      addXpPoints(userId, XP.duplicate, 0);
-      lines.push(`Te salió otra vez ${reward.name}. Como ya lo tenías, sumás +${XP.duplicate} XP.`);
+      addPoints(userId, POINTS.duplicate);
+      lines.push(`Te salió otra vez ${reward.name}. Como ya lo tenías, sumás +${POINTS.duplicate} sombreros.`);
     } else {
       addReward(userId, reward.id);
       lines.push(`Te salió ${reward.name} (${rarity === "super" ? "súper raro" : rarity === "rare" ? "raro" : "común"}).`);
     }
     markPulled(userId, rarity === "super");
     applyAchievements(userId, lines);
-    const afterUser = findUserById(userId);
-    if (afterUser) {
-      const after = levelFromTasks(listTasks(userId).filter((task) => task.status === "done").length);
-      if (after.level > before.level) lines.push(`Subiste al nivel ${after.level}.`);
-    }
     return { ok: true as const, lines, rewardName: reward.name, rarity: reward.rarity, duplicate };
   });
 }

@@ -31,20 +31,17 @@ export const REWARDS: RewardDef[] = [
 ];
 
 export const ACHIEVEMENTS = [
-  { id: "first_ontime", name: "Primera entrega a tiempo", detail: "Entregá una tarea antes de que venza.", xp: 40, points: 20 },
-  { id: "five_same_day", name: "Cinco en un día", detail: "Completá 5 tareas en el mismo día.", xp: 80, points: 40 },
-  { id: "ten_ontime", name: "Diez a tiempo", detail: "Entregá 10 tareas a tiempo.", xp: 100, points: 50 },
-  { id: "perfect_week", name: "Semana perfecta", detail: "Completá a tiempo todas las tareas de una semana.", xp: 120, points: 60 },
-  { id: "subject_day", name: "Una materia al día", detail: "Cerrá a tiempo todas las tareas que vencen un mismo día de una materia.", xp: 60, points: 30 },
-  { id: "streak_3", name: "Racha de 3", detail: "Entrá 3 días seguidos.", xp: 30, points: 15 },
-  { id: "streak_7", name: "Racha de 7", detail: "Entrá 7 días seguidos.", xp: 70, points: 35 },
-  { id: "streak_14", name: "Racha de 14", detail: "Entrá 14 días seguidos.", xp: 140, points: 70 },
-  { id: "streak_30", name: "Racha de 30", detail: "Entrá 30 días seguidos.", xp: 300, points: 150 },
-  { id: "first_pull", name: "Primera tirada", detail: "Comprá tu primera tirada.", xp: 20, points: 10 },
-  { id: "super_rare", name: "Hallazgo", detail: "Sacá un premio súper raro.", xp: 100, points: 50 },
-  { id: "level_5", name: "Nivel 5", detail: "Llegá al nivel 5.", xp: 50, points: 25 },
-  { id: "level_10", name: "Nivel 10", detail: "Llegá al nivel 10.", xp: 80, points: 40 },
-  { id: "level_20", name: "Nivel 20", detail: "Llegá al nivel 20.", xp: 150, points: 75 },
+  { id: "first_ontime", name: "Primera entrega a tiempo", detail: "Entregá una tarea antes de que venza.", points: 20 },
+  { id: "five_same_day", name: "Cinco en un día", detail: "Completá 5 tareas en el mismo día.", points: 40 },
+  { id: "ten_ontime", name: "Diez a tiempo", detail: "Entregá 10 tareas a tiempo.", points: 50 },
+  { id: "perfect_week", name: "Semana perfecta", detail: "Completá a tiempo todas las tareas de una semana.", points: 60 },
+  { id: "subject_day", name: "Una materia al día", detail: "Cerrá a tiempo todas las tareas que vencen un mismo día de una materia.", points: 30 },
+  { id: "streak_3", name: "Racha de 3", detail: "Entrá 3 días seguidos.", points: 15 },
+  { id: "streak_7", name: "Racha de 7", detail: "Entrá 7 días seguidos.", points: 35 },
+  { id: "streak_14", name: "Racha de 14", detail: "Entrá 14 días seguidos.", points: 70 },
+  { id: "streak_30", name: "Racha de 30", detail: "Entrá 30 días seguidos.", points: 150 },
+  { id: "first_pull", name: "Primera tirada", detail: "Comprá tu primera tirada.", points: 10 },
+  { id: "super_rare", name: "Hallazgo", detail: "Sacá un premio súper raro.", points: 50 },
 ] as const;
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]["id"];

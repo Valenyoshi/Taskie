@@ -1,4 +1,3 @@
-import { CountUp } from "@/components/count-up";
 import { HatIcon } from "@/components/school-icon";
 import { GoalBars } from "@/components/goal-bars";
 import { StreakFlame } from "@/components/streak-flame";
@@ -23,17 +22,11 @@ export default async function InicioPage() {
       <section className="points-corral rise-in">
         <HatIcon />
         <span>
-          <span className="points-value">
-            <CountUp value={user.points} />
-          </span>
+          <span className="points-value">{user.points}</span>
           <span className="points-label">{user.points === 1 ? "sombrero" : "sombreros"}</span>
         </span>
       </section>
 
-      <section className="zone zone-xp rise-in">
-        <p className="zone-kicker">Nivel {user.level}</p>
-        <Meter label="XP" value={user.need ? user.into / user.need : 0} caption={`${user.into}/${user.need}`} />
-      </section>
       <GoalBars
         dailyClosed={missions.dailyClosed}
         dailyTotal={missions.dailyTotal}
@@ -90,21 +83,6 @@ export default async function InicioPage() {
         </details>
       ) : null}
 
-    </div>
-  );
-}
-
-function Meter({ label, value, caption }: { label: string; value: number; caption: string }) {
-  const width = `${Math.max(0, Math.min(100, Math.round(value * 100)))}%`;
-  return (
-    <div className="mt-3">
-      <div className="mb-1.5 flex justify-between text-xs font-bold">
-        <span>{label}</span>
-        <span>{caption}</span>
-      </div>
-      <div className="relative h-3 overflow-hidden rounded-full bg-white/35">
-        <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
-      </div>
     </div>
   );
 }

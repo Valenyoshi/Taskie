@@ -1,3 +1,5 @@
+import { TaskieLoader } from "@/components/taskie-loader";
+
 export default function Loading() {
-  return <p className="text-sm text-muted-foreground">Cargando tu cuaderno…</p>;
+  return <TaskieLoader />;
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { POINTS } from "@/lib/game";
 
 const COLORS = ["#e25b45", "#e8a317", "#1c7c6e", "#fff6d8", "#f3c04a"];
 
@@ -16,12 +17,7 @@ export function GoalBars({
   weeklyClosed: number;
   weeklyTotal: number;
 }) {
-  const dayRef = useRef<HTMLDivElement>(null);
-  const weekRef = useRef<HTMLDivElement>(null);
   const [boost, setBoost] = useState({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
-  const [check, setCheck] = useState({ day: false, week: false });
-  const [leaving, setLeaving] = useState({ day: false, week: false });
-  const [gone, setGone] = useState({ day: false, week: false });
   const [confetti, setConfetti] = useState(false);
   const [bits, setBits] = useState<{ left: number; delay: number; color: string; drift: number; spin: number }[]>([]);
 
@@ -66,10 +62,6 @@ export function GoalBars({
       const previous = raw?.startsWith(`${date}|`) ? raw.slice(date.length + 1) : null;
       if (!previous || previous === snapshot) {
         setShown(next);
-        setGone({
-          day: dayNeed > 0 && dayDone === dayNeed,
-          week: weekNeed > 0 && weekDone === weekNeed,
-        });
         return;
       }
       const [dayPart, weekPart] = previous.split("|");
@@ -82,8 +74,6 @@ export function GoalBars({
         return;
       }
       party.current = true;
-      const target = (dayJust ? dayRef.current : weekRef.current) ?? dayRef.current;
-      if (target) focusPage(target);
       setBits(
         Array.from({ length: 56 }, (_, index) => ({
           left: Math.round((index * 17) % 100),
@@ -95,42 +85,24 @@ export function GoalBars({
       );
       later(() => setShown(next), 900);
       later(() => {
-        setCheck({ day: dayJust, week: weekJust });
         setConfetti(true);
       }, 1800);
-      later(() => setLeaving({ day: dayJust, week: weekJust }), 4200);
       later(() => {
-        setGone((current) => ({ day: current.day || dayJust, week: current.week || weekJust }));
         setConfetti(false);
         party.current = false;
-        releasePage();
-      }, 5200);
+      }, 4200);
     }, 40);
   }, [dayDone, dayNeed, weekDone, weekNeed]);
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        {gone.day ? <div /> : (
-          <section className={`zone zone-day rise-in ${leaving.day ? "task-leave" : ""}`}>
-            <Meter meterRef={dayRef} label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
-            {check.day ? (
-              <div className="card-cover" aria-hidden>
-                <span className="card-cover-mark">✓</span>
-              </div>
-            ) : null}
-          </section>
-        )}
-        {gone.week ? <div /> : (
-          <section className={`zone zone-week rise-in ${leaving.week ? "task-leave" : ""}`}>
-            <Meter meterRef={weekRef} label="Semana" done={shown.weekDone} total={shown.weekNeed} />
-            {check.week ? (
-              <div className="card-cover" aria-hidden>
-                <span className="card-cover-mark">✓</span>
-              </div>
-            ) : null}
-          </section>
-        )}
+        <section className="zone zone-day rise-in">
+          <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} reward={POINTS.daily} />
+        </section>
+        <section className="zone zone-week rise-in">
+          <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} reward={POINTS.weekly} />
+        </section>
       </div>
       {confetti
         ? createPortal(
@@ -156,46 +128,20 @@ export function GoalBars({
   );
 }
 
-function pageRoot(): HTMLElement {
-  return document.querySelector("[data-theme]") ?? document.body;
-}
-
-function focusPage(el: HTMLElement) {
-  const root = pageRoot();
-  const rect = el.getBoundingClientRect();
-  const rootRect = root.getBoundingClientRect();
-  const x = rect.left - rootRect.left + rect.width / 2;
-  const y = rect.top - rootRect.top + rect.height / 2;
-  const cover = (window.innerWidth / Math.max(rect.width, 1)) * 0.9;
-  root.style.transformOrigin = `${x}px ${y}px`;
-  root.style.transition = "transform 0.85s cubic-bezier(0.22, 0.8, 0.28, 1)";
-  root.style.transform = `scale(${cover})`;
-}
-
-function releasePage() {
-  const root = pageRoot();
-  root.style.transform = "scale(1)";
-  window.setTimeout(() => {
-    root.style.transition = "";
-    root.style.transform = "";
-    root.style.transformOrigin = "";
-  }, 900);
-}
-
 function Meter({
-  meterRef,
   label,
   done,
   total,
+  reward,
 }: {
-  meterRef: RefObject<HTMLDivElement | null>;
   label: string;
   done: number;
   total: number;
+  reward: number;
 }) {
   const width = `${total ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0}%`;
   return (
-    <div ref={meterRef} className="mt-3">
+    <div className="mt-3">
       <div className="mb-1.5 flex justify-between text-xs font-bold">
         <span>{label}</span>
         <span>{done}/{total}</span>
@@ -203,6 +149,7 @@ function Meter({
       <div className="relative h-3 overflow-hidden rounded-full bg-white/35">
         <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
       </div>
+      <p className="mt-2 text-[11px] font-bold opacity-75">Recompensa: +{reward} sombreros</p>
     </div>
   );
 }

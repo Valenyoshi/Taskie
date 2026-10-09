@@ -7,7 +7,6 @@ type RewardPopupProps = {
   title: string;
   description: string;
   streak?: number;
-  xp: number;
   points: number;
   storageKey?: string;
   onClose?: () => void;
@@ -18,7 +17,6 @@ export function RewardPopup({
   title,
   description,
   streak,
-  xp,
   points,
   storageKey,
   onClose,
@@ -71,11 +69,7 @@ export function RewardPopup({
           </p>
         ) : null}
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-[color-mix(in_oklab,var(--gold)_18%,transparent)] px-3 py-3">
-            <p className="text-xs font-bold uppercase text-muted-foreground">Experiencia</p>
-            <p className="font-display text-2xl text-gold">+{xp} XP</p>
-          </div>
-          <div className="rounded-2xl bg-[color-mix(in_oklab,var(--pine)_15%,transparent)] px-3 py-3">
+          <div className="col-span-2 rounded-2xl bg-[color-mix(in_oklab,var(--pine)_15%,transparent)] px-3 py-3">
             <p className="text-xs font-bold uppercase text-muted-foreground">Sombreros</p>
             <p className="font-display text-2xl text-pine">+{points}</p>
           </div>

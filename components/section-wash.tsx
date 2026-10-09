@@ -7,9 +7,7 @@ export function SectionWash() {
   let tone = "";
   if (pathname.startsWith("/materias")) tone = "materias";
   else if (pathname.startsWith("/premios")) tone = "tienda";
-  else if (pathname.startsWith("/ranking")) tone = "ranking";
   else if (pathname.startsWith("/chat")) tone = "chat";
-  else if (pathname.startsWith("/concentracion")) tone = "concentracion";
   else if (pathname.startsWith("/configuracion")) tone = "configuracion";
   if (!tone) return null;
 

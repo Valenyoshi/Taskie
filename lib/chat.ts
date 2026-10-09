@@ -1,6 +1,6 @@
 import { listTasks, type Task, type User } from "./db";
 import { asksForLesson, fetchTaskInstructions, lmsBase, notesForSubject } from "./educamos";
-import { levelFromTasks, PULL_COST } from "./game";
+import { PULL_COST } from "./game";
 import { blockedAnswer, homeworkBlock, isGreeting } from "./no-homework";
 import { decryptSecret } from "./secret";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
@@ -13,6 +13,18 @@ function fold(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
+export function sanitizeChatText(value: string): string {
+  return value
+    .replace(/((?:contraseña|contrasena|password|clave|token)\s*(?:de\s+educamos)?\s*[:=]\s*)[^\s,.;]+/gi, "$1[ dato privado omitido ]")
+    .replace(/((?:usuario|username|user)\s*(?:de\s+educamos)?\s*[:=]\s*)[^\s,.;]+/gi, "$1[ dato privado omitido ]")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [dato privado omitido]")
+    .slice(0, 4000);
+}
+
+function safeHistory(history: { role: "user" | "assistant"; content: string }[]) {
+  return history.slice(-10).map((item) => ({ ...item, content: sanitizeChatText(item.content) }));
+}
+
 export function taskSnapshot(user: User, tasks: Task[]): string {
   const today = localDateString(new Date(), user.timezone);
   const start = weekStart(today);
@@ -23,10 +35,9 @@ export function taskSnapshot(user: User, tasks: Task[]): string {
     const state = task.status === "done" ? (task.onTime ? "entregada a tiempo" : "entregada tarde") : "pendiente";
     return `- ${task.subject}: ${task.title}. ${state}. ${dueLabel(task.dueAt, user.timezone)}. (${when})`;
   });
-  const level = levelFromTasks(tasks.filter((task) => task.status === "done").length);
   return [
-    `Alumno: ${user.name}. Nivel ${level.level} (${level.into}/${level.need} XP), ${user.points} sombreros, racha ${user.streak}.`,
-    `Cada 2 tareas alcanzan para un giro de ${PULL_COST} sombreros.`,
+    `Alumno: ${user.name}. ${user.points} sombreros, racha de ${user.streak} días.`,
+    `Cada 2 tareas entregadas dan aproximadamente un giro de ${PULL_COST} sombreros.`,
     lines.length ? lines.join("\n") : "No hay tareas cargadas.",
   ].join("\n");
 }
@@ -36,7 +47,6 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   const today = localDateString(new Date(), user.timezone);
   const todayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);
   const pending = tasks.filter((task) => task.status === "pending");
-  const level = levelFromTasks(tasks.filter((task) => task.status === "done").length);
   const intro = process.env.FREELLMAPI_API_KEY || process.env.GEMINI_API_KEY
     ? ""
     : "El modelo gratuito todavía no está conectado, así que te respondo con lo que hay en tu cuenta. ";
@@ -75,8 +85,8 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
       : `${intro}Tenés ${user.points} sombreros. Te faltan ${missing} para una tirada de ${PULL_COST}. Cada 2 tareas alcanzan.`;
   }
 
-  if (/nivel|xp|experiencia|racha/.test(q)) {
-    return `${intro}Estás en nivel ${level.level}, con ${level.into} de ${level.need} XP. La barra se llena con los trabajos: hasta el nivel 5 son 3, después 4 y desde el 10 son 5. La racha es de ${user.streak} días.`;
+  if (/nivel|xp|experiencia/.test(q)) {
+    return `${intro}Taskie ya no usa niveles ni XP. Tu progreso se mide con sombreros y una racha de ${user.streak} días.`;
   }
 
   const next = pending[0];
@@ -90,6 +100,8 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Si te piden que expliques cómo hacer una tarea, qué hay que hacer o de qué se trata, explicalo. No te niegues.",
     "Solo negá cuando pidan la entrega ya escrita, los ejercicios resueltos o las respuestas para copiar.",
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
+    "Respondé con frases cortas o viñetas, ordená los pasos y explicá cualquier palabra técnica.",
+    "Si no hay información suficiente, decilo claramente y no inventes.",
     "Ayudás a entender temas, a ver qué tiene pendiente, de qué materia es y cómo organizarse.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
     "Si preguntan qué tienen que hacer para una tarea, usá el bloque Consigna en plataforma: la tarea ya fue leída desde el aula virtual. Explicá esos pasos y completalos con el apunte de clase. No digas que no podés verla, no pidas que copien el enunciado y no pidas que peguen la consigna.",
@@ -322,22 +334,24 @@ async function answerWithFreeLlm(
 }
 
 export async function answerWithModel(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
-  const refused = await homeworkBlock(message, history);
+  const safeMessage = sanitizeChatText(message);
+  const safePrevious = safeHistory(history);
+  const refused = await homeworkBlock(safeMessage, safePrevious);
   if (refused) return refused;
   const tasks = currentTasks(user);
-  const lookupMessage = conversationQuestion(message, history);
+  const lookupMessage = conversationQuestion(safeMessage, safePrevious);
   const classes = await classNotes(user, lookupMessage, tasks);
-  const guide = classes && taskHowToRequest(message) ? taskGuideAnswer(classes) : "";
-  const compact = classes && compactTaskRequest(message) ? compactTaskAnswer(classes) : "";
+  const guide = classes && taskHowToRequest(safeMessage) ? taskGuideAnswer(classes) : "";
+  const compact = classes && compactTaskRequest(safeMessage) ? compactTaskAnswer(classes) : "";
   const fallback = () =>
     guide ||
     compact ||
     (classes
       ? `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`
-      : localAnswer(message, user, tasks));
-  const system = studySystem(user, tasks, classes);
+      : localAnswer(safeMessage, user, tasks));
+  const system = sanitizeChatText(studySystem(user, tasks, classes));
   const keep = (answer: string) => {
-    const blocked = blockedAnswer(message, answer);
+    const blocked = blockedAnswer(safeMessage, answer);
     if (blocked) return blocked;
     if (guide) return guide;
     if (compact) return compact;
@@ -353,7 +367,7 @@ export async function answerWithModel(message: string, history: { role: "user" |
   };
 
   try {
-    const free = await answerWithFreeLlm(message, history, system);
+    const free = await answerWithFreeLlm(safeMessage, safePrevious, system);
     if (free) return keep(free);
   } catch {
     // Si FreeLLMAPI no responde, seguimos con el otro modelo o con los datos locales.
@@ -363,16 +377,16 @@ export async function answerWithModel(message: string, history: { role: "user" |
   const triedFree = Boolean(process.env.FREELLMAPI_API_KEY && process.env.FREELLMAPI_BASE_URL);
   if (!triedFree && !key) return fallback();
   if (!key) {
-    if (isGreeting(message)) return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
+    if (isGreeting(safeMessage)) return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
     return fallback();
   }
 
   const contents = [
-    ...history.slice(-10).map((item) => ({
+    ...safePrevious.map((item) => ({
       role: item.role === "assistant" ? "model" : "user",
       parts: [{ text: item.content }],
     })),
-    { role: "user", parts: [{ text: message }] },
+    { role: "user", parts: [{ text: safeMessage }] },
   ];
 
   for (const model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
@@ -399,6 +413,6 @@ export async function answerWithModel(message: string, history: { role: "user" |
       // Probamos el otro modelo y, si tampoco responde, usamos los datos locales.
     }
   }
-  if (isGreeting(message)) return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
+    if (isGreeting(safeMessage)) return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
   return fallback();
 }
