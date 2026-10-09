@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { TaskieLoader } from "@/components/taskie-loader";
 
-const MINIMUM_TIME = 550;
+const MINIMUM_TIME = 1400;
 
 export function NavigationLoader() {
   const pathname = usePathname();
