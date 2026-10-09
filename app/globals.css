@@ -1802,7 +1802,7 @@ button:disabled {
 
 .kitty-shopkeeper {
   position: absolute;
-  bottom: 83px;
+  bottom: 30px;
   left: 50%;
   z-index: 2;
   width: 190px;
