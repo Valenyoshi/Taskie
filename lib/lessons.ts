@@ -236,7 +236,8 @@ export function fallbackLesson(subject: string, notes: string, topic = ""): Less
 }
 
 function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
-  const sentences = cleanLessonText(notes)
+  const source = readableLessonText(notes) ? cleanLessonText(notes) : "";
+  const sentences = source
     .split(/(?<=[.!?;])\s+|\n+/)
     .map((line) => line.replace(/^[-•]\s*/, "").trim())
     .filter((line) => line.length > 40 && !sillyPrompt(line));
