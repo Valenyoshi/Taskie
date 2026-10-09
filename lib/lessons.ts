@@ -15,6 +15,30 @@ export type Lesson = {
   steps: LessonStep[];
 };
 
+function cleanLessonText(value: string): string {
+  return value
+    .replace(/Ã¡/g, "á")
+    .replace(/Ã©/g, "é")
+    .replace(/Ã­/g, "í")
+    .replace(/Ã³/g, "ó")
+    .replace(/Ãº/g, "ú")
+    .replace(/Ã±/g, "ñ")
+    .replace(/Â¿/g, "¿")
+    .replace(/Â¡/g, "¡")
+    .replace(/â€™/g, "’")
+    .replace(/â€œ|â€/g, '"')
+    .replace(/\uFFFD|�|□|◻|◼/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .replace(/\s+/g, " ")
+    .normalize("NFC")
+    .trim();
+}
+
+function readableLessonText(value: string): boolean {
+  const clean = cleanLessonText(value);
+  return clean.length >= 3 && !/[�□◻◼]/.test(value);
+}
+
 function parseLesson(raw: string, subject: string): Lesson | null {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
@@ -43,16 +67,22 @@ function parseLesson(raw: string, subject: string): Lesson | null {
     };
     const kind = String(row.kind ?? row.type ?? "").toLowerCase();
     const teachText = typeof row.text === "string" ? row.text : typeof row.prompt === "string" && /teach|explica|texto/.test(kind) ? row.prompt : "";
-    if ((kind === "teach" || kind === "explanation" || kind === "explica" || kind === "text") && teachText.trim() && !sillyPrompt(teachText)) {
-      steps.push({ kind: "teach", text: teachText.trim().slice(0, 320) });
+    const cleanTeach = cleanLessonText(teachText);
+    if (
+      (kind === "teach" || kind === "explanation" || kind === "explica" || kind === "text") &&
+      readableLessonText(teachText) &&
+      !sillyPrompt(cleanTeach)
+    ) {
+      steps.push({ kind: "teach", text: cleanTeach.slice(0, 320) });
       continue;
     }
     const prompt = typeof row.prompt === "string" ? row.prompt : typeof row.pregunta === "string" ? row.pregunta : "";
+    const cleanPrompt = cleanLessonText(prompt);
     const rawOptions = Array.isArray(row.options) ? row.options : Array.isArray(row.opciones) ? row.opciones : null;
-    if (!prompt.trim() || !rawOptions || sillyPrompt(prompt)) continue;
+    if (!readableLessonText(prompt) || !rawOptions || sillyPrompt(cleanPrompt)) continue;
     const options = rawOptions
       .map((option) => (typeof option === "string" ? option : typeof option === "object" && option && "text" in option ? String((option as { text?: unknown }).text ?? "") : ""))
-      .map((option) => option.trim())
+      .map((option) => cleanLessonText(option))
       .filter(Boolean)
       .slice(0, 3);
     while (options.length < 3) options.push(options.length === 1 ? "Ninguna de esas" : "No está en la clase");
@@ -61,10 +91,10 @@ function parseLesson(raw: string, subject: string): Lesson | null {
     if (!Number.isInteger(answer) || answer < 0 || answer > 2) answer = 0;
     steps.push({
       kind: "quiz",
-      prompt: prompt.trim().slice(0, 220),
+      prompt: cleanPrompt.slice(0, 220),
       options: options.map((option) => option.slice(0, 120)),
       answer,
-      why: typeof row.why === "string" ? row.why.trim().slice(0, 220) : "",
+      why: typeof row.why === "string" ? cleanLessonText(row.why).slice(0, 220) : "",
     });
   }
   const teaches = steps.filter((step) => step.kind === "teach");
@@ -74,7 +104,7 @@ function parseLesson(raw: string, subject: string): Lesson | null {
   const picked = [...teaches.slice(0, 2), ...quizzes.slice(0, 4)];
   steps.length = 0;
   steps.push(...picked);
-  const title = typeof data.title === "string" && data.title.trim() ? data.title.trim().slice(0, 80) : subject;
+  const title = typeof data.title === "string" && readableLessonText(data.title) ? cleanLessonText(data.title).slice(0, 80) : subject;
   return { subject, title, steps };
 }
 
@@ -182,7 +212,7 @@ export async function buildLesson(user: User, subject: string, topic = ""): Prom
     `Materia: ${clean}.`,
     focus ? `Tema elegido por el alumno: ${focus}. Priorizá ese tema si aparece en el material.` : "",
     notes
-      ? `Texto que puso el profesor. Explicá solo esto, como lo explicaría él:\n${notes.slice(0, 2800)}`
+      ? `Texto que puso el profesor. Explicá solo esto, como lo explicaría él:\n${cleanLessonText(notes).slice(0, 2800)}`
       : `No hay apunte del profesor. No inventes la clase.`,
     "La teoría tiene que explicar esa información, en 2 pasos type teach.",
     "Las preguntas tienen que comprobar datos de ese texto. 4 pasos type quiz, con options de 3, answer 0 1 o 2, y why.",
@@ -206,7 +236,7 @@ export function fallbackLesson(subject: string, notes: string, topic = ""): Less
 }
 
 function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
-  const sentences = notes
+  const sentences = cleanLessonText(notes)
     .split(/(?<=[.!?;])\s+|\n+/)
     .map((line) => line.replace(/^[-•]\s*/, "").trim())
     .filter((line) => line.length > 40 && !sillyPrompt(line));
@@ -217,7 +247,7 @@ function lessonFromNotes(subject: string, notes: string, topic = ""): Lesson {
         kind: "quiz" as const,
         prompt: `Según la clase, ¿qué idea aparece en el apunte ${index + 1}?`,
         options: [
-          text.slice(0, 110),
+          cleanLessonText(text).slice(0, 110),
           "Una idea que no aparece en el material.",
           "No se puede saber con esta clase.",
         ],

@@ -182,10 +182,10 @@ export function LessonDeck({ streak }: { streak: number }) {
           {current.kind === "teach" ? <p className="lesson-tag theory">Idea clave</p> : null}
           <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">{lesson.title}</p>
           {current.kind === "teach" ? (
-            <p className="font-display text-3xl leading-snug">{current.text}</p>
+            <p className="font-sans text-xl leading-relaxed font-semibold break-words sm:text-2xl">{current.text}</p>
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="font-display text-3xl leading-snug">{current.prompt}</p>
+              <p className="font-sans text-xl leading-relaxed font-semibold break-words sm:text-2xl">{current.prompt}</p>
               {current.options.map((option, index) => (
                 <button
                   key={`${option}-${index}`}
