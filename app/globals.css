@@ -1833,8 +1833,8 @@ button:disabled {
 
 .kitty-dialogue {
   position: absolute;
-  top: 72px;
-  left: -108px;
+  top: 52px;
+  left: 50%;
   z-index: 4;
   display: flex;
   max-width: 190px;
@@ -1849,18 +1849,19 @@ button:disabled {
   font-weight: 800;
   line-height: 1.1;
   box-shadow: 0 5px 0 rgba(111, 61, 32, 0.2);
+  transform: translateX(-50%);
 }
 
 .kitty-dialogue i {
   position: absolute;
-  right: -10px;
-  bottom: 10px;
+  bottom: -10px;
+  left: 50%;
   width: 18px;
   height: 18px;
-  border-top: 3px solid #a96735;
   border-right: 3px solid #a96735;
+  border-bottom: 3px solid #a96735;
   background: #fffaf0;
-  transform: rotate(45deg);
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .kitty-counter {
@@ -2111,7 +2112,7 @@ button:disabled {
   .kitty-shop-scene { min-height: 410px; }
   .kitty-counter { right: 4%; left: 4%; }
   .kitty-shopkeeper { width: 172px; }
-  .kitty-dialogue { top: 76px; left: -98px; max-width: 170px; font-size: 0.95rem; }
+  .kitty-dialogue { top: 52px; left: 50%; max-width: 170px; font-size: 0.95rem; }
 }
 
 .ranking-board {
