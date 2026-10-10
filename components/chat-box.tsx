@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { ArrowUp } from "lucide-react";
+import { ArrowLeft, ArrowUp } from "lucide-react";
 import { GeminiMark } from "@/components/gemini-mark";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
@@ -11,44 +12,16 @@ const suggestions = ["¿Qué tengo hoy?", "Explicame cómo hacer una tarea"];
 
 export function ChatBox({
   initial,
-  conversations: initialConversations,
   activeConversationId: initialConversationId,
 }: {
   initial: Message[];
-  conversations: Conversation[];
   activeConversationId: string | null;
 }) {
   const [messages, setMessages] = useState<Message[]>(initial);
-  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [historyBusy, setHistoryBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function selectConversation(conversationId: string) {
-    if (busy || historyBusy || conversationId === activeConversationId) return;
-    setHistoryBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/chat?conversationId=${encodeURIComponent(conversationId)}`);
-      const data = (await res.json()) as { error?: string; messages?: Message[] };
-      if (!res.ok || !data.messages) throw new Error(data.error ?? "No pude abrir el chat.");
-      setActiveConversationId(conversationId);
-      setMessages(data.messages);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "No pude abrir el chat.");
-    } finally {
-      setHistoryBusy(false);
-    }
-  }
-
-  function startNewChat() {
-    if (busy || historyBusy) return;
-    setActiveConversationId(null);
-    setMessages([]);
-    setError(null);
-  }
 
   async function send(value: string) {
     const message = value.trim();
@@ -80,25 +53,14 @@ export function ChatBox({
       setError(data.error ?? "No pude responder.");
       return;
     }
-    if (data.conversation) {
-      setActiveConversationId(data.conversation.id);
-      setConversations((current) => [
-        data.conversation as Conversation,
-        ...current.filter((item) => item.id !== data.conversation?.id),
-      ]);
-    }
+    if (data.conversation) setActiveConversationId(data.conversation.id);
     setMessages((current) => [...current, data.reply as Message]);
   }
 
   return (
     <div className="gemini-chat">
       <div className="gemini-thread">
-        {historyBusy ? (
-          <div className="gemini-empty">
-            <GeminiMark size={44} />
-            <p className="font-display text-2xl">Abriendo chat…</p>
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="gemini-empty">
             <GeminiMark size={56} />
             <p className="font-display text-3xl">Hola, ¿cómo puedo ayudarte?</p>
@@ -149,31 +111,10 @@ export function ChatBox({
           <ArrowUp className="size-5" />
         </button>
       </form>
-      <div className="chat-history">
-        <div className="chat-history-head">
-          <p>Historial de chats</p>
-          <button type="button" onClick={startNewChat} disabled={busy || historyBusy}>
-            + Nuevo chat
-          </button>
-        </div>
-        {conversations.length > 0 ? (
-          <div className="chat-history-list" aria-label="Chats guardados">
-            {conversations.map((conversation) => (
-              <button
-                type="button"
-                key={conversation.id}
-                className={conversation.id === activeConversationId ? "active" : ""}
-                onClick={() => void selectConversation(conversation.id)}
-                disabled={busy || historyBusy}
-              >
-                {conversation.title}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="chat-history-empty">Tus chats nuevos aparecerán acá.</p>
-        )}
-      </div>
+      <Link href="/inicio" className="chat-back">
+        <ArrowLeft className="size-4" />
+        Volver a Inicio
+      </Link>
     </div>
   );
 }

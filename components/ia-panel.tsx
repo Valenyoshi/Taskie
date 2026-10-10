@@ -5,17 +5,14 @@ import { ChatBox } from "@/components/chat-box";
 import { LessonDeck } from "@/components/lesson-deck";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
-type Conversation = { id: string; title: string; createdAt: string; updatedAt: string };
 
 export function IaPanel({
   initial,
   streak,
-  conversations,
   activeConversationId,
 }: {
   initial: Message[];
   streak: number;
-  conversations: Conversation[];
   activeConversationId: string | null;
 }) {
   const [mode, setMode] = useState<"chat" | "lecciones">("chat");
@@ -37,7 +34,7 @@ export function IaPanel({
         </button>
       </div>
       {mode === "chat" ? (
-        <ChatBox initial={initial} conversations={conversations} activeConversationId={activeConversationId} />
+        <ChatBox initial={initial} activeConversationId={activeConversationId} />
       ) : (
         <LessonDeck streak={streak} />
       )}
