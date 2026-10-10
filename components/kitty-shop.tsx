@@ -1,23 +1,5 @@
 import Image from "next/image";
 
-function CashRegister() {
-  return (
-    <div className="kitty-register" aria-label="Caja registradora">
-      <div className="kitty-register-screen">
-        <span>★</span>
-        <span>★</span>
-        <span>★</span>
-      </div>
-      <div className="kitty-register-body">
-        <div className="kitty-register-buttons">
-          {Array.from({ length: 6 }, (_, index) => <i key={index} />)}
-        </div>
-        <div className="kitty-register-drawer" />
-      </div>
-    </div>
-  );
-}
-
 export function KittyShop({ name }: { name: string }) {
   return (
     <section className="kitty-shop" aria-label="Tienda de Kitty">
@@ -44,9 +26,7 @@ export function KittyShop({ name }: { name: string }) {
             />
             <span className="kitty-name-tag">Kitty</span>
           </div>
-          <div className="kitty-counter-top">
-            <CashRegister />
-          </div>
+          <div className="kitty-counter-top" />
           <div className="kitty-counter-front">
             <span />
             <span />
