@@ -441,11 +441,14 @@ export function deleteSession(token: string): void {
 }
 
 export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completedAt" | "onTime" | "status"> & { status?: Task["status"] }): void {
+  const status = task.status ?? "pending";
+  const completedAt = status === "done" ? task.createdAt : null;
+  const onTime = status === "done" ? (task.dueAt >= task.createdAt ? 1 : 0) : null;
   getDb()
     .prepare(
       `INSERT INTO tasks (
-        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, created_at, tracked
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, 1)
+        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, completed_at, on_time, created_at, tracked
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
       ON CONFLICT(user_id, external_id) DO UPDATE SET
         subject = excluded.subject,
         title = excluded.title,
@@ -453,7 +456,16 @@ export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completed
         due_at = excluded.due_at,
         educamos_url = excluded.educamos_url,
         needs_file = excluded.needs_file,
-        tracked = 1
+        tracked = 1,
+        status = CASE WHEN tasks.status = 'pending' THEN excluded.status ELSE tasks.status END,
+        completed_at = CASE
+          WHEN tasks.status = 'pending' AND excluded.status = 'done' THEN COALESCE(tasks.completed_at, excluded.created_at)
+          ELSE tasks.completed_at
+        END,
+        on_time = CASE
+          WHEN tasks.status = 'pending' AND excluded.status = 'done' THEN CASE WHEN excluded.due_at >= excluded.created_at THEN 1 ELSE 0 END
+          ELSE tasks.on_time
+        END
       WHERE tasks.status = 'pending'`,
     )
     .run(
@@ -464,9 +476,12 @@ export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completed
       task.title,
       task.description,
       task.dueAt,
+      status,
       task.source,
       task.educamosUrl,
       task.needsFile ? 1 : 0,
+      completedAt,
+      onTime,
       task.createdAt,
     );
 }

@@ -10,6 +10,7 @@ export type RemoteTask = {
   title: string;
   description: string;
   dueAt: string;
+  status: "pending" | "done";
   needsFile: boolean;
   url: string | null;
 };
@@ -197,7 +198,11 @@ function parseTasks(html: string, origin: string, timeZone: string): RemoteTask[
     const estado = /chkMarcarTarea[^>]*title='([^']*)'/i.exec(chunk)?.[1] ?? "";
     const id = /data-id='([^']+)'/i.exec(chunk)?.[1];
     if (!subject || !title || !id || seen.has(id)) continue;
-    if (!/pendiente/i.test(estado)) continue;
+    const isPending = /pendiente|por realizar|sin entregar|no entregad|no realizad/i.test(estado);
+    const isDone =
+      !isPending &&
+      (/entregad|complet|finaliz|presentad/i.test(estado) || (/realizad/i.test(estado) && !/marcar/i.test(estado)));
+    if (!isPending && !isDone) continue;
     seen.add(id);
     const day = dmyToIso(date);
     tasks.push({
@@ -206,6 +211,7 @@ function parseTasks(html: string, origin: string, timeZone: string): RemoteTask[
       title,
       description: "",
       dueAt: day ? endOfLocalDay(day, timeZone) : endOfLocalDay(localDateString(new Date(), timeZone), timeZone),
+      status: isDone ? "done" : "pending",
       needsFile: /entrega|archivo|video/i.test(title),
       url: origin,
     });
@@ -432,6 +438,24 @@ async function moodleCall(jar: Jar, root: string, sesskey: string, calls: { meth
   return JSON.parse(ajax.text) as { data?: unknown; exception?: string; message?: string; error?: string }[];
 }
 
+function assignmentSubmitted(html: string): boolean {
+  if (/todav[ií]a no se han realizado env[ií]os|no se ha enviado nada|no submission|no se han realizado env[ií]os/i.test(html)) {
+    return false;
+  }
+  const text = htmlToText(html);
+  return /submissionstatussubmitted|enviado para calificar|env[ií]o enviado|submitted|submission received/i.test(`${html} ${text}`);
+}
+
+async function lmsAssignmentStatus(jar: Jar, url: string | null): Promise<"pending" | "done"> {
+  if (!url) return "pending";
+  try {
+    const page = await request(jar, url);
+    return page.status >= 200 && page.status < 300 && assignmentSubmitted(page.text) ? "done" : "pending";
+  } catch {
+    return "pending";
+  }
+}
+
 export async function fetchLmsUploads(input: {
   lmsUrl: string;
   username: string;
@@ -466,17 +490,19 @@ export async function fetchLmsUploads(input: {
       const subject = event.course?.fullname?.trim();
       const title = (event.activityname || event.name || "").replace(/^vencimiento de\s+/i, "").trim();
       if (!subject || !title) continue;
+      const url = event.url || event.action?.url || `${root}/mod/assign/view.php?id=${id}`;
       tasks.push({
         externalId: `lms-${id}`,
         subject,
         title,
         description: "Punto de entrega del aula. Hay que subir un archivo.",
         dueAt: new Date((event.timesort || event.timestart || now) * 1000).toISOString(),
+        status: await lmsAssignmentStatus(jar, url),
         needsFile: true,
-        url: event.url || event.action?.url || `${root}/mod/assign/view.php?id=${id}`,
+        url,
       });
     }
-    return { ok: true, tasks: tasks.filter((task) => pendingIsCurrent(task.dueAt, input.timeZone)) };
+    return { ok: true, tasks: tasks.filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, input.timeZone)) };
   } catch {
     return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
   }
@@ -1009,7 +1035,7 @@ export async function fetchEducamosTasks(input: {
 
     const today = localDateString(new Date(), input.timeZone);
     const start = zonedTimeToUtc(today, "00:00:00", input.timeZone).toISOString();
-    return { ok: true, tasks: tasks.filter((task) => task.dueAt >= start) };
+    return { ok: true, tasks: tasks.filter((task) => task.status === "done" || task.dueAt >= start) };
   } catch {
     return { ok: false, error: "No se pudo abrir Educamos. Revisá la dirección del colegio." };
   }

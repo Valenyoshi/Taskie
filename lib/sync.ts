@@ -58,6 +58,7 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
       title: task.title,
       description: task.description,
       dueAt: task.dueAt,
+      status: task.status,
       source: task.source,
       educamosUrl: task.url,
       needsFile: task.source === "lms" ? true : task.needsFile,
