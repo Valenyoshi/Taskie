@@ -10,13 +10,12 @@ export function KittyShop({ name }: { name: string }) {
           <span className="kitty-shop-star">✦</span>
         </div>
 
-        <div className="kitty-dialogue" role="status">
-          <span>¡Hola, {name}!</span>
-          <i aria-hidden />
-        </div>
-
         <div className="kitty-counter">
           <div className="kitty-shopkeeper">
+            <div className="kitty-dialogue" role="status">
+              <span>¡Hola, {name}!</span>
+              <i aria-hidden />
+            </div>
             <Image
               src="/kitty.png"
               alt="Kitty, la dueña de la tienda"

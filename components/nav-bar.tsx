@@ -39,7 +39,7 @@ export function NavBar() {
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
-                <Icon className="size-5" />
+                <Icon className="nav-icon size-5" />
                 {item.label}
               </Link>
             </li>
