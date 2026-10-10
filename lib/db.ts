@@ -49,9 +49,18 @@ export type Task = {
 
 export type ChatMessage = {
   id: string;
+  conversationId: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+};
+
+export type ChatConversation = {
+  id: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type UserRow = {
@@ -231,9 +240,17 @@ export function getDb(): Database.Database {
       CREATE TABLE IF NOT EXISTS chat_messages (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
+        conversation_id TEXT,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS chat_conversations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id TEXT PRIMARY KEY,
@@ -267,6 +284,27 @@ export function getDb(): Database.Database {
       "UPDATE users SET spins = (SELECT COUNT(*) FROM user_rewards WHERE user_rewards.user_id = users.id)",
     );
   }
+  const chatColumns = globalForDb.rachaDb.prepare("PRAGMA table_info(chat_messages)").all() as { name: string }[];
+  if (!chatColumns.some((column) => column.name === "conversation_id")) {
+    globalForDb.rachaDb.exec("ALTER TABLE chat_messages ADD COLUMN conversation_id TEXT");
+  }
+  const orphanedChats = globalForDb.rachaDb
+    .prepare("SELECT DISTINCT user_id FROM chat_messages WHERE conversation_id IS NULL")
+    .all() as { user_id: string }[];
+  if (orphanedChats.length > 0) {
+    const now = new Date().toISOString();
+    const insertConversation = globalForDb.rachaDb.prepare(
+      "INSERT INTO chat_conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    );
+    const assignMessages = globalForDb.rachaDb.prepare(
+      "UPDATE chat_messages SET conversation_id = ? WHERE user_id = ? AND conversation_id IS NULL",
+    );
+    for (const row of orphanedChats) {
+      const conversationId = crypto.randomUUID();
+      insertConversation.run(conversationId, row.user_id, "Chat anterior", now, now);
+      assignMessages.run(conversationId, row.user_id);
+    }
+  }
   if (!globalForDb.rachaTuned) {
     globalForDb.rachaDb.pragma("journal_mode = WAL");
     globalForDb.rachaDb.pragma("busy_timeout = 4000");
@@ -274,7 +312,8 @@ export function getDb(): Database.Database {
     globalForDb.rachaDb.pragma("temp_store = MEMORY");
     globalForDb.rachaDb.exec(`
       CREATE INDEX IF NOT EXISTS idx_tasks_user_due ON tasks(user_id, due_at);
-      CREATE INDEX IF NOT EXISTS idx_chat_user_time ON chat_messages(user_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_chat_user_time ON chat_messages(user_id, conversation_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_time ON chat_conversations(user_id, updated_at);
       CREATE INDEX IF NOT EXISTS idx_rewards_user ON user_rewards(user_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     `);
@@ -533,27 +572,105 @@ export function addReward(userId: string, rewardId: string): boolean {
   return result.changes === 1;
 }
 
-export function listMessages(userId: string): ChatMessage[] {
+export function listConversations(userId: string): ChatConversation[] {
   const rows = getDb()
     .prepare(
-      "SELECT id, role, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 80",
+      "SELECT id, user_id, title, created_at, updated_at FROM chat_conversations WHERE user_id = ? ORDER BY updated_at DESC",
     )
-    .all(userId) as { id: string; role: "user" | "assistant"; content: string; created_at: string }[];
-  return rows
-    .reverse()
-    .map((row) => ({ id: row.id, role: row.role, content: row.content, createdAt: row.created_at }));
+    .all(userId) as {
+    id: string;
+    user_id: string;
+    title: string;
+    created_at: string;
+    updated_at: string;
+  }[];
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
 }
 
-export function addMessage(userId: string, role: "user" | "assistant", content: string): ChatMessage {
+export function findConversation(userId: string, conversationId: string): ChatConversation | null {
+  return listConversations(userId).find((conversation) => conversation.id === conversationId) ?? null;
+}
+
+export function createConversation(userId: string, title = "Nuevo chat"): ChatConversation {
+  const now = new Date().toISOString();
+  const conversation: ChatConversation = {
+    id: crypto.randomUUID(),
+    userId,
+    title: title.trim().slice(0, 60) || "Nuevo chat",
+    createdAt: now,
+    updatedAt: now,
+  };
+  getDb()
+    .prepare(
+      "INSERT INTO chat_conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .run(conversation.id, conversation.userId, conversation.title, conversation.createdAt, conversation.updatedAt);
+  return conversation;
+}
+
+export function renameConversation(userId: string, conversationId: string, title: string): void {
+  getDb()
+    .prepare(
+      "UPDATE chat_conversations SET title = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+    )
+    .run(title.trim().slice(0, 60) || "Nuevo chat", new Date().toISOString(), conversationId, userId);
+}
+
+export function touchConversation(userId: string, conversationId: string): void {
+  getDb()
+    .prepare("UPDATE chat_conversations SET updated_at = ? WHERE id = ? AND user_id = ?")
+    .run(new Date().toISOString(), conversationId, userId);
+}
+
+export function listMessages(userId: string, conversationId?: string): ChatMessage[] {
+  const query = conversationId
+    ? "SELECT id, conversation_id, role, content, created_at FROM chat_messages WHERE user_id = ? AND conversation_id = ? ORDER BY created_at DESC LIMIT 80"
+    : "SELECT id, conversation_id, role, content, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 80";
+  const rows = getDb()
+    .prepare(query)
+    .all(...(conversationId ? [userId, conversationId] : [userId])) as {
+    id: string;
+    conversation_id: string;
+    role: "user" | "assistant";
+    content: string;
+    created_at: string;
+  }[];
+  return rows
+    .reverse()
+    .map((row) => ({
+      id: row.id,
+      conversationId: row.conversation_id,
+      role: row.role,
+      content: row.content,
+      createdAt: row.created_at,
+    }));
+}
+
+export function addMessage(
+  userId: string,
+  conversationId: string,
+  role: "user" | "assistant",
+  content: string,
+): ChatMessage {
   const message: ChatMessage = {
     id: crypto.randomUUID(),
+    conversationId,
     role,
     content,
     createdAt: new Date().toISOString(),
   };
   getDb()
-    .prepare("INSERT INTO chat_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(message.id, userId, message.role, message.content, message.createdAt);
+    .prepare(
+      "INSERT INTO chat_messages (id, user_id, conversation_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .run(message.id, userId, message.conversationId, message.role, message.content, message.createdAt);
+  touchConversation(userId, conversationId);
   return message;
 }
 
