@@ -1,12 +1,5 @@
 import Image from "next/image";
 
-const PRODUCTS = [
-  { emoji: "✏️", name: "Lápiz brillante", detail: "Para ideas nuevas" },
-  { emoji: "📓", name: "Cuaderno", detail: "Hojas para aprender" },
-  { emoji: "🎒", name: "Mochila", detail: "Lista para la próxima clase" },
-  { emoji: "🏆", name: "Copa del aula", detail: "Un premio especial" },
-];
-
 function CashRegister() {
   return (
     <div className="kitty-register" aria-label="Caja registradora">
@@ -25,7 +18,7 @@ function CashRegister() {
   );
 }
 
-export function KittyShop() {
+export function KittyShop({ name }: { name: string }) {
   return (
     <section className="kitty-shop" aria-label="Tienda de Kitty">
       <div className="kitty-shop-scene">
@@ -35,11 +28,9 @@ export function KittyShop() {
           <span className="kitty-shop-star">✦</span>
         </div>
 
-        <div className="kitty-shop-shelf" aria-hidden>
-          <span>🎁</span>
-          <span>📚</span>
-          <span>🌟</span>
-          <span>🧸</span>
+        <div className="kitty-dialogue" role="status">
+          <span>¡Hola, {name}!</span>
+          <i aria-hidden />
         </div>
 
         <div className="kitty-counter">
@@ -55,10 +46,6 @@ export function KittyShop() {
           </div>
           <div className="kitty-counter-top">
             <CashRegister />
-            <div className="kitty-counter-note">
-              <span>¡Hola!</span>
-              <small>Elegí tu premio</small>
-            </div>
           </div>
           <div className="kitty-counter-front">
             <span />
@@ -67,26 +54,6 @@ export function KittyShop() {
           </div>
         </div>
       </div>
-
-      <div className="kitty-products-header">
-        <div>
-          <p className="kitty-eyebrow">El mostrador de Kitty</p>
-          <h2 className="font-display text-2xl">Premios para elegir</h2>
-        </div>
-        <span className="kitty-paw" aria-hidden>🐾</span>
-      </div>
-      <div className="kitty-products">
-        {PRODUCTS.map((product) => (
-          <article className="kitty-product" key={product.name}>
-            <span className="kitty-product-icon" aria-hidden>{product.emoji}</span>
-            <div>
-              <h3>{product.name}</h3>
-              <p>{product.detail}</p>
-            </div>
-          </article>
-        ))}
-      </div>
-      <p className="kitty-shop-hint">Kitty está preparando más sorpresas para la tienda.</p>
     </section>
   );
 }

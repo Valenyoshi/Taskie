@@ -6,5 +6,5 @@ export default async function PremiosPage() {
   const session = await getCurrentUser();
   if (!session) redirect("/entrar");
 
-  return <KittyShop />;
+  return <KittyShop name={session.name || session.username} />;
 }

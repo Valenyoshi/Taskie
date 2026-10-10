@@ -1767,30 +1767,37 @@ button:disabled {
   font-size: 1.1rem;
 }
 
-.kitty-shop-shelf {
+.kitty-dialogue {
   position: absolute;
-  top: 104px;
-  right: 14%;
-  left: 14%;
+  top: 188px;
+  left: 7%;
+  z-index: 4;
   display: flex;
-  height: 72px;
+  max-width: 46%;
   align-items: center;
-  justify-content: space-around;
-  border: 8px solid #8f5429;
-  border-top-width: 11px;
-  border-radius: 10px;
-  background: #f3cf9b;
-  box-shadow: 0 8px 0 #6b3e20;
-  font-size: 2rem;
+  border: 3px solid #a96735;
+  border-radius: 20px 20px 20px 5px;
+  background: #fffaf0;
+  padding: 11px 15px;
+  color: #713b1f;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.1;
+  box-shadow: 0 5px 0 rgba(111, 61, 32, 0.2);
 }
 
-.kitty-shop-shelf span {
-  animation: kitty-product-wiggle 3.4s ease-in-out infinite;
+.kitty-dialogue i {
+  position: absolute;
+  bottom: -12px;
+  left: 15px;
+  width: 18px;
+  height: 18px;
+  border-right: 3px solid #a96735;
+  border-bottom: 3px solid #a96735;
+  background: #fffaf0;
+  transform: skewY(30deg) rotate(26deg);
 }
-
-.kitty-shop-shelf span:nth-child(2) { animation-delay: 0.35s; }
-.kitty-shop-shelf span:nth-child(3) { animation-delay: 0.7s; }
-.kitty-shop-shelf span:nth-child(4) { animation-delay: 1.05s; }
 
 .kitty-counter {
   position: absolute;
@@ -2036,22 +2043,11 @@ button:disabled {
   50% { transform: translateY(-5px); }
 }
 
-@keyframes kitty-product-wiggle {
-  0%, 78%, 100% { transform: rotate(0deg); }
-  84% { transform: rotate(5deg); }
-  90% { transform: rotate(-5deg); }
-}
-
 @media (max-width: 430px) {
   .kitty-shop-scene { min-height: 410px; }
-  .kitty-shop-shelf { right: 9%; left: 9%; }
   .kitty-counter { right: 4%; left: 4%; }
   .kitty-shopkeeper { width: 172px; }
-  .kitty-products { gap: 8px; }
-  .kitty-product { gap: 7px; padding: 8px; }
-  .kitty-product-icon { width: 36px; height: 36px; font-size: 1.3rem; }
-  .kitty-product h3 { font-size: 0.76rem; }
-  .kitty-product p { font-size: 0.66rem; }
+  .kitty-dialogue { left: 5%; max-width: 50%; font-size: 0.95rem; }
 }
 
 .ranking-board {
