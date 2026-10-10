@@ -92,31 +92,6 @@ export function ChatBox({
 
   return (
     <div className="gemini-chat">
-      <div className="chat-history">
-        <div className="chat-history-head">
-          <p>Historial de chats</p>
-          <button type="button" onClick={startNewChat} disabled={busy || historyBusy}>
-            + Nuevo chat
-          </button>
-        </div>
-        {conversations.length > 0 ? (
-          <div className="chat-history-list" aria-label="Chats guardados">
-            {conversations.map((conversation) => (
-              <button
-                type="button"
-                key={conversation.id}
-                className={conversation.id === activeConversationId ? "active" : ""}
-                onClick={() => void selectConversation(conversation.id)}
-                disabled={busy || historyBusy}
-              >
-                {conversation.title}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="chat-history-empty">Tus chats nuevos aparecerán acá.</p>
-        )}
-      </div>
       <div className="gemini-thread">
         {historyBusy ? (
           <div className="gemini-empty">
@@ -126,7 +101,7 @@ export function ChatBox({
         ) : messages.length === 0 ? (
           <div className="gemini-empty">
             <GeminiMark size={56} />
-            <p className="font-display text-3xl">¡Hola! ¿En qué puedo ayudarte?</p>
+            <p className="font-display text-3xl">Hola, ¿cómo puedo ayudarte?</p>
             <div className="gemini-chips">
               {suggestions.map((item) => (
                 <button key={item} type="button" onClick={() => void send(item)}>
@@ -167,13 +142,38 @@ export function ChatBox({
         <input
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Preguntale a IA"
+          placeholder="Escribí tu pregunta para empezar"
           aria-label="Mensaje"
         />
         <button type="submit" disabled={busy || !text.trim()} aria-label="Enviar">
           <ArrowUp className="size-5" />
         </button>
       </form>
+      <div className="chat-history">
+        <div className="chat-history-head">
+          <p>Historial de chats</p>
+          <button type="button" onClick={startNewChat} disabled={busy || historyBusy}>
+            + Nuevo chat
+          </button>
+        </div>
+        {conversations.length > 0 ? (
+          <div className="chat-history-list" aria-label="Chats guardados">
+            {conversations.map((conversation) => (
+              <button
+                type="button"
+                key={conversation.id}
+                className={conversation.id === activeConversationId ? "active" : ""}
+                onClick={() => void selectConversation(conversation.id)}
+                disabled={busy || historyBusy}
+              >
+                {conversation.title}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="chat-history-empty">Tus chats nuevos aparecerán acá.</p>
+        )}
+      </div>
     </div>
   );
 }
