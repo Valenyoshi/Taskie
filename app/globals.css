@@ -1769,7 +1769,7 @@ button:disabled {
 
 .kitty-dialogue {
   position: absolute;
-  top: 188px;
+  top: 135px;
   left: 7%;
   z-index: 4;
   display: flex;
@@ -2047,7 +2047,7 @@ button:disabled {
   .kitty-shop-scene { min-height: 410px; }
   .kitty-counter { right: 4%; left: 4%; }
   .kitty-shopkeeper { width: 172px; }
-  .kitty-dialogue { left: 5%; max-width: 50%; font-size: 0.95rem; }
+  .kitty-dialogue { top: 135px; left: 5%; max-width: 50%; font-size: 0.95rem; }
 }
 
 .ranking-board {
