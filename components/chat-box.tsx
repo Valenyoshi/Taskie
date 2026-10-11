@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { GeminiMark } from "@/components/gemini-mark";
+import { plainChatText } from "@/lib/plain-text";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 type Conversation = { id: string; title: string; createdAt: string; updatedAt: string };
@@ -81,7 +82,7 @@ export function ChatBox({
             ) : (
               <div key={message.id} className="gemini-reply">
                 <GeminiMark size={22} />
-                <p>{message.content}</p>
+                <p>{plainChatText(message.content)}</p>
               </div>
             ),
           )

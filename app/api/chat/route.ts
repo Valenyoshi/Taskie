@@ -1,5 +1,6 @@
 import { addMessage, createConversation, findConversation, listConversations, listMessages, renameConversation } from "@/lib/db";
 import { answerWithModel, sanitizeChatText } from "@/lib/chat";
+import { plainChatText } from "@/lib/plain-text";
 import { isUser, json, requireUser } from "@/lib/http";
 
 export async function GET(request: Request) {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   addMessage(user.id, conversation.id, "user", safeMessage);
   try {
     const answer = await answerWithModel(safeMessage, history, user);
-    const saved = addMessage(user.id, conversation.id, "assistant", answer);
+    const saved = addMessage(user.id, conversation.id, "assistant", plainChatText(answer));
     return json({ ok: true, conversation: findConversation(user.id, conversation.id), reply: saved });
   } catch {
     return json({ error: "No pude responder ahora." }, 500);

@@ -1,4 +1,5 @@
 import { aiFetch, scrubForAi, withAiShield } from "./ai-shield";
+import { plainChatText } from "./plain-text";
 import { classroomLogin } from "./credentials";
 import { listTasks, type Task, type User } from "./db";
 import { asksForLesson, fetchTaskInstructions, notesForSubject } from "./educamos";
@@ -97,7 +98,7 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Si te piden que expliques cómo hacer una tarea, qué hay que hacer o de qué se trata, explicalo. No te niegues.",
     "Solo negá cuando pidan la entrega ya escrita, los ejercicios resueltos o las respuestas para copiar.",
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
-    "Respondé con frases cortas o viñetas, ordená los pasos y explicá cualquier palabra técnica.",
+    "Respondé con frases cortas. Si listás, usá un renglón por idea, sin markdown, sin asteriscos, sin numeral de título y sin código.",
     "Si no hay información suficiente, decilo claramente y no inventes.",
     "Ayudás a entender temas, a ver qué tiene pendiente, de qué materia es y cómo organizarse.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
@@ -356,7 +357,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
     ) {
       return `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`;
     }
-    return answer;
+    return plainChatText(answer);
   };
 
   try {
