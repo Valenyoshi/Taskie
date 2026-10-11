@@ -10,9 +10,20 @@ export type RewardDef = {
   rarity: Rarity;
   blurb: string;
   theme?: string;
+  cost?: number;
 };
 
 export const REWARDS: RewardDef[] = [
+  {
+    id: "check-retro",
+    name: "Check Retro Pixel",
+    emoji: "✅",
+    kind: "theme",
+    rarity: "rare",
+    blurb: "Un check pixelado para celebrar cada tarea terminada.",
+    theme: "retro",
+    cost: 100,
+  },
   { id: "lapiz", name: "Lápiz", emoji: "✏️", kind: "medal", rarity: "common", blurb: "El de siempre." },
   { id: "regla", name: "Regla", emoji: "📏", kind: "medal", rarity: "common", blurb: "Para la línea recta." },
   { id: "clip", name: "Clip", emoji: "📎", kind: "medal", rarity: "common", blurb: "Del escritorio." },

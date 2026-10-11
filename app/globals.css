@@ -226,6 +226,33 @@
   color: var(--foreground);
 }
 
+[data-theme="retro"] {
+  --background: #111827;
+  --foreground: #f8fafc;
+  --card: #1f2937;
+  --card-foreground: #f8fafc;
+  --popover: #1f2937;
+  --popover-foreground: #f8fafc;
+  --primary: #7cff6b;
+  --primary-foreground: #111827;
+  --secondary: #374151;
+  --secondary-foreground: #f8fafc;
+  --muted: #374151;
+  --muted-foreground: #cbd5e1;
+  --accent: #263449;
+  --accent-foreground: #f8fafc;
+  --border: #4b5563;
+  --input: #4b5563;
+  --ring: #7cff6b;
+  --coral: #ff6b8a;
+  --gold: #ffe66d;
+  --pine: #42d392;
+  --ink: #111827;
+  background: var(--background);
+  color: var(--foreground);
+  image-rendering: pixelated;
+}
+
 @keyframes rise-in {
   from { opacity: 0; transform: translateY(16px) scale(0.98); }
   to { opacity: 1; transform: none; }
@@ -530,6 +557,41 @@
   font-weight: 700;
   line-height: 1;
   animation: mark-in 0.35s ease 0.15s both;
+}
+
+[data-theme="retro"] .card-cover::before {
+  width: 92px;
+  height: 92px;
+  border-radius: 0;
+  background: #263449;
+  border: 4px solid #7cff6b;
+  box-shadow: 8px 8px 0 #111827;
+  image-rendering: pixelated;
+}
+
+[data-theme="retro"] .card-cover-mark {
+  width: 72px;
+  height: 60px;
+  color: transparent;
+  font-size: 0;
+  image-rendering: pixelated;
+}
+
+[data-theme="retro"] .card-cover-mark::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  background: #7cff6b;
+  box-shadow:
+    0 24px 0 #7cff6b,
+    12px 36px 0 #7cff6b,
+    24px 48px 0 #7cff6b,
+    36px 36px 0 #7cff6b,
+    48px 24px 0 #7cff6b,
+    60px 12px 0 #7cff6b;
 }
 
 .done-ring {
@@ -2247,6 +2309,113 @@ button:disabled {
   font-weight: 700;
 }
 
+.kitty-featured-product {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 3px solid #d59a52;
+  border-radius: 24px;
+  background: #fffaf0;
+  padding: 14px;
+  color: #713b1f;
+  box-shadow: 0 6px 0 rgba(111, 61, 32, 0.16);
+}
+
+.kitty-product-preview {
+  display: grid;
+  width: 94px;
+  height: 94px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 3px solid #24344a;
+  border-radius: 16px;
+  background: #263449;
+  box-shadow: 5px 5px 0 #d59a52;
+}
+
+.retro-check-preview span {
+  position: relative;
+  width: 56px;
+  height: 48px;
+}
+
+.retro-check-preview span::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  background: #7cff6b;
+  box-shadow:
+    0 16px 0 #7cff6b,
+    8px 24px 0 #7cff6b,
+    16px 32px 0 #7cff6b,
+    24px 24px 0 #7cff6b,
+    32px 16px 0 #7cff6b,
+    40px 8px 0 #7cff6b,
+    48px 0 0 #7cff6b;
+}
+
+.kitty-featured-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.kitty-featured-copy h2 {
+  margin: 0;
+}
+
+.kitty-featured-copy > p:not(.kitty-eyebrow) {
+  margin: 4px 0 0;
+  color: #9a765b;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.kitty-featured-copy small {
+  display: block;
+  margin: 6px 0 10px;
+  color: #9a592b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.kitty-purchase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.kitty-purchase button {
+  border-radius: 999px;
+  background: #1c7c6e;
+  padding: 8px 14px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.kitty-purchase button:hover:not(:disabled) {
+  background: #146256;
+  transform: translateY(-2px);
+}
+
+.kitty-purchase button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.kitty-purchase p {
+  width: 100%;
+  margin: 0;
+  color: #bd3f32;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 @keyframes kitty-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
@@ -2257,6 +2426,9 @@ button:disabled {
   .kitty-counter { right: 4%; left: 4%; }
   .kitty-shopkeeper { width: 172px; }
   .kitty-dialogue { top: 52px; left: 50%; max-width: 170px; font-size: 0.95rem; }
+  .kitty-featured-product { align-items: flex-start; gap: 11px; padding: 11px; }
+  .kitty-product-preview { width: 72px; height: 72px; }
+  .retro-check-preview span { transform: scale(0.72); }
 }
 
 .ranking-board {

@@ -1,6 +1,18 @@
 import Image from "next/image";
+import { EquipButton } from "@/components/equip-button";
+import { PurchaseButton } from "@/components/purchase-button";
 
-export function KittyShop({ name }: { name: string }) {
+export function KittyShop({
+  name,
+  points,
+  ownedRetroCheck,
+  equippedRetroCheck,
+}: {
+  name: string;
+  points: number;
+  ownedRetroCheck: boolean;
+  equippedRetroCheck: boolean;
+}) {
   return (
     <section className="kitty-shop" aria-label="Tienda de Kitty">
       <div className="kitty-shop-scene">
@@ -33,6 +45,22 @@ export function KittyShop({ name }: { name: string }) {
           </div>
         </div>
       </div>
+      <article className="kitty-featured-product">
+        <div className="kitty-product-preview retro-check-preview" aria-hidden>
+          <span />
+        </div>
+        <div className="kitty-featured-copy">
+          <p className="kitty-eyebrow">Nuevo en la tienda</p>
+          <h2 className="font-display text-2xl">Check Retro Pixel</h2>
+          <p>Un check de videojuego que aparece cuando terminás una tarea.</p>
+          <small>Cuesta 100 sombreros · aproximadamente 3–4 tareas.</small>
+          {ownedRetroCheck ? (
+            <EquipButton kind="theme" id="check-retro" equipped={equippedRetroCheck} />
+          ) : (
+            <PurchaseButton id="check-retro" cost={100} points={points} />
+          )}
+        </div>
+      </article>
     </section>
   );
 }

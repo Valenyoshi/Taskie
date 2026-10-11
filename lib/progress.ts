@@ -220,3 +220,18 @@ export function equipReward(userId: string, kind: "theme" | "frame" | "title", r
   setEquipped(userId, kind, rewardId);
   return { ok: true };
 }
+
+export function purchaseReward(userId: string, rewardId: string): { ok: true } | { ok: false; error: string } {
+  const reward = rewardById(rewardId);
+  if (!reward || reward.kind !== "theme" || !reward.cost) {
+    return { ok: false, error: "Ese producto no está a la venta." };
+  }
+  if (listRewardIds(userId).includes(rewardId)) {
+    return { ok: false, error: "Ya tenés ese producto." };
+  }
+  if (!spendPoints(userId, reward.cost)) {
+    return { ok: false, error: `Te faltan ${reward.cost - (findUserById(userId)?.points ?? 0)} sombreros.` };
+  }
+  addReward(userId, rewardId);
+  return { ok: true };
+}
