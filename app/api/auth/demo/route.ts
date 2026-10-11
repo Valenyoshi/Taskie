@@ -15,8 +15,7 @@ export async function POST(request: Request) {
     username: `prueba-${suffix}`,
     passwordHash: hashSync(crypto.randomUUID(), 10),
     educamosUrl: null,
-    educamosUsername: null,
-    educamosPasswordEnc: null,
+    educamosLogin: null,
     timezone,
     isDemo: true,
   });

@@ -27,7 +27,7 @@ function normalizeBase(raw: string): string | null {
   try {
     const url = new URL(withProtocol);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    return url.origin;
+    return `https://${url.host}`;
   } catch {
     return null;
   }
@@ -54,6 +54,23 @@ function attrValue(html: string, name: string): string {
   const start = marker + 7;
   const end = html.indexOf('"', start);
   return end < 0 ? "" : decodeHtml(html.slice(start, end));
+}
+
+function assertHttps(url: string): void {
+  if (new URL(url).protocol !== "https:") throw new Error("Educamos solo se usa por HTTPS.");
+}
+
+/** La contraseña solo se envía al mismo sitio del formulario o a un dominio de Educamos, siempre por HTTPS. */
+function credentialTarget(action: string, pageUrl: string): boolean {
+  try {
+    const target = new URL(action);
+    const page = new URL(pageUrl);
+    if (target.protocol !== "https:" || target.username || target.password) return false;
+    const host = target.hostname.toLowerCase();
+    return host === page.hostname.toLowerCase() || host === "educamos.com" || host.endsWith(".educamos.com");
+  } catch {
+    return false;
+  }
 }
 
 class Jar {
@@ -85,6 +102,7 @@ async function request(
   let currentBody = body;
   let currentType = contentType;
   for (let hop = 0; hop < 12; hop++) {
+    assertHttps(current);
     const res = await fetch(current, {
       method: currentMethod,
       body: currentMethod === "GET" ? undefined : currentBody,
@@ -115,6 +133,7 @@ async function request(
 }
 
 async function requestBytes(jar: Jar, url: string): Promise<Buffer | null> {
+  assertHttps(url);
   const res = await fetch(url, {
     redirect: "follow",
     signal: AbortSignal.timeout(20000),
@@ -134,6 +153,7 @@ async function requestMultipart(
 ): Promise<{ status: number; text: string; finalUrl: string }> {
   let current = url;
   for (let hop = 0; hop < 12; hop++) {
+    assertHttps(current);
     const res = await fetch(current, {
       method: "POST",
       body: form,
@@ -241,7 +261,7 @@ export function lmsBase(educamosUrl: string, explicit?: string | null): string |
     try {
       const url = new URL(/^https?:\/\//i.test(given) ? given : `https://${given}`);
       const slug = url.pathname.split("/").filter(Boolean)[0];
-      if (slug && slug !== "my" && slug !== "login") return `${url.origin}/${slug}`;
+      if (slug && slug !== "my" && slug !== "login") return `https://${url.host}/${slug}`;
       return null;
     } catch {
       return null;
@@ -275,6 +295,9 @@ async function loginLms(
   const fields = loginFields(page.text, username, password);
   const action = formAction(page.text, page.finalUrl);
   if (!fields || !action) return { ok: false, error: "No encontré la entrada del aula." };
+  if (!credentialTarget(action, page.finalUrl)) {
+    return { ok: false, error: "El aula pidió la contraseña desde un sitio no seguro. No la envié." };
+  }
   page = await request(jar, action, "POST", fields.toString());
   if (loginFields(page.text, username, password)) {
     return { ok: false, error: "El aula no aceptó el usuario o la contraseña." };
@@ -1023,6 +1046,9 @@ export async function fetchEducamosTasks(input: {
     const action = formAction(page.text, page.finalUrl);
     if (!fields || !action) {
       return { ok: false, error: "No encontré la entrada de Educamos en esa dirección." };
+    }
+    if (!credentialTarget(action, page.finalUrl)) {
+      return { ok: false, error: "Educamos pidió la contraseña desde un sitio no seguro. No la envié." };
     }
     page = await request(jar, action, "POST", fields.toString());
     if (loginFields(page.text, input.username, input.password)) {

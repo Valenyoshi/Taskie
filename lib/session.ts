@@ -1,12 +1,14 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createSession, deleteSession, findUserById, userIdFromSession, type User } from "./db";
 
 const COOKIE = "racha_session";
 
 export async function setSessionCookie(token: string): Promise<void> {
   const jar = await cookies();
+  const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim();
   jar.set(COOKIE, token, {
     httpOnly: true,
+    secure: proto === "https" || process.env.TASKIE_SECURE_COOKIES === "1",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 30,

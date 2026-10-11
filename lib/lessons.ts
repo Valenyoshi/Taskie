@@ -1,6 +1,7 @@
+import { aiFetch, withAiShield } from "./ai-shield";
+import { classroomLogin } from "./credentials";
 import type { User } from "./db";
-import { listEnrolledSubjectNames, lmsBase, notesForSubject, recentClassTopics } from "./educamos";
-import { decryptSecret } from "./secret";
+import { listEnrolledSubjectNames, notesForSubject, recentClassTopics } from "./educamos";
 import { dedupeSubjects } from "./subject-color";
 import { listTasks } from "./db";
 import { addDays, localDateString } from "./time";
@@ -113,11 +114,10 @@ async function modelJson(prompt: string): Promise<string | null> {
   const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
   const key = process.env.FREELLMAPI_API_KEY;
   if (!base || !key) return null;
-  const res = await fetch(`${base}/chat/completions`, {
-    method: "POST",
+  const res = await aiFetch(`${base}/chat/completions`, {
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    signal: AbortSignal.timeout(22000),
-    body: JSON.stringify({
+    timeoutMs: 22000,
+    body: {
       model: process.env.FREELLMAPI_MODEL || "kilo-auto/free",
       messages: [
         {
@@ -127,7 +127,7 @@ async function modelJson(prompt: string): Promise<string | null> {
         },
         { role: "user", content: prompt },
       ],
-    }),
+    },
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { choices?: { message?: { content?: string; reasoning?: string } }[] };
@@ -164,15 +164,12 @@ function looksLikeQuestion(value: string): boolean {
 }
 
 async function classNotes(user: User, subject: string, query = ""): Promise<string> {
-  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return "";
-  const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-  if (!classroom) return "";
+  const login = classroomLogin(user);
+  if (!login) return "";
   try {
     return await withDeadline(
       notesForSubject({
-        lmsUrl: classroom,
-        username: user.educamosUsername,
-        password: decryptSecret(user.educamosPasswordEnc),
+        ...login,
         subject,
         query,
         requireText: true,
@@ -187,23 +184,13 @@ async function classNotes(user: User, subject: string, query = ""): Promise<stri
 
 export async function subjectChoices(user: User, fromTasks: string[]): Promise<string[]> {
   const names = new Set(fromTasks.map((subject) => subject.trim()).filter(Boolean));
-  if (!user.isDemo && user.educamosUrl && user.educamosUsername && user.educamosPasswordEnc) {
-    const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-    if (classroom) {
-      try {
-        const enrolled = await withDeadline(
-          listEnrolledSubjectNames({
-            lmsUrl: classroom,
-            username: user.educamosUsername,
-            password: decryptSecret(user.educamosPasswordEnc),
-          }),
-          8000,
-          [] as string[],
-        );
-        for (const name of enrolled) names.add(name);
-      } catch {
-        // Si el aula no abre, quedan las materias que ya tienen tareas.
-      }
+  const login = classroomLogin(user);
+  if (login) {
+    try {
+      const enrolled = await withDeadline(listEnrolledSubjectNames(login), 8000, [] as string[]);
+      for (const name of enrolled) names.add(name);
+    } catch {
+      // Si el aula no abre, quedan las materias que ya tienen tareas.
     }
   }
   return dedupeSubjects([...names]);
@@ -229,7 +216,7 @@ export async function buildLesson(user: User, subject: string, topic = ""): Prom
 
   if (!notes) return { ok: true, lesson: lessonFromNotes(clean, "", focus) };
   try {
-    const raw = await modelJson(prompt);
+    const raw = await withAiShield(user, () => modelJson(prompt));
     const lesson = raw ? parseLesson(raw, clean) : null;
     if (lesson && lesson.steps.some((step) => step.kind === "teach" && step.text.length > 40)) return { ok: true, lesson };
   } catch {
@@ -279,16 +266,10 @@ const NON_LESSON_CONTENT =
   /nombre\s+y\s+apellido|profesor(?:a)?\s*:|formato\s+a\s+presentar|envi[aá]ndolo\s+a|subobjetivos|objetivo\s*[_—-]{2,}|[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
 
 async function lessonTopics(user: User, subject: string): Promise<string[]> {
-  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return [];
+  const login = classroomLogin(user);
+  if (!login) return [];
   try {
-    const classroom = lmsBase(user.educamosUrl, user.lmsUrl);
-    if (!classroom) return [];
-    const topics = await recentClassTopics({
-      lmsUrl: classroom,
-      username: user.educamosUsername,
-      password: decryptSecret(user.educamosPasswordEnc),
-      subject,
-    });
+    const topics = await recentClassTopics({ ...login, subject });
     return topics.filter((topic) => !NON_LESSON_TITLE.test(topic)).slice(-2);
   } catch {
     return [];

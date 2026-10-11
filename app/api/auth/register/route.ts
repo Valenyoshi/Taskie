@@ -1,7 +1,6 @@
 import { hashSync } from "bcryptjs";
 import { createUser, findUserByUsername } from "@/lib/db";
 import { json } from "@/lib/http";
-import { encryptSecret } from "@/lib/secret";
 import { startSession } from "@/lib/session";
 import { syncUser } from "@/lib/sync";
 
@@ -43,10 +42,9 @@ export async function POST(request: Request) {
     id,
     name,
     username,
-    passwordHash: hashSync(password, 10),
+    passwordHash: hashSync(password, 12),
     educamosUrl,
-    educamosUsername,
-    educamosPasswordEnc: encryptSecret(educamosPassword),
+    educamosLogin: { username: educamosUsername, password: educamosPassword },
     lmsUrl,
     timezone,
     isDemo: false,

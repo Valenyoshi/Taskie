@@ -1,6 +1,18 @@
 import Database from "better-sqlite3";
-import { mkdirSync } from "fs";
 import path from "path";
+import {
+  blindIndex,
+  createDataKey,
+  dataDir,
+  destroyLegacyKey,
+  hashToken,
+  hasLegacyKey,
+  isSealed,
+  lockDown,
+  newToken,
+  openLegacy,
+  withUserKey,
+} from "./secret";
 
 export type User = {
   id: string;
@@ -8,8 +20,10 @@ export type User = {
   username: string;
   passwordHash: string;
   educamosUrl: string | null;
-  educamosUsername: string | null;
+  educamosUsernameEnc: string | null;
   educamosPasswordEnc: string | null;
+  educamosUserIndex: string | null;
+  dataKeyEnc: string | null;
   points: number;
   streak: number;
   lastOpenDate: string | null;
@@ -71,6 +85,8 @@ type UserRow = {
   educamos_url: string | null;
   educamos_username: string | null;
   educamos_password_enc: string | null;
+  educamos_user_index: string | null;
+  data_key_enc: string | null;
   lms_url: string | null;
   xp: number;
   points: number;
@@ -109,7 +125,20 @@ type TaskRow = {
   created_at: string;
 };
 
-const globalForDb = globalThis as unknown as { rachaDb?: Database.Database; rachaTuned?: boolean };
+const globalForDb = globalThis as unknown as {
+  rachaDb?: Database.Database;
+  rachaTuned?: boolean;
+  rachaVault?: boolean;
+};
+
+export const EDUCAMOS_USER_FIELD = "educamos.username";
+export const EDUCAMOS_PASSWORD_FIELD = "educamos.password";
+const messageField = (id: string) => `chat.message|${id}`;
+const titleField = (id: string) => `chat.title|${id}`;
+
+export function educamosIndex(username: string): string {
+  return blindIndex("educamos-user", username);
+}
 
 function mapUser(row: UserRow): User {
   return {
@@ -118,8 +147,10 @@ function mapUser(row: UserRow): User {
     username: row.username,
     passwordHash: row.password_hash,
     educamosUrl: row.educamos_url,
-    educamosUsername: row.educamos_username,
+    educamosUsernameEnc: row.educamos_username,
     educamosPasswordEnc: row.educamos_password_enc,
+    educamosUserIndex: row.educamos_user_index ?? null,
+    dataKeyEnc: row.data_key_enc ?? null,
     lmsUrl: row.lms_url ?? null,
     points: row.points,
     streak: row.streak,
@@ -162,8 +193,7 @@ function mapTask(row: TaskRow): Task {
 
 export function getDb(): Database.Database {
   if (!globalForDb.rachaDb) {
-    const dir = path.join(process.cwd(), "data");
-    mkdirSync(dir, { recursive: true });
+    const dir = dataDir();
     const db = new Database(path.join(dir, "racha.db"));
     db.pragma("journal_mode = WAL");
     db.exec(`
@@ -278,6 +308,12 @@ export function getDb(): Database.Database {
   if (!userColumns.some((column) => column.name === "lms_url")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN lms_url TEXT");
   }
+  if (!userColumns.some((column) => column.name === "educamos_user_index")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN educamos_user_index TEXT");
+  }
+  if (!userColumns.some((column) => column.name === "data_key_enc")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN data_key_enc TEXT");
+  }
   if (!userColumns.some((column) => column.name === "spins")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN spins INTEGER NOT NULL DEFAULT 0");
     globalForDb.rachaDb.exec(
@@ -319,7 +355,109 @@ export function getDb(): Database.Database {
     `);
     globalForDb.rachaTuned = true;
   }
+  if (!globalForDb.rachaVault) {
+    migrateVault(globalForDb.rachaDb);
+    globalForDb.rachaVault = true;
+  }
   return globalForDb.rachaDb;
+}
+
+function ensureDataKey(db: Database.Database, userId: string, current: string | null): string {
+  if (current) return current;
+  const wrapped = createDataKey(userId);
+  db.prepare("UPDATE users SET data_key_enc = ? WHERE id = ?").run(wrapped, userId);
+  return wrapped;
+}
+
+/** Pasa al formato cifrado por usuario todo lo que quedó del formato anterior. Es idempotente. */
+function migrateVault(db: Database.Database): void {
+  const dir = dataDir();
+  lockDown(dir, 0o700);
+  lockDown(path.join(dir, "uploads"), 0o700);
+  for (const file of ["racha.db", "racha.db-wal", "racha.db-shm", "master.key", "secret.key", "vapid.json"]) {
+    lockDown(path.join(dir, file));
+  }
+
+  let legacyLeft = false;
+  db.transaction(() => {
+    const users = db
+      .prepare("SELECT id, educamos_username, educamos_password_enc, educamos_user_index, data_key_enc FROM users")
+      .all() as Pick<UserRow, "id" | "educamos_username" | "educamos_password_enc" | "educamos_user_index" | "data_key_enc">[];
+    const saveCredentials = db.prepare(
+      "UPDATE users SET educamos_username = ?, educamos_password_enc = ?, educamos_user_index = ? WHERE id = ?",
+    );
+    const saveMessage = db.prepare("UPDATE chat_messages SET content = ? WHERE id = ?");
+    const saveTitle = db.prepare("UPDATE chat_conversations SET title = ? WHERE id = ?");
+
+    for (const row of users) {
+      const wrapped = ensureDataKey(db, row.id, row.data_key_enc);
+      const messages = db
+        .prepare("SELECT id, content FROM chat_messages WHERE user_id = ?")
+        .all(row.id) as { id: string; content: string }[];
+      const conversations = db
+        .prepare("SELECT id, title FROM chat_conversations WHERE user_id = ?")
+        .all(row.id) as { id: string; title: string }[];
+
+      withUserKey(row.id, wrapped, (box) => {
+        let username = row.educamos_username;
+        let password = row.educamos_password_enc;
+        let index = row.educamos_user_index;
+        if (username && !isSealed(username)) {
+          index = educamosIndex(username);
+          username = box.seal(EDUCAMOS_USER_FIELD, username);
+        }
+        if (password && !isSealed(password)) {
+          try {
+            password = box.seal(EDUCAMOS_PASSWORD_FIELD, openLegacy(password));
+          } catch {
+            legacyLeft = true;
+          }
+        }
+        if (
+          username !== row.educamos_username ||
+          password !== row.educamos_password_enc ||
+          index !== row.educamos_user_index
+        ) {
+          saveCredentials.run(username, password, index, row.id);
+        }
+        for (const message of messages) {
+          if (!isSealed(message.content)) saveMessage.run(box.seal(messageField(message.id), message.content), message.id);
+        }
+        for (const conversation of conversations) {
+          if (!isSealed(conversation.title)) {
+            saveTitle.run(box.seal(titleField(conversation.id), conversation.title), conversation.id);
+          }
+        }
+      });
+    }
+
+    const sessions = db.prepare("SELECT token FROM sessions").all() as { token: string }[];
+    const rehash = db.prepare("UPDATE sessions SET token = ? WHERE token = ?");
+    for (const session of sessions) {
+      if (!/^[0-9a-f]{64}$/.test(session.token)) rehash.run(hashToken(session.token), session.token);
+    }
+  })();
+
+  if (!legacyLeft && hasLegacyKey()) destroyLegacyKey();
+  db.pragma("wal_checkpoint(TRUNCATE)");
+}
+
+function userKey(userId: string): string {
+  const row = getDb().prepare("SELECT data_key_enc FROM users WHERE id = ?").get(userId) as
+    | { data_key_enc: string | null }
+    | undefined;
+  if (!row) throw new Error("No existe el usuario.");
+  return ensureDataKey(getDb(), userId, row.data_key_enc);
+}
+
+/** Descifra las credenciales de Educamos solo en memoria del servidor, en el momento de usarlas. */
+export function openEducamosLogin(user: User): { username: string; password: string } | null {
+  if (!user.educamosUsernameEnc || !user.educamosPasswordEnc || !user.dataKeyEnc) return null;
+  if (!isSealed(user.educamosUsernameEnc) || !isSealed(user.educamosPasswordEnc)) return null;
+  return withUserKey(user.id, user.dataKeyEnc, (box) => ({
+    username: box.open(EDUCAMOS_USER_FIELD, user.educamosUsernameEnc!),
+    password: box.open(EDUCAMOS_PASSWORD_FIELD, user.educamosPasswordEnc!),
+  }));
 }
 
 export function transaction<T>(fn: () => T): T {
@@ -332,18 +470,24 @@ export function createUser(input: {
   username: string;
   passwordHash: string;
   educamosUrl: string | null;
-  educamosUsername: string | null;
-  educamosPasswordEnc: string | null;
+  educamosLogin: { username: string; password: string } | null;
   lmsUrl?: string | null;
   timezone: string;
   isDemo: boolean;
 }): void {
+  const dataKey = createDataKey(input.id);
+  const sealed = input.educamosLogin
+    ? withUserKey(input.id, dataKey, (box) => ({
+        username: box.seal(EDUCAMOS_USER_FIELD, input.educamosLogin!.username),
+        password: box.seal(EDUCAMOS_PASSWORD_FIELD, input.educamosLogin!.password),
+      }))
+    : null;
   getDb()
     .prepare(
       `INSERT INTO users (
         id, name, username, password_hash, educamos_url, educamos_username, educamos_password_enc,
-        lms_url, timezone, is_demo, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        educamos_user_index, data_key_enc, lms_url, timezone, is_demo, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.id,
@@ -351,8 +495,10 @@ export function createUser(input: {
       input.username,
       input.passwordHash,
       input.educamosUrl,
-      input.educamosUsername,
-      input.educamosPasswordEnc,
+      sealed?.username ?? null,
+      sealed?.password ?? null,
+      input.educamosLogin ? educamosIndex(input.educamosLogin.username) : null,
+      dataKey,
       input.lmsUrl ?? null,
       input.timezone,
       input.isDemo ? 1 : 0,
@@ -418,26 +564,29 @@ export function markPulled(userId: string, foundSuper: boolean): void {
 }
 
 export function createSession(userId: string): string {
-  const token = crypto.randomUUID() + crypto.randomUUID();
+  const token = newToken();
   const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
-  getDb().prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)").run(token, userId, expires);
+  getDb()
+    .prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)")
+    .run(hashToken(token), userId, expires);
   return token;
 }
 
 export function userIdFromSession(token: string): string | null {
+  const stored = hashToken(token);
   const row = getDb()
     .prepare("SELECT user_id, expires_at FROM sessions WHERE token = ?")
-    .get(token) as { user_id: string; expires_at: string } | undefined;
+    .get(stored) as { user_id: string; expires_at: string } | undefined;
   if (!row) return null;
   if (row.expires_at < new Date().toISOString()) {
-    getDb().prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    getDb().prepare("DELETE FROM sessions WHERE token = ?").run(stored);
     return null;
   }
   return row.user_id;
 }
 
 export function deleteSession(token: string): void {
-  getDb().prepare("DELETE FROM sessions WHERE token = ?").run(token);
+  getDb().prepare("DELETE FROM sessions WHERE token = ?").run(hashToken(token));
 }
 
 export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completedAt" | "onTime" | "status"> & { status?: Task["status"] }): void {
@@ -599,13 +748,17 @@ export function listConversations(userId: string): ChatConversation[] {
     created_at: string;
     updated_at: string;
   }[];
-  return rows.map((row) => ({
-    id: row.id,
-    userId: row.user_id,
-    title: row.title,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  if (rows.length === 0) return [];
+  const wrapped = userKey(userId);
+  return withUserKey(userId, wrapped, (box) =>
+    rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      title: isSealed(row.title) ? box.open(titleField(row.id), row.title) : row.title,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+  );
 }
 
 export function findConversation(userId: string, conversationId: string): ChatConversation | null {
@@ -625,16 +778,28 @@ export function createConversation(userId: string, title = "Nuevo chat"): ChatCo
     .prepare(
       "INSERT INTO chat_conversations (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
     )
-    .run(conversation.id, conversation.userId, conversation.title, conversation.createdAt, conversation.updatedAt);
+    .run(
+      conversation.id,
+      conversation.userId,
+      withUserKey(userId, userKey(userId), (box) => box.seal(titleField(conversation.id), conversation.title)),
+      conversation.createdAt,
+      conversation.updatedAt,
+    );
   return conversation;
 }
 
 export function renameConversation(userId: string, conversationId: string, title: string): void {
+  const clean = title.trim().slice(0, 60) || "Nuevo chat";
   getDb()
     .prepare(
       "UPDATE chat_conversations SET title = ?, updated_at = ? WHERE id = ? AND user_id = ?",
     )
-    .run(title.trim().slice(0, 60) || "Nuevo chat", new Date().toISOString(), conversationId, userId);
+    .run(
+      withUserKey(userId, userKey(userId), (box) => box.seal(titleField(conversationId), clean)),
+      new Date().toISOString(),
+      conversationId,
+      userId,
+    );
 }
 
 export function touchConversation(userId: string, conversationId: string): void {
@@ -656,15 +821,16 @@ export function listMessages(userId: string, conversationId?: string): ChatMessa
     content: string;
     created_at: string;
   }[];
-  return rows
-    .reverse()
-    .map((row) => ({
+  if (rows.length === 0) return [];
+  return withUserKey(userId, userKey(userId), (box) =>
+    rows.reverse().map((row) => ({
       id: row.id,
       conversationId: row.conversation_id,
       role: row.role,
-      content: row.content,
+      content: isSealed(row.content) ? box.open(messageField(row.id), row.content) : row.content,
       createdAt: row.created_at,
-    }));
+    })),
+  );
 }
 
 export function addMessage(
@@ -684,7 +850,14 @@ export function addMessage(
     .prepare(
       "INSERT INTO chat_messages (id, user_id, conversation_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
-    .run(message.id, userId, message.conversationId, message.role, message.content, message.createdAt);
+    .run(
+      message.id,
+      userId,
+      message.conversationId,
+      message.role,
+      withUserKey(userId, userKey(userId), (box) => box.seal(messageField(message.id), message.content)),
+      message.createdAt,
+    );
   touchConversation(userId, conversationId);
   return message;
 }

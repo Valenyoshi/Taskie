@@ -1,8 +1,9 @@
+import { aiFetch, scrubForAi, withAiShield } from "./ai-shield";
+import { classroomLogin } from "./credentials";
 import { listTasks, type Task, type User } from "./db";
-import { asksForLesson, fetchTaskInstructions, lmsBase, notesForSubject } from "./educamos";
+import { asksForLesson, fetchTaskInstructions, notesForSubject } from "./educamos";
 import { PULL_COST } from "./game";
 import { blockedAnswer, homeworkBlock, isGreeting } from "./no-homework";
-import { decryptSecret } from "./secret";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
@@ -14,11 +15,7 @@ function fold(value: string): string {
 }
 
 export function sanitizeChatText(value: string): string {
-  return value
-    .replace(/((?:contraseña|contrasena|password|clave|token)\s*(?:de\s+educamos)?\s*[:=]\s*)[^\s,.;]+/gi, "$1[ dato privado omitido ]")
-    .replace(/((?:usuario|username|user)\s*(?:de\s+educamos)?\s*[:=]\s*)[^\s,.;]+/gi, "$1[ dato privado omitido ]")
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [dato privado omitido]")
-    .slice(0, 4000);
+  return scrubForAi(value).slice(0, 4000);
 }
 
 function safeHistory(history: { role: "user" | "assistant"; content: string }[]) {
@@ -36,7 +33,7 @@ export function taskSnapshot(user: User, tasks: Task[]): string {
     return `- ${task.subject}: ${task.title}. ${state}. ${dueLabel(task.dueAt, user.timezone)}. (${when})`;
   });
   return [
-    `Alumno: ${user.name}. ${user.points} sombreros, racha de ${user.streak} días.`,
+    `El alumno tiene ${user.points} sombreros y una racha de ${user.streak} días.`,
     `Cada 2 tareas entregadas dan aproximadamente un giro de ${PULL_COST} sombreros.`,
     lines.length ? lines.join("\n") : "No hay tareas cargadas.",
   ].join("\n");
@@ -194,17 +191,6 @@ function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<
   });
 }
 
-function classroomLogin(user: User): { lmsUrl: string; username: string; password: string } | null {
-  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) return null;
-  const lmsUrl = lmsBase(user.educamosUrl, user.lmsUrl);
-  if (!lmsUrl) return null;
-  try {
-    return { lmsUrl, username: user.educamosUsername, password: decryptSecret(user.educamosPasswordEnc) };
-  } catch {
-    return null;
-  }
-}
-
 async function classNotes(user: User, message: string, tasks: Task[]): Promise<string> {
   if (!asksForLesson(message)) return "";
   const chosen = tasksForQuestion(message, tasks);
@@ -318,14 +304,13 @@ async function answerWithFreeLlm(
     ...history.slice(-10).map((item) => ({ role: item.role, content: item.content })),
     { role: "user", content: message },
   ];
-  const res = await fetch(`${base}/chat/completions`, {
-    method: "POST",
+  const res = await aiFetch(`${base}/chat/completions`, {
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${key}`,
     },
-    signal: AbortSignal.timeout(25000),
-    body: JSON.stringify({ model, messages }),
+    timeoutMs: 25000,
+    body: { model, messages },
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
@@ -333,7 +318,15 @@ async function answerWithFreeLlm(
   return text || null;
 }
 
-export async function answerWithModel(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
+export function answerWithModel(
+  message: string,
+  history: { role: "user" | "assistant"; content: string }[],
+  user: User,
+): Promise<string> {
+  return withAiShield(user, () => shieldedAnswer(message, history, user));
+}
+
+async function shieldedAnswer(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
   const safeMessage = sanitizeChatText(message);
   const safePrevious = safeHistory(history);
   const refused = await homeworkBlock(safeMessage, safePrevious);
@@ -391,18 +384,14 @@ export async function answerWithModel(message: string, history: { role: "user" |
 
   for (const model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          signal: AbortSignal.timeout(20000),
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: system }] },
-            contents,
-          }),
+      const res = await aiFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        headers: { "content-type": "application/json", "x-goog-api-key": key },
+        timeoutMs: 20000,
+        body: {
+          systemInstruction: { parts: [{ text: system }] },
+          contents,
         },
-      );
+      });
       if (!res.ok) continue;
       const data = (await res.json()) as {
         candidates?: { content?: { parts?: { text?: string }[] } }[];

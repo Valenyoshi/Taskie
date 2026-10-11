@@ -24,7 +24,6 @@ export type PublicUser = {
   frameClassName: string;
   syncError: string | null;
   isDemo: boolean;
-  educamosUsername: string | null;
   educamosUrl: string | null;
 };
 
@@ -80,7 +79,6 @@ export function toPublic(user: User): PublicUser {
     frameClassName: frameClass(user.equippedFrame),
     syncError: user.syncError,
     isDemo: user.isDemo,
-    educamosUsername: user.educamosUsername,
     educamosUrl: user.educamosUrl,
   };
 }

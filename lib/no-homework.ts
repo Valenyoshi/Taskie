@@ -1,3 +1,5 @@
+import { aiFetch } from "./ai-shield";
+
 const REFUSAL =
   "No te hago la tarea. No te escribo el trabajo, no te resuelvo los ejercicios y no te paso respuestas para entregar o copiar. Puedo explicarte el tema como en clase, para que lo hagas vos.";
 
@@ -112,17 +114,16 @@ async function classifyAsk(packet: string): Promise<"ENTREGA" | "EXPLICAR" | "OT
     "Respondé una sola palabra: ENTREGA, EXPLICAR u OTRA.",
   ].join("\n");
   try {
-    const res = await fetch(`${base}/chat/completions`, {
-      method: "POST",
+    const res = await aiFetch(`${base}/chat/completions`, {
       headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(20000),
-      body: JSON.stringify({
+      timeoutMs: 20000,
+      body: {
         model: process.env.FREELLMAPI_MODEL || "kilo-auto/free",
         messages: [
           { role: "system", content: system },
           { role: "user", content: `<<<\n${packet.slice(0, 4000)}\n>>>` },
         ],
-      }),
+      },
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };

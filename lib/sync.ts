@@ -1,12 +1,12 @@
+import { educamosLogin, hasEducamosLogin } from "./credentials";
 import { dropOldUntracked, findUserById, insertTask, listTasks, setSyncResult } from "./db";
-import { decryptSecret } from "./secret";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
 import { localDateString, zonedTimeToUtc } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
   const user = findUserById(userId);
   if (!user) return { ok: false, error: "No encontré tu cuenta." };
-  if (user.isDemo || !user.educamosUrl || !user.educamosUsername || !user.educamosPasswordEnc) {
+  if (!hasEducamosLogin(user)) {
     const error = user.isDemo
       ? "Esta cuenta de prueba usa tareas de ejemplo, no las de un colegio."
       : "Falta la URL, el usuario o la contraseña de Educamos.";
@@ -14,18 +14,17 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
     return { ok: false, error };
   }
 
-  let password = "";
-  try {
-    password = decryptSecret(user.educamosPasswordEnc);
-  } catch {
-    const error = "No pude leer la contraseña guardada de Educamos. Volvé a crear la cuenta.";
+  const login = educamosLogin(user);
+  if (!login) {
+    const error = "No pude abrir las credenciales cifradas de Educamos. Volvé a crear la cuenta.";
     setSyncResult(userId, error);
     return { ok: false, error };
   }
+  const { username, password } = login;
 
   const result = await fetchEducamosTasks({
     url: user.educamosUrl,
-    username: user.educamosUsername,
+    username,
     password,
     timeZone: user.timezone,
   });
@@ -33,7 +32,7 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
   const uploads = classroom
     ? await fetchLmsUploads({
         lmsUrl: classroom,
-        username: user.educamosUsername,
+        username,
         password,
         timeZone: user.timezone,
       })
@@ -46,7 +45,7 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
   const checkedLms = classroom
     ? await fetchLmsAssignmentStatuses({
         lmsUrl: classroom,
-        username: user.educamosUsername,
+        username,
         password,
         tasks: existingLms.map(({ externalId, url }) => ({ externalId, url })),
       })
