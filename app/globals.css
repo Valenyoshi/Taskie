@@ -285,12 +285,12 @@
   width: 78px;
   height: 78px;
   object-fit: contain;
-  animation: kitty-loader-slide 1.4s linear infinite;
+  animation: kitty-loader-sway 1.4s ease-in-out infinite;
 }
 
-@keyframes kitty-loader-slide {
-  0% { transform: translateX(-92px); }
-  100% { transform: translateX(92px); }
+@keyframes kitty-loader-sway {
+  0%, 100% { transform: translateX(-12px) rotate(-8deg); }
+  50% { transform: translateX(12px) rotate(8deg); }
 }
 
 .taskie-loader-pencil,
