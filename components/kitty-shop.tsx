@@ -49,9 +49,8 @@ export function KittyShop({
       <div className="kitty-shelves" aria-label="Estanterías de la tienda">
         <div className="kitty-shelf-level">
           <div className="kitty-shelf-product">
-            <div className="kitty-shelf-chip">
-              <span className="kitty-shelf-chip-preview" aria-hidden><PixelCheck /></span>
-              <strong>Check Retro Pixel</strong>
+            <div className="kitty-shelf-chip" aria-label="Check pixelado">
+              <PixelCheck />
             </div>
             <small className="kitty-shelf-cost">100 sombreros · 3–4 tareas</small>
             <div className="kitty-shelf-actions">
@@ -61,7 +60,7 @@ export function KittyShop({
                 <PurchaseButton id="check-retro" cost={100} points={points} />
               )}
               <details className="kitty-product-details">
-                <summary>Más información</summary>
+                <summary aria-label="Más información">···</summary>
                 <div className="kitty-product-info">
                   Un check de videojuego que aparece cuando terminás una tarea.
                 </div>
