@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 export function SectionWash() {
   const pathname = usePathname();
   let tone = "";
-  if (pathname === "/inicio") tone = "inicio";
+  if (pathname.startsWith("/inicio")) tone = "inicio";
   else if (pathname.startsWith("/materias")) tone = "materias";
   else if (pathname.startsWith("/premios")) tone = "tienda";
   else if (pathname.startsWith("/chat")) tone = "chat";
