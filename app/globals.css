@@ -270,10 +270,27 @@
   place-items: center;
   width: 104px;
   height: 104px;
+  overflow: hidden;
   border-radius: 32px;
   background: var(--card);
   box-shadow: 0 12px 0 color-mix(in oklab, var(--coral) 20%, transparent);
   animation: loader-bob 1.1s ease-in-out infinite;
+}
+
+.taskie-loader-logo.is-kitty {
+  animation: none;
+}
+
+.taskie-loader-kitty {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+  animation: kitty-loader-slide 1.4s linear infinite;
+}
+
+@keyframes kitty-loader-slide {
+  0% { transform: translateX(-92px); }
+  100% { transform: translateX(92px); }
 }
 
 .taskie-loader-pencil,
