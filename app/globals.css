@@ -1456,9 +1456,9 @@
 
 .section-wash.materias {
   background:
-    radial-gradient(circle at 8% 16%, rgba(255, 255, 255, 0.76) 0 12%, transparent 30%),
-    radial-gradient(circle at 90% 78%, rgba(222, 205, 255, 0.48) 0 11%, transparent 32%),
-    linear-gradient(165deg, #f3b0c5 0%, #fbdce4 48%, #f4edff 100%);
+    radial-gradient(circle at 8% 16%, rgba(255, 255, 255, 0.8) 0 12%, transparent 30%),
+    radial-gradient(circle at 90% 78%, rgba(201, 231, 214, 0.58) 0 11%, transparent 32%),
+    linear-gradient(165deg, #f7c18f 0%, #ffe8c9 48%, #e8f3e7 100%);
 }
 
 .section-wash.ranking {
@@ -1939,9 +1939,9 @@ button:disabled {
 
 .section-wash.configuracion {
   background:
-    radial-gradient(circle at 88% 14%, rgba(255, 255, 255, 0.82) 0 12%, transparent 30%),
-    radial-gradient(circle at 12% 86%, rgba(201, 224, 255, 0.48) 0 12%, transparent 34%),
-    linear-gradient(165deg, #d9e8f7 0%, #f2eef9 48%, #fff5e5 100%);
+    radial-gradient(circle at 88% 14%, rgba(255, 255, 255, 0.84) 0 12%, transparent 30%),
+    radial-gradient(circle at 12% 86%, rgba(194, 232, 221, 0.62) 0 12%, transparent 34%),
+    linear-gradient(165deg, #a9ded0 0%, #dff3ed 48%, #f8fffc 100%);
 }
 
 .nav-scroll {
