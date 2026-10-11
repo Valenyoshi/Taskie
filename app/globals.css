@@ -2369,7 +2369,7 @@ button:disabled {
   display: block;
   width: 34px;
   height: 28px;
-  fill: #7cff6b;
+  color: #7cff6b;
 }
 
 .kitty-shelf-cost {
