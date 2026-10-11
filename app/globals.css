@@ -957,6 +957,7 @@
   width: 46px;
   height: 46px;
   flex: none;
+  overflow: visible;
 }
 
 .prize-corral .points-coin,
