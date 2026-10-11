@@ -562,7 +562,19 @@
   display: block;
   width: 72px;
   height: 60px;
-  fill: #7cff6b;
+  color: inherit;
+  image-rendering: pixelated;
+}
+
+[data-retro-check="true"] .settled-check .default-check-mark {
+  display: none;
+}
+
+[data-retro-check="true"] .settled-check .pixel-check {
+  display: block;
+  width: 30px;
+  height: 24px;
+  color: inherit;
   image-rendering: pixelated;
 }
 

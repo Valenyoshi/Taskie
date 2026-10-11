@@ -221,15 +221,16 @@ export function TaskCard({ task }: { task: TaskView }) {
             />
           </span>
         ) : phase === "settled" ? (
-          <span className="grid size-9 place-items-center text-2xl font-bold" style={{ color }} aria-label="Lista">
-            ✓
+          <span className="settled-check grid size-9 place-items-center text-2xl font-bold" style={{ color }} aria-label="Lista">
+            <span className="default-check-mark">✓</span>
+            <PixelCheck />
           </span>
         ) : null}
       </div>
       <span className={`card-line ${struck ? "on" : ""}`} style={{ top: lineTop, color }} />
       {phase === "check" || phase === "leave" ? (
         <div className="card-cover" aria-hidden>
-          <span className="card-cover-mark">
+          <span className="card-cover-mark" style={{ color }}>
             <span className="default-check-mark">✓</span>
             <PixelCheck />
           </span>
