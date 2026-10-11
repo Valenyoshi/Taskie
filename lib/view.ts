@@ -110,7 +110,13 @@ export function toTask(task: Task, timeZone: string): TaskView {
       const today = localDateString(new Date(), timeZone);
       return due <= today && due >= addDays(today, -3);
     })(),
-    countsWeekly: localDateString(new Date(task.dueAt), timeZone) > localDateString(new Date(), timeZone),
+    countsWeekly: (() => {
+      const due = localDateString(new Date(task.dueAt), timeZone);
+      const today = localDateString(new Date(), timeZone);
+      const start = weekStart(today);
+      const end = addDays(start, 6);
+      return due >= start && due <= end;
+    })(),
     fileName: task.fileName,
     educamosUrl: task.educamosUrl,
     pending: task.status === "pending",
@@ -130,10 +136,12 @@ function countsForDay(task: Task, timeZone: string, today: string): boolean {
 }
 
 function countsForWeek(task: Task, timeZone: string, today: string): boolean {
+  const start = weekStart(today);
+  const end = addDays(start, 6);
   const due = localDateString(new Date(task.dueAt), timeZone);
-  if (due <= today) return false;
+  if (due < start || due > end) return false;
   if (task.status !== "done") return true;
-  return doneOn(task, timeZone) === today;
+  return true;
 }
 
 export function missionView(user: User, tasks: Task[]): MissionView {
