@@ -446,9 +446,22 @@ function assignmentSubmitted(html: string): boolean {
   return /submissionstatussubmitted|enviado para calificar|env[ií]o enviado|submitted|submission received/i.test(`${html} ${text}`);
 }
 
-async function lmsAssignmentStatus(jar: Jar, url: string | null): Promise<"pending" | "done"> {
-  if (!url) return "pending";
+async function lmsAssignmentStatus(
+  jar: Jar,
+  root: string,
+  sesskey: string,
+  instance: number | undefined,
+  url: string | null,
+): Promise<"pending" | "done"> {
   try {
+    if (instance) {
+      const status = await moodleCall(jar, root, sesskey, [
+        { methodname: "mod_assign_get_submission_status", args: { assignid: instance } },
+      ]);
+      const raw = JSON.stringify(status[0]?.data ?? "");
+      if (/"status"\s*:\s*"submitted"/i.test(raw) || /submissionstatussubmitted/i.test(raw)) return "done";
+    }
+    if (!url) return "pending";
     const page = await request(jar, url);
     return page.status >= 200 && page.status < 300 && assignmentSubmitted(page.text) ? "done" : "pending";
   } catch {
@@ -497,7 +510,7 @@ export async function fetchLmsUploads(input: {
         title,
         description: "Punto de entrega del aula. Hay que subir un archivo.",
         dueAt: new Date((event.timesort || event.timestart || now) * 1000).toISOString(),
-        status: await lmsAssignmentStatus(jar, url),
+        status: await lmsAssignmentStatus(jar, root, sesskey, event.instance, url),
         needsFile: true,
         url,
       });
