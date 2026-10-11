@@ -34,9 +34,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="gradient-text mt-2 font-display text-4xl leading-none">Hola {user.username}</p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
             <div
-              className={`grid size-9 place-items-center rounded-full bg-secondary text-sm font-display ring-4 ${frameClass(user.equippedFrame)}`}
+              className={`grid size-10 place-items-center rounded-full bg-secondary text-base font-display shadow-sm ring-4 transition hover:scale-105 ${frameClass(user.equippedFrame)}`}
+              title={`Perfil de ${user.name}`}
             >
-              {user.name.slice(0, 1).toUpperCase()}
+              <span className="translate-y-[-0.5px]">{user.name.slice(0, 1).toUpperCase()}</span>
             </div>
           </div>
         </header>

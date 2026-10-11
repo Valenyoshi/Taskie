@@ -3,15 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { Flame, House, Settings, Sparkles, Store } from "lucide-react";
+import {
+  NavConfigIcon,
+  NavHomeIcon,
+  NavIaIcon,
+  NavMateriasIcon,
+  NavTiendaIcon,
+} from "@/components/hand-drawn-icons";
 import { cn } from "cn";
 
 const items = [
-  { href: "/inicio", label: "Inicio", icon: House },
-  { href: "/materias", label: "Materias", icon: Flame },
-  { href: "/premios", label: "Tienda", icon: Store },
-  { href: "/chat", label: "IA", icon: Sparkles },
-  { href: "/configuracion", label: "Configuración", icon: Settings },
+  { href: "/inicio", label: "Inicio", icon: NavHomeIcon },
+  { href: "/materias", label: "Materias", icon: NavMateriasIcon },
+  { href: "/premios", label: "Tienda", icon: NavTiendaIcon },
+  { href: "/chat", label: "IA", icon: NavIaIcon },
+  { href: "/configuracion", label: "Configuración", icon: NavConfigIcon },
 ];
 
 export function NavBar() {

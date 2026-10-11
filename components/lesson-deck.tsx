@@ -125,7 +125,11 @@ export function LessonDeck({ streak }: { streak: number }) {
       <>
         <div className="lesson-done">
           <div className="lesson-done-badge" aria-hidden>
-            🏆
+            <svg className="size-10" viewBox="0 0 48 48" fill="none" aria-hidden>
+              <path d="M12 12h24l-3 16c-1.5 7-6 11-9 11s-7.5-4-9-11L12 12z" fill="#f6c445" stroke="#9c7308" strokeWidth="2.2" strokeLinejoin="round" />
+              <path d="M15 17c-4 0-6 3-5 7s3 5 6 5M33 17c4 0 6 3 5 7s-3 5-6 5" stroke="#9c7308" strokeWidth="2" strokeLinecap="round" />
+              <path d="M24 39v5M17 44h14" stroke="#9c7308" strokeWidth="2.4" strokeLinecap="round" />
+            </svg>
           </div>
           <p className="font-display text-4xl">Repaso listo</p>
           <p className="text-lg">

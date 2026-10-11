@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import { HandSyncIcon } from "@/components/hand-drawn-icons";
 
 export function SyncButton({ autoSync = true }: { autoSync?: boolean }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export function SyncButton({ autoSync = true }: { autoSync?: boolean }) {
         aria-label="Actualizar tareas"
         title="Actualizar tareas"
       >
-        <RefreshCw className={`sync-icon ${busy ? "is-spinning" : ""}`} />
+        <HandSyncIcon className={`sync-icon ${busy ? "is-spinning" : ""}`} />
       </button>
       {message ? <span className="text-xs font-semibold text-destructive">{message}</span> : null}
     </span>

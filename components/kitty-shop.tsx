@@ -19,9 +19,13 @@ export function KittyShop({
     <section className="kitty-shop" aria-label="Tienda de Kitty">
       <div className="kitty-shop-scene">
         <div className="kitty-shop-sign">
-          <span className="kitty-shop-star">✦</span>
+          <svg className="size-4 text-gold" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M12 2l2.6 6.8L21.5 11l-5.6 4.6 1.8 7.2L12 18.8 6.3 22.8l1.8-7.2L2.5 11l6.9-2.2L12 2z" />
+          </svg>
           <span>Tienda de Kitty</span>
-          <span className="kitty-shop-star">✦</span>
+          <svg className="size-4 text-gold" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M12 2l2.6 6.8L21.5 11l-5.6 4.6 1.8 7.2L12 18.8 6.3 22.8l1.8-7.2L2.5 11l6.9-2.2L12 2z" />
+          </svg>
         </div>
 
         <div className="kitty-counter">

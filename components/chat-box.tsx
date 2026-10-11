@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ArrowUp } from "lucide-react";
 import { GeminiMark } from "@/components/gemini-mark";
 import { plainChatText } from "@/lib/plain-text";
 
@@ -109,11 +108,15 @@ export function ChatBox({
           aria-label="Mensaje"
         />
         <button type="submit" disabled={busy || !text.trim()} aria-label="Enviar">
-          <ArrowUp className="size-5" />
+          <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
         </button>
       </form>
       <Link href="/inicio" className="chat-back">
-        <ArrowLeft className="size-4" />
+        <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M19 12H5M11 18l-6-6 6-6" />
+        </svg>
         Volver a Inicio
       </Link>
     </div>

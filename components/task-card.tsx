@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { HandChevronDown } from "@/components/hand-drawn-icons";
 import { PixelCheck } from "@/components/pixel-check";
 import { SubjectMark } from "@/components/subject-mark";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
@@ -208,7 +208,7 @@ export function TaskCard({ task }: { task: TaskView }) {
                 onClick={() => setOpen((value) => !value)}
                 className="grid size-8 place-items-center text-muted-foreground"
               >
-                <ChevronDown className={`size-4 transition ${open ? "rotate-180" : ""}`} />
+                <HandChevronDown className={`size-4 transition ${open ? "rotate-180" : ""}`} />
               </button>
             ) : null}
             <button

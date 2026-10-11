@@ -55,8 +55,11 @@ export function RewardPopup({
         aria-modal="true"
         aria-labelledby="reward-popup-title"
       >
-        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-secondary text-3xl" aria-hidden>
-          ✨
+        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-secondary text-coral" aria-hidden>
+          <svg className="size-8" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M16 3l3.5 8.5L28 15l-6.5 6 1.8 9L16 25.5 8.7 30l1.8-9L4 15l8.5-3.5L16 3z" fill="#f6c445" fillOpacity="0.3" />
+            <circle cx="25" cy="7" r="1.5" fill="currentColor" />
+          </svg>
         </div>
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Recompensa</p>
         <h2 id="reward-popup-title" className="mt-1 font-display text-3xl">
