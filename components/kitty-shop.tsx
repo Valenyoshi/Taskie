@@ -49,9 +49,10 @@ export function KittyShop({
       <div className="kitty-shelves" aria-label="Estanterías de la tienda">
         <div className="kitty-shelf-level">
           <div className="kitty-shelf-product">
-            <div className="kitty-shelf-chip" aria-label="Check pixelado">
+            <div className="kitty-shelf-chip" aria-hidden>
               <PixelCheck />
             </div>
+            <strong className="kitty-shelf-title">Check Retro Pixel</strong>
             <small className="kitty-shelf-cost">100 sombreros · 3–4 tareas</small>
             <div className="kitty-shelf-actions">
               {ownedRetroCheck ? (
