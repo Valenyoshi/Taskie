@@ -1,13 +1,13 @@
 export function HatIcon({ size = 42 }: { size?: number }) {
   return (
     <svg className="points-coin" width={size} height={size} viewBox="0 0 64 64" aria-hidden>
-      <ellipse cx="32" cy="48" rx="15" ry="8" fill="#145e54" />
-      <ellipse cx="32" cy="44" rx="15" ry="8.5" fill="#1c7c6e" />
-      <path d="M8 30.5 32 17l24 13.5L32 44Z" fill="#e8a317" />
-      <path d="M8 30.5 32 17v27Z" fill="#c98412" />
-      <path d="M16 29 32 20.5 46 29" fill="none" stroke="#fff4c8" strokeWidth="2.2" strokeLinecap="round" />
-      <circle cx="32" cy="30.5" r="3.6" fill="#fffaf6" />
-      <circle cx="32" cy="30.5" r="2.3" fill="#e25b45" />
+      <ellipse cx="32" cy="48" rx="15" ry="8" fill="#1a1410" />
+      <ellipse cx="32" cy="44" rx="15" ry="8.5" fill="#2c241f" />
+      <path d="M8 30.5 32 17l24 13.5L32 44Z" fill="#1a1410" />
+      <path d="M8 30.5 32 17v27Z" fill="#3a312b" />
+      <path d="M16 29 32 20.5 46 29" fill="none" stroke="#6d6258" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="32" cy="30.5" r="3.6" fill="#f6c445" />
+      <circle cx="32" cy="30.5" r="2.3" fill="#e8a317" />
       <path
         d="M34 32c6.5 3.2 11.5 8.2 13.5 15"
         fill="none"
@@ -15,7 +15,7 @@ export function HatIcon({ size = 42 }: { size?: number }) {
         strokeWidth="2.4"
         strokeLinecap="round"
       />
-      <path d="M45.5 49.5c2.2 0 4.2 1.5 4.2 3.4 0 2.6-2.4 4.7-4.2 6-1.8-1.3-4.2-3.4-4.2-6 0-1.9 2-3.4 4.2-3.4Z" fill="#e25b45" />
+      <path d="M45.5 49.5c2.2 0 4.2 1.5 4.2 3.4 0 2.6-2.4 4.7-4.2 6-1.8-1.3-4.2-3.4-4.2-6 0-1.9 2-3.4 4.2-3.4Z" fill="#f6c445" />
     </svg>
   );
 }
