@@ -21,7 +21,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const rewardKey = user.lastOpenDate ? `${user.id}:${user.lastOpenDate}:streak` : undefined;
 
   return (
-    <div data-theme={themeKey(user.equippedTheme)} className="min-h-dvh bg-background text-foreground">
+    <div
+      data-theme={themeKey(user.equippedTheme)}
+      data-retro-check={user.equippedTheme === "check-retro" ? "true" : undefined}
+      className="min-h-dvh bg-background text-foreground"
+    >
       <SectionWash />
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-5 pt-16 pb-44">
         <LogoutButton />

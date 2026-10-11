@@ -45,6 +45,15 @@ export function KittyShop({
           </div>
         </div>
       </div>
+      <div className="kitty-shelves" aria-label="Estanterías de la tienda">
+        <div className="kitty-shelf-level">
+          <div className="kitty-shelf-chip">
+            <span className="retro-check-preview" aria-hidden><span /></span>
+            <strong>Check Retro Pixel</strong>
+          </div>
+        </div>
+        <div className="kitty-shelf-level" aria-hidden />
+      </div>
       <article className="kitty-featured-product">
         <div className="kitty-product-preview retro-check-preview" aria-hidden>
           <span />
@@ -52,10 +61,17 @@ export function KittyShop({
         <div className="kitty-featured-copy">
           <p className="kitty-eyebrow">Nuevo en la tienda</p>
           <h2 className="font-display text-2xl">Check Retro Pixel</h2>
-          <p>Un check de videojuego que aparece cuando terminás una tarea.</p>
-          <small>Cuesta 100 sombreros · aproximadamente 3–4 tareas.</small>
+          <div className="kitty-featured-actions">
+            <small>100 sombreros · 3–4 tareas</small>
+            <details className="kitty-product-details">
+              <summary aria-label="Ver descripción">•••</summary>
+              <p>Un check de videojuego que aparece cuando terminás una tarea.</p>
+            </details>
+          </div>
           {ownedRetroCheck ? (
-            <EquipButton kind="theme" id="check-retro" equipped={equippedRetroCheck} />
+            <div className="kitty-purchase">
+              <EquipButton kind="theme" id="check-retro" equipped={equippedRetroCheck} />
+            </div>
           ) : (
             <PurchaseButton id="check-retro" cost={100} points={points} />
           )}

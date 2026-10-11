@@ -21,7 +21,6 @@ export const REWARDS: RewardDef[] = [
     kind: "theme",
     rarity: "rare",
     blurb: "Un check pixelado para celebrar cada tarea terminada.",
-    theme: "retro",
     cost: 100,
   },
   { id: "lapiz", name: "Lápiz", emoji: "✏️", kind: "medal", rarity: "common", blurb: "El de siempre." },
