@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { POINTS } from "@/lib/game";
 
 const COLORS = ["#e25b45", "#e8a317", "#1c7c6e", "#fff6d8", "#f3c04a"];
 
@@ -98,10 +97,10 @@ export function GoalBars({
     <>
       <div className="grid grid-cols-2 gap-3">
         <section className="zone zone-day rise-in">
-          <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} reward={POINTS.daily} />
+          <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
         </section>
         <section className="zone zone-week rise-in">
-          <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} reward={POINTS.weekly} />
+          <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} />
         </section>
       </div>
       {confetti
@@ -132,12 +131,10 @@ function Meter({
   label,
   done,
   total,
-  reward,
 }: {
   label: string;
   done: number;
   total: number;
-  reward: number;
 }) {
   const width = `${total ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0}%`;
   return (
@@ -149,7 +146,6 @@ function Meter({
       <div className="relative h-3 overflow-hidden rounded-full bg-white/35">
         <div className="meter-fill h-full rounded-full bg-white" style={{ width }} />
       </div>
-      <p className="mt-2 text-[11px] font-bold opacity-75">Recompensa: +{reward} sombreros</p>
     </div>
   );
 }

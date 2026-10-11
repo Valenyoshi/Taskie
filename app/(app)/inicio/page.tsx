@@ -36,7 +36,7 @@ export default async function InicioPage() {
 
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl">Por hacer</h2>
-        <SyncButton />
+        <SyncButton autoSync={!user.isDemo} />
       </div>
       {user.syncError ? <p className="text-sm text-destructive">{user.syncError}</p> : null}
 
