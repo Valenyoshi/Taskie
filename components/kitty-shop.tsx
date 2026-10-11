@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { EquipButton } from "@/components/equip-button";
+import { PixelCheck } from "@/components/pixel-check";
 import { PurchaseButton } from "@/components/purchase-button";
 
 export function KittyShop({
@@ -47,36 +48,29 @@ export function KittyShop({
       </div>
       <div className="kitty-shelves" aria-label="Estanterías de la tienda">
         <div className="kitty-shelf-level">
-          <div className="kitty-shelf-chip">
-            <span className="retro-check-preview" aria-hidden><span /></span>
-            <strong>Check Retro Pixel</strong>
+          <div className="kitty-shelf-product">
+            <div className="kitty-shelf-chip">
+              <span className="kitty-shelf-chip-preview" aria-hidden><PixelCheck /></span>
+              <strong>Check Retro Pixel</strong>
+            </div>
+            <small className="kitty-shelf-cost">100 sombreros · 3–4 tareas</small>
+            <div className="kitty-shelf-actions">
+              {ownedRetroCheck ? (
+                <EquipButton kind="theme" id="check-retro" equipped={equippedRetroCheck} />
+              ) : (
+                <PurchaseButton id="check-retro" cost={100} points={points} />
+              )}
+              <details className="kitty-product-details">
+                <summary>Más información</summary>
+                <div className="kitty-product-info">
+                  Un check de videojuego que aparece cuando terminás una tarea.
+                </div>
+              </details>
+            </div>
           </div>
         </div>
         <div className="kitty-shelf-level" aria-hidden />
       </div>
-      <article className="kitty-featured-product">
-        <div className="kitty-product-preview retro-check-preview" aria-hidden>
-          <span />
-        </div>
-        <div className="kitty-featured-copy">
-          <p className="kitty-eyebrow">Nuevo en la tienda</p>
-          <h2 className="font-display text-2xl">Check Retro Pixel</h2>
-          <div className="kitty-featured-actions">
-            <small>100 sombreros · 3–4 tareas</small>
-            <details className="kitty-product-details">
-              <summary aria-label="Ver descripción">•••</summary>
-              <p>Un check de videojuego que aparece cuando terminás una tarea.</p>
-            </details>
-          </div>
-          {ownedRetroCheck ? (
-            <div className="kitty-purchase">
-              <EquipButton kind="theme" id="check-retro" equipped={equippedRetroCheck} />
-            </div>
-          ) : (
-            <PurchaseButton id="check-retro" cost={100} points={points} />
-          )}
-        </div>
-      </article>
     </section>
   );
 }

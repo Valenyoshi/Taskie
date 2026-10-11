@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
+import { PixelCheck } from "@/components/pixel-check";
 import { SubjectMark } from "@/components/subject-mark";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
@@ -228,7 +229,10 @@ export function TaskCard({ task }: { task: TaskView }) {
       <span className={`card-line ${struck ? "on" : ""}`} style={{ top: lineTop, color }} />
       {phase === "check" || phase === "leave" ? (
         <div className="card-cover" aria-hidden>
-          <span className="card-cover-mark">✓</span>
+          <span className="card-cover-mark">
+            <span className="default-check-mark">✓</span>
+            <PixelCheck />
+          </span>
         </div>
       ) : null}
       {open || task.kind === "archivo" ? (
