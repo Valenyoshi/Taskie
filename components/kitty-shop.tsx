@@ -2,6 +2,7 @@ import Image from "next/image";
 import { EquipButton } from "@/components/equip-button";
 import { PixelCheck } from "@/components/pixel-check";
 import { PurchaseButton } from "@/components/purchase-button";
+import { HatIcon } from "@/components/school-icon";
 
 export function KittyShop({
   name,
@@ -47,13 +48,18 @@ export function KittyShop({
         </div>
       </div>
       <div className="kitty-shelves" aria-label="Estanterías de la tienda">
-        <div className="kitty-shelf-level">
-          <div className="kitty-shelf-product">
+        <div className="kitty-shelf-product">
+          <div className="kitty-shelf-level">
             <div className="kitty-shelf-chip" aria-hidden>
               <PixelCheck />
             </div>
+          </div>
+          <div className="kitty-shelf-meta">
             <strong className="kitty-shelf-title">Check Retro Pixel</strong>
-            <small className="kitty-shelf-cost">100 sombreros · 3–4 tareas</small>
+            <span className="kitty-shelf-cost">
+              100
+              <HatIcon size={16} />
+            </span>
             <div className="kitty-shelf-actions">
               {ownedRetroCheck ? (
                 <EquipButton kind="theme" id="check-retro" equipped={equippedRetroCheck} />

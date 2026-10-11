@@ -2326,19 +2326,19 @@ button:disabled {
 
 .kitty-shelf-level {
   display: flex;
-  min-height: 68px;
+  min-height: 52px;
   align-items: end;
   border-bottom: 10px solid #8f5429;
   border-radius: 5px;
   background: linear-gradient(180deg, rgba(255, 250, 235, 0.36), rgba(255, 250, 235, 0.1));
   box-shadow: 0 4px 0 #6b3e20;
-  padding: 6px 12px 9px;
+  padding: 4px 12px 6px;
 }
 
 .kitty-shelf-chip {
   display: grid;
-  width: 168px;
-  height: 46px;
+  width: 118px;
+  height: 32px;
   place-items: center;
   border-radius: 999px;
   background: #253449;
@@ -2346,33 +2346,51 @@ button:disabled {
 
 .kitty-shelf-chip .pixel-check {
   display: block;
-  width: 34px;
-  height: 24px;
+  width: 24px;
+  height: 18px;
   color: #629c11;
   image-rendering: pixelated;
-}
-
-.kitty-shelf-title {
-  margin: 0 0 0 4px;
-  color: #713b1f;
-  font-size: 0.82rem;
-  font-weight: 800;
 }
 
 .kitty-shelf-product {
   position: relative;
   display: flex;
-  width: min(100%, 220px);
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.kitty-shelf-meta {
+  display: flex;
+  width: min(100%, 168px);
   flex-direction: column;
   align-items: flex-start;
-  gap: 7px;
+  gap: 5px;
+  padding: 0 12px;
+}
+
+.kitty-shelf-title {
+  margin: 0;
+  color: #253449;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .kitty-shelf-cost {
-  margin-left: 4px;
-  color: #9a592b;
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #253449;
+  font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1;
+}
+
+.kitty-shelf-cost .points-coin {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .kitty-shelf-actions {
@@ -2385,11 +2403,11 @@ button:disabled {
 .kitty-shelf-actions .kitty-product-details summary {
   width: 34px;
   height: 34px;
-  border: 2px solid #d59a52;
+  border: 2px solid #253449;
   border-radius: 999px;
   background: #fffaf0;
   padding: 0 0 6px;
-  color: #713b1f;
+  color: #253449;
   font-size: 1.15rem;
   font-weight: 900;
   letter-spacing: 0.02em;
