@@ -496,7 +496,6 @@ export async function fetchLmsUploads(input: {
     const seen = new Set<string>();
     for (const event of events) {
       if (event.modulename !== "assign" || event.eventtype !== "due") continue;
-      if (!/entrega/i.test(event.action?.name ?? "")) continue;
       const id = String(event.instance || event.id);
       if (seen.has(id)) continue;
       seen.add(id);
@@ -518,6 +517,30 @@ export async function fetchLmsUploads(input: {
     return { ok: true, tasks: tasks.filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, input.timeZone)) };
   } catch {
     return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
+  }
+}
+
+export async function fetchLmsAssignmentStatuses(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  tasks: { externalId: string; url: string | null }[];
+}): Promise<{ externalId: string; status: "pending" | "done" }[]> {
+  if (input.tasks.length === 0) return [];
+  try {
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return [];
+    const result: { externalId: string; status: "pending" | "done" }[] = [];
+    for (const task of input.tasks) {
+      const id = Number(/^lms-(\d+)$/.exec(task.externalId)?.[1]);
+      result.push({
+        externalId: task.externalId,
+        status: await lmsAssignmentStatus(session.jar, session.root, session.sesskey, Number.isFinite(id) ? id : undefined, task.url),
+      });
+    }
+    return result;
+  } catch {
+    return [];
   }
 }
 

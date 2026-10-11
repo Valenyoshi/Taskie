@@ -1,6 +1,6 @@
-import { dropOldUntracked, findUserById, insertTask, setSyncResult } from "./db";
+import { dropOldUntracked, findUserById, insertTask, listTasks, setSyncResult } from "./db";
 import { decryptSecret } from "./secret";
-import { fetchEducamosTasks, fetchLmsUploads, lmsBase } from "./educamos";
+import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
 import { localDateString, zonedTimeToUtc } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
@@ -38,6 +38,20 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
         timeZone: user.timezone,
       })
     : { ok: true as const, tasks: [] };
+  const existingLms = classroom
+    ? listTasks(userId)
+        .filter((task) => task.source === "lms" && task.externalId && task.educamosUrl)
+        .map((task) => ({ externalId: task.externalId as string, url: task.educamosUrl, task }))
+    : [];
+  const checkedLms = classroom
+    ? await fetchLmsAssignmentStatuses({
+        lmsUrl: classroom,
+        username: user.educamosUsername,
+        password,
+        tasks: existingLms.map(({ externalId, url }) => ({ externalId, url })),
+      })
+    : [];
+  const checkedById = new Map(checkedLms.map((item) => [item.externalId, item.status]));
 
   if (!result.ok && !uploads.ok) {
     setSyncResult(userId, result.error);
@@ -48,6 +62,19 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
   const tasks = [
     ...(result.ok ? result.tasks.map((task) => ({ ...task, source: "educamos" })) : []),
     ...(uploads.ok ? uploads.tasks.map((task) => ({ ...task, source: "lms" })) : []),
+    ...existingLms
+      .filter(({ externalId }) => checkedById.has(externalId))
+      .map(({ task, externalId }) => ({
+        externalId,
+        subject: task.subject,
+        title: task.title,
+        description: task.description,
+        dueAt: task.dueAt,
+        status: checkedById.get(externalId) ?? task.status,
+        needsFile: task.needsFile,
+        url: task.educamosUrl,
+        source: "lms",
+      })),
   ];
   for (const task of tasks) {
     insertTask({
