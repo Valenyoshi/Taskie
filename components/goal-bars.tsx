@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
-const COLORS = ["#e25b45", "#e8a317", "#1c7c6e", "#fff6d8", "#f3c04a"];
+type Metrics = {
+  dayDone: number;
+  dayNeed: number;
+  weekDone: number;
+  weekNeed: number;
+};
+
+type Celebration = { day: boolean; week: boolean };
 
 export function GoalBars({
   dailyClosed,
@@ -16,18 +22,23 @@ export function GoalBars({
   weeklyClosed: number;
   weeklyTotal: number;
 }) {
-  const [boost, setBoost] = useState({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
-  const [confetti, setConfetti] = useState(false);
-  const [bits, setBits] = useState<{ left: number; delay: number; color: string; drift: number; spin: number }[]>([]);
+  const [boost, setBoost] = useState({ dayClosed: 0, weekClosed: 0 });
+  const [celebrating, setCelebrating] = useState<Celebration>({ day: false, week: false });
+  const timers = useRef<{ day?: number; week?: number }>({});
+  const firstMetrics = {
+    dayDone: dailyClosed,
+    dayNeed: dailyTotal,
+    weekDone: weeklyClosed,
+    weekNeed: weeklyTotal,
+  };
+  const previous = useRef<Metrics>(firstMetrics);
 
   useEffect(() => {
     function onDone(event: Event) {
       const detail = (event as CustomEvent<{ daily?: boolean; weekly?: boolean }>).detail ?? {};
       setBoost((current) => ({
         dayClosed: current.dayClosed + (detail.daily ? 1 : 0),
-        dayTotal: current.dayTotal,
         weekClosed: current.weekClosed + (detail.weekly ? 1 : 0),
-        weekTotal: current.weekTotal,
       }));
     }
     window.addEventListener("racha-task-done", onDone);
@@ -35,95 +46,74 @@ export function GoalBars({
   }, []);
 
   useEffect(() => {
-    setBoost({ dayClosed: 0, dayTotal: 0, weekClosed: 0, weekTotal: 0 });
+    setBoost({ dayClosed: 0, weekClosed: 0 });
   }, [dailyClosed, dailyTotal, weeklyClosed, weeklyTotal]);
 
-  const dayDone = dailyClosed + boost.dayClosed;
-  const dayNeed = dailyTotal + boost.dayTotal;
-  const weekDone = weeklyClosed + boost.weekClosed;
-  const weekNeed = weeklyTotal + boost.weekTotal;
-  const [shown, setShown] = useState({ dayDone, dayNeed, weekDone, weekNeed });
-  const party = useRef(false);
-
   useEffect(() => {
-    const snapshot = `${dayDone}/${dayNeed}|${weekDone}/${weekNeed}`;
-    const next = { dayDone, dayNeed, weekDone, weekNeed };
-    if (party.current) return;
-    const later = (run: () => void, ms: number) => {
-      window.setTimeout(run, ms);
+    const next: Metrics = {
+      dayDone: dailyClosed + boost.dayClosed,
+      dayNeed: dailyTotal,
+      weekDone: weeklyClosed + boost.weekClosed,
+      weekNeed: weeklyTotal,
     };
-    later(() => {
-      if (party.current) return;
-      const date = new Date().toLocaleDateString("en-CA");
-      const packed = `${date}|${snapshot}`;
-      const raw = sessionStorage.getItem("racha-goals");
-      sessionStorage.setItem("racha-goals", packed);
-      const previous = raw?.startsWith(`${date}|`) ? raw.slice(date.length + 1) : null;
-      if (!previous || previous === snapshot) {
-        setShown(next);
-        return;
+    const wasDayOpen = previous.current.dayNeed > 0 && previous.current.dayDone < previous.current.dayNeed;
+    const wasWeekOpen = previous.current.weekNeed > 0 && previous.current.weekDone < previous.current.weekNeed;
+    const dayJustCompleted = wasDayOpen && next.dayDone >= next.dayNeed;
+    const weekJustCompleted = wasWeekOpen && next.weekDone >= next.weekNeed;
+
+    if (dayJustCompleted || weekJustCompleted) {
+      const nextCelebration = { day: dayJustCompleted, week: weekJustCompleted };
+      setCelebrating((current) => ({ day: current.day || nextCelebration.day, week: current.week || nextCelebration.week }));
+      if (dayJustCompleted) {
+        window.clearTimeout(timers.current.day);
+        timers.current.day = window.setTimeout(() => {
+          setCelebrating((current) => ({ ...current, day: false }));
+        }, 1150);
       }
-      const [dayPart, weekPart] = previous.split("|");
-      const [prevDay, prevDayTotal] = (dayPart ?? "0/0").split("/").map(Number);
-      const [prevWeek, prevWeekTotal] = (weekPart ?? "0/0").split("/").map(Number);
-      const dayJust = prevDayTotal > 0 && prevDay < prevDayTotal && dayNeed > 0 && dayDone === dayNeed;
-      const weekJust = prevWeekTotal > 0 && prevWeek < prevWeekTotal && weekNeed > 0 && weekDone === weekNeed;
-      if (!dayJust && !weekJust) {
-        setShown(next);
-        return;
+      if (weekJustCompleted) {
+        window.clearTimeout(timers.current.week);
+        timers.current.week = window.setTimeout(() => {
+          setCelebrating((current) => ({ ...current, week: false }));
+        }, 1150);
       }
-      party.current = true;
-      setBits(
-        Array.from({ length: 56 }, (_, index) => ({
-          left: Math.round((index * 17) % 100),
-          delay: (index % 8) * 0.04,
-          color: COLORS[index % COLORS.length],
-          drift: (index % 2 === 0 ? -1 : 1) * (12 + (index % 5) * 8),
-          spin: 180 + (index % 6) * 60,
-        })),
-      );
-      later(() => setShown(next), 900);
-      later(() => {
-        setConfetti(true);
-      }, 1800);
-      later(() => {
-        setConfetti(false);
-        party.current = false;
-      }, 4200);
-    }, 40);
-  }, [dayDone, dayNeed, weekDone, weekNeed]);
+    }
+    previous.current = next;
+  }, [boost, dailyClosed, dailyTotal, weeklyClosed, weeklyTotal]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(timers.current.day);
+      window.clearTimeout(timers.current.week);
+    },
+    [],
+  );
+
+  const metrics: Metrics = {
+    dayDone: dailyClosed + boost.dayClosed,
+    dayNeed: dailyTotal,
+    weekDone: weeklyClosed + boost.weekClosed,
+    weekNeed: weeklyTotal,
+  };
+  const bars = [
+    { key: "day" as const, label: "Hoy", done: metrics.dayDone, total: metrics.dayNeed },
+    { key: "week" as const, label: "Semana", done: metrics.weekDone, total: metrics.weekNeed },
+  ].filter(({ key, done, total }) => celebrating[key] || (total > 0 && done < total));
+
+  if (bars.length === 0) return null;
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3">
-        <section className="zone zone-day rise-in">
-          <Meter label="Hoy" done={shown.dayDone} total={shown.dayNeed} />
+    <div className={bars.length === 1 ? "grid grid-cols-1 gap-3" : "grid grid-cols-2 gap-3"}>
+      {bars.map(({ key, label, done, total }) => (
+        <section key={key} className={`zone ${key === "day" ? "zone-day" : "zone-week"} rise-in`}>
+          <Meter label={label} done={done} total={total} />
+          {celebrating[key] ? (
+            <div className="goal-check" aria-label={`${label} completado`}>
+              <span>✓</span>
+            </div>
+          ) : null}
         </section>
-        <section className="zone zone-week rise-in">
-          <Meter label="Semana" done={shown.weekDone} total={shown.weekNeed} />
-        </section>
-      </div>
-      {confetti
-        ? createPortal(
-            <div className="confetti-screen" aria-hidden>
-              {bits.map((bit, index) => (
-                <span
-                  key={index}
-                  className="confetti-bit"
-                  style={{
-                    left: `${bit.left}%`,
-                    background: bit.color,
-                    animationDelay: `${bit.delay}s`,
-                    ["--drift" as string]: `${bit.drift}px`,
-                    ["--spin" as string]: `${bit.spin}deg`,
-                  }}
-                />
-              ))}
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
+      ))}
+    </div>
   );
 }
 
