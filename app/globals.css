@@ -1455,7 +1455,10 @@
 }
 
 .section-wash.materias {
-  background: linear-gradient(165deg, #f6b7a8 0%, #f8d9cc 46%, #f6e3c4 100%);
+  background:
+    radial-gradient(circle at 8% 16%, rgba(255, 255, 255, 0.76) 0 12%, transparent 30%),
+    radial-gradient(circle at 90% 78%, rgba(222, 205, 255, 0.48) 0 11%, transparent 32%),
+    linear-gradient(165deg, #f3b0c5 0%, #fbdce4 48%, #f4edff 100%);
 }
 
 .section-wash.ranking {
@@ -1935,7 +1938,10 @@ button:disabled {
 }
 
 .section-wash.configuracion {
-  background: linear-gradient(165deg, #e4d9ce 0%, #f6f1ea 55%, #f3e4cc 100%);
+  background:
+    radial-gradient(circle at 88% 14%, rgba(255, 255, 255, 0.82) 0 12%, transparent 30%),
+    radial-gradient(circle at 12% 86%, rgba(201, 224, 255, 0.48) 0 12%, transparent 34%),
+    linear-gradient(165deg, #d9e8f7 0%, #f2eef9 48%, #fff5e5 100%);
 }
 
 .nav-scroll {
