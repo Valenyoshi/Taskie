@@ -1447,6 +1447,13 @@
   pointer-events: none;
 }
 
+.section-wash.inicio {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.86) 0 12%, transparent 30%),
+    radial-gradient(circle at 92% 82%, rgba(255, 207, 224, 0.72) 0 10%, transparent 32%),
+    linear-gradient(160deg, #f3a9c3 0%, #fbd8e4 36%, #fff8fb 72%, #ffffff 100%);
+}
+
 .section-wash.materias {
   background: linear-gradient(165deg, #f6b7a8 0%, #f8d9cc 46%, #f6e3c4 100%);
 }
