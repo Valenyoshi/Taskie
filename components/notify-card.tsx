@@ -95,16 +95,16 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
     try {
       const permission = await permissionAsk;
       if (permission === "denied") {
-        setMessage("El navegador bloqueó los avisos. Tocá el candado de la barra y permitilos.");
+        setMessage("El navegador bloqueó las notificaciones. Hacé clic en el icono de permisos de la barra para permitirlas.");
         return;
       }
       if (permission !== "granted") {
-        setMessage("Sin el permiso del navegador no puedo avisarte.");
+        setMessage("Se necesita permiso del navegador para recibir notificaciones.");
         return;
       }
-      await showNotice("Taskie", "Avisos activos.");
+      await showNotice("Taskie", "Notificaciones activadas.");
     } catch (error) {
-      setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No pude mostrar el aviso.");
+      setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No se pudo mostrar la notificación.");
     }
   }
 
@@ -114,22 +114,22 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
     try {
       const permission = await permissionAsk;
       if (permission === "denied") {
-        setMessage("El navegador bloqueó los avisos. Tocá el candado de la barra y permitilos.");
+        setMessage("El navegador bloqueó las notificaciones. Hacé clic en el icono de permisos de la barra para permitirlas.");
         setTesting(false);
         return;
       }
       if (permission !== "granted") {
-        setMessage("Sin el permiso del navegador no puedo avisarte.");
+        setMessage("Se necesita permiso del navegador para recibir notificaciones.");
         setTesting(false);
         return;
       }
       const where = await showNotice("Taskie", "Así te vamos a avisar cuando tengas tareas para entregar.");
       setMessage(
         where === "push"
-          ? "Listo. El aviso de prueba ya salió."
+          ? "Listo. Aviso de prueba enviado."
           : on
-            ? "El aviso salió en este navegador. El recordatorio automático llega mejor en Chrome de Android o con la app instalada."
-            : "El aviso salió en este navegador. Prendé el interruptor para que también te avise solo.",
+            ? "Aviso de prueba enviado en este navegador."
+            : "Aviso de prueba enviado. Activá el interruptor para recibir recordatorios automáticos.",
       );
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "timeout" ? error.message : "No pude mostrar el aviso.");
@@ -144,8 +144,8 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
           <Bell className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-2xl leading-none">Avisos</p>
-          <p className="mt-1 text-sm text-muted-foreground">Te recordamos las tareas de hoy y las que vencen pronto.</p>
+          <p className="font-display text-2xl leading-none">Notificaciones</p>
+          <p className="mt-1 text-sm text-muted-foreground">Recordatorios de tareas del día y próximas a vencer.</p>
         </div>
         <button
           type="button"
@@ -158,7 +158,7 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
           className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${on ? "bg-coral" : "bg-muted"}`}
         >
           <span className={`absolute top-1 size-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
-          <span className="sr-only">{on ? "Apagar avisos" : "Prender avisos"}</span>
+          <span className="sr-only">{on ? "Desactivar notificaciones" : "Activar notificaciones"}</span>
         </button>
       </div>
       <button
@@ -167,7 +167,7 @@ export function NotifyToggle({ enabled }: { enabled: boolean }) {
         disabled={testing}
         className="mt-4 h-11 w-full rounded-full bg-coral text-sm font-semibold text-white disabled:opacity-60"
       >
-        {testing ? "Probando…" : "Probar aviso"}
+        {testing ? "Enviando prueba…" : "Enviar notificación de prueba"}
       </button>
       {message ? <p className="mt-3 text-sm font-semibold text-foreground">{message}</p> : null}
     </section>
