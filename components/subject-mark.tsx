@@ -28,9 +28,9 @@ export function SubjectMark({ subject, size = 36 }: { subject: string; size?: nu
     case "mate":
       return (
         <svg {...box}>
-          <path d="M12 50 32 12l20 38H12z" fill="#fff" stroke={color} strokeWidth="3" strokeLinejoin="round" />
-          <path d="M22 50V38h10" fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" />
-          <path d="M28 28h8M32 24v8" stroke={color} strokeWidth="3" strokeLinecap="round" />
+          <path d="M12 18h40" stroke={color} strokeWidth="5" strokeLinecap="round" />
+          <path d="M22 18c0 14-1 20-9 24" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" />
+          <path d="M42 18v28" stroke={color} strokeWidth="5" strokeLinecap="round" />
         </svg>
       );
     case "bio":
@@ -79,10 +79,12 @@ export function SubjectMark({ subject, size = 36 }: { subject: string; size?: nu
     case "ciudad":
       return (
         <svg {...box}>
-          <path d="M32 12v40M16 52h32" stroke={color} strokeWidth="3" strokeLinecap="round" />
-          <path d="M14 22h36" stroke={color} strokeWidth="3" strokeLinecap="round" />
-          <path d="M14 22 8 36h12z" fill="#fff" stroke={color} strokeWidth="3" strokeLinejoin="round" />
-          <path d="M50 22 44 36h12z" fill={color} />
+          <circle cx="16" cy="22" r="6" fill="#fff" stroke={color} strokeWidth="3" />
+          <path d="M6 46c1-9 4-13 10-13s9 4 10 13" fill="#fff" stroke={color} strokeWidth="3" strokeLinejoin="round" />
+          <circle cx="48" cy="22" r="6" fill="#fff" stroke={color} strokeWidth="3" />
+          <path d="M38 46c1-9 4-13 10-13s9 4 10 13" fill="#fff" stroke={color} strokeWidth="3" strokeLinejoin="round" />
+          <circle cx="32" cy="24" r="7" fill={color} />
+          <path d="M18 52c1-11 6-16 14-16s13 5 14 16z" fill={color} />
         </svg>
       );
     case "codigo":
