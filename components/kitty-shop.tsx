@@ -17,14 +17,20 @@ export function KittyShop({
 }) {
   return (
     <section className="kitty-shop" aria-label="Temas">
-      <div className="kitty-shop-hello">
-        <Image src="/kitty.png" alt="Kitty" width={373} height={668} priority />
-        <p>¡Hola, {name}!</p>
+      <div className="kitty-stage">
+        <div className="kitty-shopkeeper">
+          <div className="kitty-dialogue" role="status">
+            <span>¡Hola, {name}!</span>
+          </div>
+          <Image src="/kitty.png" alt="Kitty, la dueña de la tienda" width={373} height={668} priority />
+        </div>
+        <div className="kitty-ledge" aria-label="Estante">
+          <div className="kitty-shelf-chip" aria-hidden>
+            <PixelCheck />
+          </div>
+        </div>
       </div>
       <article className="kitty-item">
-        <div className="kitty-shelf-chip" aria-hidden>
-          <PixelCheck />
-        </div>
         <div className="kitty-item-copy">
           <strong>Check Retro Pixel</strong>
           <span className="kitty-shelf-cost">
