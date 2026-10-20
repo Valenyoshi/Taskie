@@ -1,5 +1,5 @@
-import { KittyFace } from "@/components/kitty-face";
+import Image from "next/image";
 
 export function GeminiMark({ size = 28 }: { size?: number }) {
-  return <KittyFace size={size} className="gemini-mark" />;
+  return <Image className="gemini-mark" src="/kitty-head.png" alt="Kitty" width={size} height={size} />;
 }

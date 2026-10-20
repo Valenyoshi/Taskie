@@ -1,7 +1,7 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { KittyFace } from "@/components/kitty-face";
 
 export function TaskieLoader() {
   const [kitty, setKitty] = useState(false);
@@ -14,9 +14,7 @@ export function TaskieLoader() {
     <div className="taskie-loader" role="status" aria-label="Cargando Taskie">
       <div className={`taskie-loader-logo ${kitty ? "is-kitty" : ""}`} aria-hidden>
         {kitty ? (
-          <div className="taskie-loader-kitty">
-            <KittyFace size={82} />
-          </div>
+          <Image className="taskie-loader-kitty" src="/kitty-head.png" alt="" width={78} height={78} priority />
         ) : (
           <svg viewBox="0 0 96 96" width="72" height="72">
             <rect x="22" y="14" width="52" height="68" rx="7" fill="#fffaf0" stroke="#e8a317" strokeWidth="3" />

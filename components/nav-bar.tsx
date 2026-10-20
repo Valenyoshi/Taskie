@@ -13,11 +13,11 @@ import {
 import { cn } from "cn";
 
 const items = [
-  { href: "/inicio", label: "Inicio", icon: NavHomeIcon },
-  { href: "/materias", label: "Materias", icon: NavMateriasIcon },
-  { href: "/premios", label: "Tienda", icon: NavTiendaIcon },
-  { href: "/chat", label: "IA", icon: NavIaIcon },
-  { href: "/configuracion", label: "Configuración", icon: NavConfigIcon },
+  { href: "/inicio", label: "Inicio", icon: NavHomeIcon, motion: "home" },
+  { href: "/materias", label: "Materias", icon: NavMateriasIcon, motion: "subjects" },
+  { href: "/chat", label: "IA", icon: NavIaIcon, motion: "ia" },
+  { href: "/premios", label: "Temas", icon: NavTiendaIcon, motion: "store" },
+  { href: "/configuracion", label: "Configuración", icon: NavConfigIcon, motion: "settings" },
 ];
 
 export function NavBar() {
@@ -40,6 +40,7 @@ export function NavBar() {
                 href={item.href}
                 prefetch
                 ref={active ? activeRef : undefined}
+                data-motion={item.motion}
                 className={cn(
                   "nav-link flex w-[4.7rem] flex-col items-center gap-1 px-1 py-2 text-center text-[11px] leading-tight font-medium",
                   active ? "text-primary" : "text-muted-foreground",

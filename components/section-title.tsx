@@ -7,7 +7,7 @@ export function SectionTitle() {
   const pathname = usePathname();
   let title = "Taskie";
   if (pathname.startsWith("/materias")) title = "Materias";
-  else if (pathname.startsWith("/premios")) title = "Tienda de Kitty";
+  else if (pathname.startsWith("/premios")) title = "Temas";
   else if (pathname.startsWith("/chat")) title = "IA";
   else if (pathname.startsWith("/configuracion")) title = "Configuración";
 

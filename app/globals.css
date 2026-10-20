@@ -406,28 +406,28 @@
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.nav-scroll li:nth-child(1) .nav-link:hover .nav-icon,
-.nav-scroll li:nth-child(1) .nav-link:focus-visible .nav-icon {
+.nav-link[data-motion="home"]:hover .nav-icon,
+.nav-link[data-motion="home"]:focus-visible .nav-icon {
   animation-name: nav-home-hop;
 }
 
-.nav-scroll li:nth-child(2) .nav-link:hover .nav-icon,
-.nav-scroll li:nth-child(2) .nav-link:focus-visible .nav-icon {
+.nav-link[data-motion="subjects"]:hover .nav-icon,
+.nav-link[data-motion="subjects"]:focus-visible .nav-icon {
   animation-name: nav-subjects-flicker;
 }
 
-.nav-scroll li:nth-child(3) .nav-link:hover .nav-icon,
-.nav-scroll li:nth-child(3) .nav-link:focus-visible .nav-icon {
+.nav-link[data-motion="store"]:hover .nav-icon,
+.nav-link[data-motion="store"]:focus-visible .nav-icon {
   animation-name: nav-store-sway;
 }
 
-.nav-scroll li:nth-child(4) .nav-link:hover .nav-icon,
-.nav-scroll li:nth-child(4) .nav-link:focus-visible .nav-icon {
+.nav-link[data-motion="ia"]:hover .nav-icon,
+.nav-link[data-motion="ia"]:focus-visible .nav-icon {
   animation-name: nav-ia-spark;
 }
 
-.nav-scroll li:nth-child(5) .nav-link:hover .nav-icon,
-.nav-scroll li:nth-child(5) .nav-link:focus-visible .nav-icon {
+.nav-link[data-motion="settings"]:hover .nav-icon,
+.nav-link[data-motion="settings"]:focus-visible .nav-icon {
   animation-name: nav-settings-spin;
 }
 
