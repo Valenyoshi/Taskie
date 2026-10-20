@@ -12,16 +12,5 @@ export function SectionWash() {
   else if (pathname.startsWith("/configuracion")) tone = "configuracion";
   if (!tone) return null;
 
-  return (
-    <div className={`section-wash ${tone}`} aria-hidden>
-      {tone === "tienda" ? (
-        <>
-          <span className="wash-blob a" />
-          <span className="wash-blob b" />
-          <span className="wash-blob c" />
-          <span className="wash-blob d" />
-        </>
-      ) : null}
-    </div>
-  );
+  return <div className={`section-wash ${tone}`} aria-hidden />;
 }
