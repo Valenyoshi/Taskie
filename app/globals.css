@@ -1475,9 +1475,9 @@
 
 .section-wash.materias {
   background:
-    radial-gradient(circle at 8% 16%, rgba(255, 255, 255, 0.8) 0 12%, transparent 30%),
-    radial-gradient(circle at 90% 78%, rgba(201, 231, 214, 0.58) 0 11%, transparent 32%),
-    linear-gradient(165deg, #f7c18f 0%, #ffe8c9 48%, #e8f3e7 100%);
+    radial-gradient(circle at 12% 14%, rgba(255, 255, 255, 0.9) 0 12%, transparent 32%),
+    radial-gradient(circle at 90% 82%, rgba(255, 196, 77, 0.55) 0 14%, transparent 36%),
+    linear-gradient(165deg, #ffe07a 0%, #fff3c4 44%, #fffdf6 100%);
 }
 
 .section-wash.ranking {
@@ -1973,7 +1973,9 @@ button:disabled {
 
 .section-wash.tienda {
   overflow: hidden;
-  background: linear-gradient(180deg, #efd2a4 0%, #c4843c 52%, #6b4423 100%);
+  background:
+    radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.72) 0 10%, transparent 30%),
+    linear-gradient(168deg, #cbb6f6 0%, #e7dcff 42%, #f8f4ff 100%);
 }
 
 .wash-blob {
@@ -1987,7 +1989,7 @@ button:disabled {
   left: -18%;
   width: 78%;
   height: 46%;
-  background: #f6e2bc;
+  background: #f4edff;
 }
 
 .wash-blob.b {
@@ -1995,8 +1997,8 @@ button:disabled {
   right: -24%;
   width: 70%;
   height: 42%;
-  background: #4a2e16;
-  opacity: 0.72;
+  background: #8d6adf;
+  opacity: 0.42;
 }
 
 .wash-blob.c {
@@ -2004,7 +2006,7 @@ button:disabled {
   left: -10%;
   width: 74%;
   height: 40%;
-  background: #8a5a22;
+  background: #b89af2;
   filter: blur(64px);
 }
 
@@ -2013,8 +2015,8 @@ button:disabled {
   left: 18%;
   width: 54%;
   height: 28%;
-  background: #e7c48a;
-  opacity: 0.85;
+  background: #fff;
+  opacity: 0.8;
   filter: blur(54px);
 }
 

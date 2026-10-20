@@ -29,16 +29,16 @@ export function NavMateriasIcon({ className = "size-5" }: { className?: string }
   );
 }
 
-export function NavTiendaIcon({ className = "size-5" }: { className?: string }) {
+export function NavTemasIcon({ className = "size-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {/* Toldo curvado de puestito escolar */}
-      <path d="M3.2 9.5c.6-3.8 2.2-5.5 8.8-5.5s8.2 1.7 8.8 5.5" strokeWidth="2" />
-      <path d="M3 9.5c1 1.6 2.8 1.6 3.8 0 1 1.6 2.8 1.6 3.8 0 1 1.6 2.8 1.6 3.8 0 1 1.6 2.8 1.6 3.8 0 .8 1.2 2 1.2 2.8 0" strokeWidth="1.9" />
-      {/* Mostrador de madera */}
-      <path d="M4.5 11v8.8c0 .9.7 1.7 1.6 1.7h11.8c.9 0 1.6-.8 1.6-1.7V11" strokeWidth="2" />
-      {/* Ventanita de tienda con detalle */}
-      <path d="M9 15h6" strokeWidth="2" />
+      <path
+        d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
+        strokeWidth="2"
+      />
+      <circle cx="8.5" cy="7.5" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="13.5" cy="6.5" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="10.5" r="1.15" fill="currentColor" stroke="none" />
     </svg>
   );
 }
