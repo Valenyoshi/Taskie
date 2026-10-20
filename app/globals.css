@@ -1978,48 +1978,6 @@ button:disabled {
     linear-gradient(165deg, #e7a888 0%, #f8dccb 48%, #fff7f2 100%);
 }
 
-.wash-blob {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(46px);
-}
-
-.wash-blob.a {
-  top: -12%;
-  left: -18%;
-  width: 78%;
-  height: 46%;
-  background: #f4edff;
-}
-
-.wash-blob.b {
-  top: 18%;
-  right: -24%;
-  width: 70%;
-  height: 42%;
-  background: #8d6adf;
-  opacity: 0.42;
-}
-
-.wash-blob.c {
-  bottom: -8%;
-  left: -10%;
-  width: 74%;
-  height: 40%;
-  background: #b89af2;
-  filter: blur(64px);
-}
-
-.wash-blob.d {
-  top: 42%;
-  left: 18%;
-  width: 54%;
-  height: 28%;
-  background: #fff;
-  opacity: 0.8;
-  filter: blur(54px);
-}
-
 .taskie-brand {
   display: inline-flex;
   align-items: center;
