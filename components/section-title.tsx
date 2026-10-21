@@ -43,8 +43,18 @@ export function SectionTitle({ username }: { username: string }) {
     );
   }
 
+  const toneClass =
+    tone === "materias"
+      ? "section-title-materias"
+      : tone === "tienda"
+        ? "section-title-tienda"
+        : tone === "chat"
+          ? "section-title-chat"
+          : tone === "configuracion"
+            ? "section-title-configuracion"
+            : "";
   return (
-    <p className={`gradient-text section-title-${tone} font-display leading-none ${title.length > 12 ? "text-4xl sm:text-5xl" : "text-5xl"}`}>
+    <p className={`gradient-text ${toneClass} font-display leading-none ${title.length > 12 ? "text-4xl sm:text-5xl" : "text-5xl"}`}>
       {title}
     </p>
   );
