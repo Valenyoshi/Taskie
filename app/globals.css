@@ -1508,13 +1508,13 @@
 .section-wash::before {
   top: 6%;
   left: -6%;
-  animation: wash-float-a 24s ease-in-out infinite;
+  animation: wash-float-a 8s ease-in-out infinite;
 }
 
 .section-wash::after {
   right: -8%;
   bottom: 8%;
-  animation: wash-float-b 31s ease-in-out infinite;
+  animation: wash-float-b 11s ease-in-out infinite;
 }
 
 .section-wash.inicio::before {
