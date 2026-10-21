@@ -4,18 +4,20 @@ export type SchoolCourse = { id: string; label: string };
 
 export function courseGroup(name: string): { key: string; label: string } | null {
   const clean = name.normalize("NFD").replace(/\p{M}/gu, "");
+  const es = clean.match(/(\d+)\s*[º°o]?\s*ES\s*[-–]?\s*([A-Za-z])\b/i);
+  if (es && /^[A-Za-z]$/.test(es[2])) {
+    const letter = es[2].toUpperCase();
+    return { key: `${es[1]}-${letter}`, label: `${es[1]}º ES-${letter}` };
+  }
   const patterns = [
-    /(\d+)\s*[º°o]?\s*ES\s*[-–]?\s*([A-Za-z])\b/i,
     /(\d+)\s*[º°o]\s*(?:ano|año)\s*[-–]?\s*([A-Za-z])\b/i,
     /(\d+)\s*[º°o]\s*([A-Za-z])\b/,
   ];
   for (const pattern of patterns) {
     const match = clean.match(pattern);
-    if (!match) continue;
-    const year = match[1];
+    if (!match || !/^[A-Za-z]$/.test(match[2])) continue;
     const letter = match[2].toUpperCase();
-    if (!/^[A-Z]$/.test(letter)) continue;
-    return { key: `${year}-${letter}`, label: `${year}º ${letter}` };
+    return { key: `${match[1]}-${letter}`, label: `${match[1]}º ${letter}` };
   }
   return null;
 }
@@ -27,6 +29,28 @@ export function coursesFromNames(names: string[]): SchoolCourse[] {
     if (group && !courses.has(group.key)) courses.set(group.key, group.label);
   }
   return [...courses.entries()].map(([id, label]) => ({ id, label }));
+}
+
+export function courseKeyFromTitle(title: string, peers: { title: string; courseKey?: string | null }[]): string | null {
+  const needle = foldCourseText(title);
+  if (needle.length < 6) return null;
+  const keys = new Set<string>();
+  for (const peer of peers) {
+    if (!peer.courseKey) continue;
+    const hay = foldCourseText(peer.title);
+    if (hay && (hay.includes(needle) || needle.includes(hay))) keys.add(peer.courseKey);
+  }
+  return keys.size === 1 ? [...keys][0] : null;
+}
+
+function foldCourseText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/^vencimiento de\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 export function courseIdForName(name: string, courses: SchoolCourse[]): string | null {

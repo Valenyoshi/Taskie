@@ -1,4 +1,4 @@
-import { courseGroup, courseIdForName, coursesFromNames, type SchoolCourse } from "./courses";
+import { courseGroup, courseIdForName, courseKeyFromTitle, coursesFromNames, type SchoolCourse } from "./courses";
 import { educamosLogin, hasEducamosLogin } from "./credentials";
 import { dropOldUntracked, findUserById, insertTask, listTasks, saveCourseDiscovery, setSyncResult, tagTaskCourse } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
@@ -69,10 +69,6 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
         : remembered.length >= 2
           ? remembered
           : [];
-  const courseKeyFor = (subject: string, explicit?: string | null) => {
-    if (explicit && courses.some((course) => course.id === explicit)) return explicit;
-    return courseIdForName(subject, courses) ?? explicit ?? courseGroup(subject)?.key ?? null;
-  };
 
   const now = new Date().toISOString();
   const tasks = [
@@ -93,6 +89,16 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
         courseKey: task.courseKey,
       })),
   ];
+  const courseKeyFor = (subject: string, title: string, explicit?: string | null) => {
+    if (explicit && courses.some((course) => course.id === explicit)) return explicit;
+    return (
+      courseIdForName(subject, courses) ??
+      explicit ??
+      courseGroup(subject)?.key ??
+      courseKeyFromTitle(title, tasks) ??
+      null
+    );
+  };
   for (const task of tasks) {
     insertTask({
       id: crypto.randomUUID(),
@@ -106,10 +112,10 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
       source: task.source,
       educamosUrl: task.url,
       needsFile: task.source === "lms" ? true : task.needsFile,
-      courseKey: courseKeyFor(task.subject, task.courseKey),
+      courseKey: courseKeyFor(task.subject, task.title, task.courseKey),
       createdAt: now,
     });
-    const key = courseKeyFor(task.subject, task.courseKey);
+    const key = courseKeyFor(task.subject, task.title, task.courseKey);
     if (task.externalId && key) tagTaskCourse(userId, task.externalId, key);
   }
   saveCourseDiscovery(userId, courses);

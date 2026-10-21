@@ -175,7 +175,7 @@ export function homeData(userId: string) {
   const user = findUserById(userId);
   if (!user) return null;
   const tasks = visibleTasks(user, listTasks(userId)).filter(
-    (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone),
+    (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone) || Boolean(task.courseKey),
   );
   const views = tasks.map((task) => toTask(task, user.timezone));
   return {

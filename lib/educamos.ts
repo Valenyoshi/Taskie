@@ -504,55 +504,77 @@ export async function fetchLmsUploads(input: {
     const session = await loginLms(input.lmsUrl, input.username, input.password);
     if (!session.ok) return session;
     const { jar, root, sesskey } = session;
-    const now = Math.floor(Date.now() / 1000);
-    const parsed = await moodleCall(jar, root, sesskey, [
-      {
-        methodname: "core_calendar_get_action_events_by_timesort",
-        args: {
-          limitnum: 50,
-          timesortfrom: now - 4 * 86400,
-          timesortto: now + 180 * 86400,
-          limittononsuspendedevents: true,
-        },
-      },
-    ]);
-    const events = (parsed[0]?.data as { events?: LmsEvent[] } | undefined)?.events ?? [];
-    const tasks: RemoteTask[] = [];
-    const seen = new Set<string>();
-    for (const event of events) {
-      if (event.modulename !== "assign" || event.eventtype !== "due") continue;
-      const id = String(event.instance || event.id);
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const subject = event.course?.fullname?.trim();
-      const title = (event.activityname || event.name || "").replace(/^vencimiento de\s+/i, "").trim();
-      if (!subject || !title) continue;
-      const url = event.url || event.action?.url || `${root}/mod/assign/view.php?id=${id}`;
-      tasks.push({
-        externalId: `lms-${id}`,
-        subject,
-        title,
-        description: "Punto de entrega del aula. Hay que subir un archivo.",
-        dueAt: new Date((event.timesort || event.timestart || now) * 1000).toISOString(),
-        status: await lmsAssignmentStatus(jar, root, sesskey, event.instance, url),
-        needsFile: true,
-        url,
-        courseKey: courseGroup(subject)?.key ?? null,
-      });
-    }
-    const enrolled = await moodleCall(jar, root, sesskey, [
+    const listed = await moodleCall(jar, root, sesskey, [
       {
         methodname: "core_course_get_enrolled_courses_by_timeline_classification",
         args: { offset: 0, limit: 48, classification: "inprogress", sort: "fullname" },
       },
     ]);
-    const names = ((enrolled[0]?.data as { courses?: { fullname?: string }[] } | undefined)?.courses ?? [])
-      .map((course) => htmlToText(course.fullname ?? ""))
-      .filter(Boolean);
+    const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
+      .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
+      .filter((course) => course.id && course.name);
+    const calendars = enrolled.length
+      ? await moodleCall(
+          jar,
+          root,
+          sesskey,
+          enrolled.map((course) => ({
+            methodname: "core_calendar_get_action_events_by_course",
+            args: { courseid: course.id, limitnum: 40 },
+          })),
+        )
+      : [];
+    const candidates: { id: string; instance?: number; title: string; dueAt: string; url: string; subject: string; courseKey: string | null }[] = [];
+    const seen = new Set<string>();
+    const oldest = Date.now() - 60 * 86400 * 1000;
+    for (const [index, course] of enrolled.entries()) {
+      const events = (calendars[index]?.data as { events?: LmsEvent[] } | undefined)?.events ?? [];
+      for (const event of events) {
+        if (event.modulename !== "assign" || event.eventtype !== "due") continue;
+        const id = String(event.instance || event.id);
+        const stamp = event.timesort || event.timestart || 0;
+        if (!id || !stamp || seen.has(id)) continue;
+        if (stamp * 1000 < oldest) continue;
+        seen.add(id);
+        const title = (event.activityname || event.name || "").replace(/^vencimiento de\s+/i, "").trim();
+        if (!title) continue;
+        candidates.push({
+          id,
+          instance: event.instance,
+          title,
+          dueAt: new Date(stamp * 1000).toISOString(),
+          url: event.url || event.action?.url || `${root}/mod/assign/view.php?id=${id}`,
+          subject: course.name,
+          courseKey: courseGroup(course.name)?.key ?? null,
+        });
+      }
+    }
+    const tasks: RemoteTask[] = [];
+    let cursor = 0;
+    async function nextStatus() {
+      while (cursor < candidates.length) {
+        const item = candidates[cursor++];
+        const status = await lmsAssignmentStatus(jar, root, sesskey, item.instance, item.url);
+        if (status === "pending" || pendingIsCurrent(item.dueAt, input.timeZone)) {
+          tasks.push({
+            externalId: `lms-${item.id}`,
+            subject: item.subject,
+            title: item.title,
+            description: "Punto de entrega del aula. Hay que subir un archivo.",
+            dueAt: item.dueAt,
+            status,
+            needsFile: true,
+            url: item.url,
+            courseKey: item.courseKey,
+          });
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, candidates.length) }, () => nextStatus()));
     return {
       ok: true,
-      tasks: tasks.filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, input.timeZone)),
-      courses: coursesFromNames([...names, ...tasks.map((task) => task.subject)]),
+      tasks,
+      courses: coursesFromNames(enrolled.map((course) => course.name)),
     };
   } catch {
     return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
