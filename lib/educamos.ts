@@ -744,7 +744,14 @@ type LessonCourse = { id: number; name: string; pieces: LessonPiece[]; resources
 const lessonCache = new Map<string, { at: number; courses: LessonCourse[] }>();
 
 type CourseState = {
-  section?: { number?: number; title?: string; rawtitle?: string; visible?: boolean }[];
+  section?: {
+    number?: number;
+    title?: string;
+    rawtitle?: string;
+    visible?: boolean;
+    hassummary?: boolean;
+    sectionurl?: string;
+  }[];
   cm?: { name?: string; modname?: string; url?: string; uservisible?: boolean; visible?: boolean; sectionnumber?: number }[];
 };
 
@@ -943,16 +950,69 @@ function subjectMatches(courseName: string, subject: string): boolean {
   return words.some((word) => name.split(/[^a-z0-9]+/).some((token) => token.startsWith(word.slice(0, 6)) || word.startsWith(token.slice(0, 6))));
 }
 
+export async function latestClassOutline(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  subject: string;
+}): Promise<string> {
+  const session = await loginLms(input.lmsUrl, input.username, input.password);
+  if (!session.ok) return session.error;
+  const listed = await moodleCall(session.jar, session.root, session.sesskey, [
+    {
+      methodname: "core_course_get_enrolled_courses_by_timeline_classification",
+      args: { offset: 0, limit: 48, classification: "inprogress", sort: "fullname" },
+    },
+  ]);
+  const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
+    .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
+    .filter((course) => course.id && subjectMatches(course.name, input.subject));
+  const states = await moodleCall(
+    session.jar,
+    session.root,
+    session.sesskey,
+    enrolled.map((course) => ({ methodname: "core_courseformat_get_state", args: { courseid: course.id } })),
+  );
+  return enrolled
+    .map((course, index) => {
+      const state = parseState(states[index]?.data);
+      const sections = [...(state.section ?? [])].sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+      const last = sections.slice(-4);
+      const lines = last.map((section) => {
+        const title = htmlToText(section.rawtitle || section.title || "");
+        const mods = (state.cm ?? [])
+          .filter((mod) => mod.sectionnumber === section.number)
+          .map((mod) => `${mod.modname}:${htmlToText(mod.name ?? "")}`)
+          .join(" | ");
+        return `  [${title}] ${mods}`;
+      });
+      return `${course.name}\n${lines.join("\n")}`;
+    })
+    .join("\n\n");
+}
+
+type ClassMod = { name: string; modname: string; url?: string };
+type ClassSection = {
+  number: number;
+  title: string;
+  url: string;
+  hasSummary: boolean;
+  visible: boolean;
+  mods: ClassMod[];
+};
+
 export async function previousClassNotes(input: {
   lmsUrl: string;
   username: string;
   password: string;
   subject: string;
   courseKeys: string[] | null;
+  timeZone?: string;
 }): Promise<string> {
   try {
     const session = await loginLms(input.lmsUrl, input.username, input.password);
     if (!session.ok) return "";
+    const today = localDateString(new Date(), input.timeZone || "America/Argentina/Buenos_Aires");
     const listed = await moodleCall(session.jar, session.root, session.sesskey, [
       {
         methodname: "core_course_get_enrolled_courses_by_timeline_classification",
@@ -970,36 +1030,263 @@ export async function previousClassNotes(input: {
       session.sesskey,
       enrolled.map((course) => ({ methodname: "core_courseformat_get_state", args: { courseid: course.id } })),
     );
-    const courses = enrolled.map((course, index) => courseFromState(course.id, course.name, states[index]?.data));
     const lines: string[] = [];
-    for (const course of courses) {
-      const topics = course.pieces
-        .map((piece) => piece.title.trim())
-        .filter((title) => {
-          const name = title.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-          if (title.length <= 2 || /foro|avisos|entrega|subir|espacio|pdf|tarea|general|^tema$/i.test(name)) return false;
-          if (/^(lunes|martes|miercoles|jueves|viernes|sabado|domingo)$/.test(name.trim())) return false;
-          if (/^(primer|segundo|tercer|cuarto|quinto) dia\b/.test(name)) return false;
-          return true;
-        });
-      const recent = topics.slice(-6);
-      const resources = course.resources
-        .filter((item) => !/entrega|subir|espacio|pdf/i.test(item.title))
-        .slice(-2);
-      if (resources.length > 0) {
-        await readResourceText(input.lmsUrl, input.username, input.password, [{ ...course, resources }], new Set(lessonWords(input.subject)));
-      }
-      const written = resources
-        .map((item) => item.text?.replace(/\s+/g, " ").trim() ?? "")
-        .filter((text) => text.length > 40)
-        .map((text) => text.slice(0, 420));
-      const body = [recent.map((title) => `• ${title}`).join("\n"), ...written].filter(Boolean).join("\n");
-      if (body) lines.push(`${course.name}\n${body}`);
+    for (const [index, course] of enrolled.entries()) {
+      const sections = classSections(states[index]?.data);
+      const told = await readLatestClass(session.jar, course.name, sections, today);
+      if (told) lines.push(told);
     }
     return lines.join("\n\n");
   } catch {
     return "";
   }
+}
+
+function classSections(data: unknown): ClassSection[] {
+  const state = parseState(data);
+  return [...(state.section ?? [])]
+    .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+    .map((section) => {
+      const number = section.number ?? 0;
+      const title = htmlToText(section.rawtitle || section.title || "").replace(/\s+/g, " ").trim();
+      const mods = (state.cm ?? [])
+        .filter((mod) => mod.sectionnumber === number && mod.uservisible !== false && mod.visible !== false)
+        .filter((mod) => !/forum|foro|assign/i.test(mod.modname ?? ""))
+        .map((mod) => ({
+          name: htmlToText(mod.name ?? ""),
+          modname: mod.modname ?? "",
+          url: mod.url,
+        }));
+      return {
+        number,
+        title,
+        url: section.sectionurl ?? "",
+        hasSummary: Boolean(section.hassummary),
+        visible: section.visible !== false,
+        mods,
+      };
+    })
+    .filter((section) => section.visible && section.title && !/^(general|foro|avisos)$/i.test(section.title));
+}
+
+function datedWeek(title: string, today: string): { start: string; end: string } | null {
+  const clean = title.normalize("NFD").replace(/\p{M}/gu, "");
+  const match = clean.match(
+    /(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?\s*(?:al|a)\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?/i,
+  );
+  if (!match) return null;
+  const baseYear = Number(today.slice(0, 4));
+  const startYear = match[3] ? fullYear(match[3]) : baseYear;
+  const endYear = match[6] ? fullYear(match[6]) : startYear;
+  let start = calendarDate(startYear, Number(match[2]), Number(match[1]));
+  let end = calendarDate(endYear, Number(match[5]), Number(match[4]));
+  if (!match[3] && start > addDays(today, 21)) {
+    start = calendarDate(startYear - 1, Number(match[2]), Number(match[1]));
+    end = calendarDate((match[6] ? endYear : startYear) - 1, Number(match[5]), Number(match[4]));
+  }
+  if (end < start) end = addDays(start, 4);
+  return { start, end };
+}
+
+function fullYear(raw: string): number {
+  const year = Number(raw);
+  return year < 100 ? 2000 + year : year;
+}
+
+function calendarDate(year: number, month: number, day: number): string {
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) return "9999-12-31";
+  return dt.toISOString().slice(0, 10);
+}
+
+function recentClassSections(sections: ClassSection[], today: string): ClassSection[] {
+  return sections
+    .map((section) => ({ section, week: datedWeek(section.title, today) }))
+    .filter((item): item is { section: ClassSection; week: { start: string; end: string } } => Boolean(item.week && item.week.start <= today))
+    .sort((a, b) => b.week.start.localeCompare(a.week.start) || b.section.number - a.section.number)
+    .map((item) => item.section);
+}
+
+async function readLatestClass(jar: Jar, courseName: string, sections: ClassSection[], today: string): Promise<string> {
+  const candidates = recentClassSections(sections, today).slice(0, 3);
+  for (const section of candidates) {
+    if (!section.url) continue;
+    const page = await request(jar, section.url);
+    if (page.status < 200 || page.status >= 300) continue;
+    const pieces = sectionPieces(page.text, section.number);
+    let text = [pieces.summary, ...pieces.activities].filter(Boolean).join("\n");
+    let captions = pieces.captions;
+    if (tidyTeacherNotes(text).length < 80) {
+      const linked = await readLinkedClass(jar, section.mods);
+      text = [text, linked.text].filter(Boolean).join("\n");
+      captions = [...captions, ...linked.captions];
+    }
+    const told = narrateClass(courseName, section.title, text, captions, section.mods);
+    if (told && (tidyTeacherNotes(text).length >= 40 || captions.length > 0)) return told;
+  }
+  return "";
+}
+
+function sectionPieces(html: string, number: number): { summary: string; captions: string[]; activities: string[] } {
+  const marker = `id="section-${number}"`;
+  const at = html.indexOf(marker);
+  if (at < 0) return { summary: "", captions: [], activities: [] };
+  const next = html.indexOf('id="section-', at + marker.length);
+  const region = html.slice(at, next > at ? next : at + 50000);
+  const summaryAt = region.indexOf('class="summarytext"');
+  const summaryStart = summaryAt >= 0 ? region.lastIndexOf("<", summaryAt) : -1;
+  const listAt = region.indexOf('data-for="cmlist"');
+  const listStart = listAt >= 0 ? region.lastIndexOf("<", listAt) : -1;
+  const summaryHtml = summaryStart >= 0 ? region.slice(summaryStart, listStart > summaryStart ? listStart : summaryStart + 14000) : "";
+  const listHtml = listAt >= 0 ? region.slice(listAt) : "";
+  const activities = [...listHtml.matchAll(/class="contentafterlink"[\s\S]*?<div class="no-overflow">([\s\S]*?)<\/div>/gi)]
+    .map((match) => htmlToText(match[1]))
+    .filter((text) => text.length > 20);
+  return { summary: htmlToText(summaryHtml), captions: imageCaptions(`${summaryHtml}\n${listHtml}`), activities };
+}
+
+function imageCaptions(html: string): string[] {
+  const found: string[] = [];
+  for (const tag of html.matchAll(/<img\b[^>]*>/gi)) {
+    const alt = decodeHtml(/alt="([^"]*)"/i.exec(tag[0])?.[1] ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (alt.length < 12 || /\.(png|jpe?g|gif|webp)$/i.test(alt) || /pato|whatsapp|screenshot|imagen animada/i.test(alt)) continue;
+    if (!found.some((item) => item.toLowerCase() === alt.toLowerCase())) found.push(alt);
+  }
+  return found.slice(0, 3);
+}
+
+async function readLinkedClass(jar: Jar, mods: ClassMod[]): Promise<{ text: string; captions: string[] }> {
+  const links = mods.filter((mod) => mod.url && /page|book|lesson|resource/i.test(mod.modname)).slice(0, 2);
+  const texts: string[] = [];
+  const captions: string[] = [];
+  for (const mod of links) {
+    if (!mod.url) continue;
+    if (/resource/i.test(mod.modname)) {
+      const bytes = await requestBytes(jar, mod.url);
+      const head = bytes?.subarray(0, 5).toString("utf8") ?? "";
+      if (!bytes) continue;
+      if (head.startsWith("%PDF")) {
+        try {
+          const text = htmlToText(await pdfToText(bytes));
+          if (text.length > 40) texts.push(text);
+        } catch {
+          // El práctico puede ser una imagen. Seguimos con lo que sí se pudo leer.
+        }
+        continue;
+      }
+      const html = bytes.toString("utf8");
+      const text = htmlToText(html);
+      if (text.length > 40) texts.push(text);
+      captions.push(...imageCaptions(html));
+      continue;
+    }
+    const page = await request(jar, mod.url);
+    if (page.status < 200 || page.status >= 300) continue;
+    const box = pageBox(page.text);
+    if (box.text.length > 20) texts.push(`${mod.name}: ${box.text}`);
+    captions.push(...box.captions);
+  }
+  return { text: texts.join("\n"), captions: captions.slice(0, 3) };
+}
+
+function pageBox(html: string): { text: string; captions: string[] } {
+  const at = html.search(/class="box py-3 generalbox/);
+  if (at < 0) return { text: "", captions: [] };
+  const region = html.slice(at, at + 20000);
+  const end = region.search(/class="modified"/);
+  const chunk = end > 0 ? region.slice(0, end) : region.slice(0, 8000);
+  return { text: htmlToText(chunk), captions: imageCaptions(chunk) };
+}
+
+function tidyTeacherNotes(raw: string): string {
+  const lines = raw
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line.length > 2)
+    .filter((line) => {
+      const folded = line.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+      return !/^(hola|buenos dias|buenas tardes|buenas noches)\b/.test(folded) && !/espero que esten/.test(folded);
+    });
+  return softenLabels(lines.join(" "))
+    .replace(/\ban[aá]lisamos\b/gi, "analizamos")
+    .replace(/([a-záéíóú])\s+(Lunes|Martes|Miércoles|Jueves|Viernes)\b/g, "$1. $2")
+    .replace(/\b(Lunes|Martes|Miércoles|Jueves|Viernes)\s+(\d{1,2})\s*:\s*/g, (_, day: string, date: string) => `El ${day.toLowerCase()} ${date} vieron `)
+    .replace(/\b(Primero|Segundo|Tercero|Cuarto|Quinto)\s*:\s*/g, "$1, ")
+    .replace(
+      /(?<!octubre|noviembre|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre)\s*:\s+(?=[A-ZÁÉÍÓÚÑ])/g,
+      ". ",
+    )
+    .replace(/\b(Primero|Segundo|Tercero|Cuarto|Quinto), ([A-ZÁÉÍÓÚÑ])/g, (_, step: string, letter: string) => `${step}, ${letter.toLowerCase()}`)
+    .replace(/vieron ([A-ZÁÉÍÓÚÑ])/g, (_, letter: string) => `vieron ${letter.toLowerCase()}`)
+    .replace(/\.\s*(Lunes|Martes|Miércoles|Jueves|Viernes)\b/g, (_, day: string) => `. El ${day.toLowerCase()}`)
+    .replace(
+      /\bde (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre):\s+([A-ZÁÉÍÓÚÑ])/g,
+      (_, month: string, letter: string) => `de ${month}, ${letter.toLowerCase()}`,
+    )
+    .replace(/\s+/g, " ")
+    .replace(/!{2,}/g, ".")
+    .replace(/\s+\./g, ".")
+    .trim();
+}
+
+function dropEcho(text: string): string {
+  const parts = text.split(/(?<=\.)\s+/).filter(Boolean);
+  const kept: string[] = [];
+  const steps = new Set(["primero", "segundo", "tercero", "cuarto", "quinto"]);
+  for (const part of parts) {
+    const words = lessonWords(part).filter((word) => !steps.has(word));
+    if (part.length < 56 && words.length > 0 && words.every((word) => lessonWords(kept.join(" ")).includes(word))) continue;
+    kept.push(part);
+  }
+  return kept.join(" ");
+}
+
+function smoothSteps(text: string): string {
+  return text.replace(/\bSegundo, /g, "Después, ").replace(/\bTercero, /g, "Después, ").replace(/\bCuarto, /g, "Después, ").replace(/\bQuinto, /g, "Al final, ");
+}
+
+function narrateClass(course: string, title: string, body: string, captions: string[], mods: ClassMod[]): string {
+  const notes = smoothSteps(dropEcho(tidyTeacherNotes(body))).slice(0, 700);
+  const pictures = captionSentence(notes, captions);
+  const links = mods.filter((mod) => /url/i.test(mod.modname) && mod.name).map((mod) => mod.name);
+  const linkLine = !notes && links.length ? `Dejaron el enlace ${links.slice(0, 2).join(" y ")}.` : "";
+  const topic = title.replace(/\s+/g, " ").trim().replace(/\.$/, "");
+  const detail = [notes, pictures, linkLine].filter(Boolean).join(" ");
+  if (!detail) return "";
+  return `En la última clase de ${course} (${topic}): ${detail}`;
+}
+
+function softenLabels(text: string): string {
+  return text
+    .replace(/\bLUNES\b/g, "Lunes")
+    .replace(/\bMARTES\b/g, "Martes")
+    .replace(/\bMI[ÉE]RCOLES\b/g, "Miércoles")
+    .replace(/\bJUEVES\b/g, "Jueves")
+    .replace(/\bVIERNES\b/g, "Viernes")
+    .replace(/\bPRIMERO\b/g, "Primero")
+    .replace(/\bSEGUNDO\b/g, "Segundo")
+    .replace(/\bTERCERO\b/g, "Tercero")
+    .replace(/\bCUARTO\b/g, "Cuarto")
+    .replace(/\bQUINTO\b/g, "Quinto")
+    .replace(/\bTRABAJO PR[ÁA]CTICO\b/g, "Trabajo práctico");
+}
+
+function captionSentence(body: string, captions: string[]): string {
+  const seen = new Set<string>();
+  const fresh: string[] = [];
+  const known = new Set(lessonWords(body));
+  for (const caption of captions) {
+    const key = caption.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const novel = lessonWords(caption).filter((word) => !known.has(word));
+    if (novel.length < 2) continue;
+    fresh.push(caption.replace(/\s+/g, " ").trim());
+  }
+  if (fresh.length === 0) return "";
+  return `En las imágenes de la clase aparece: ${fresh.join("; ")}.`;
 }
 
 async function loadLessons(

@@ -408,7 +408,12 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
     const login = classroomLogin(user);
     const notes = subject && login
       ? await withDeadline(
-          previousClassNotes({ ...login, subject, courseKeys: selectedCourseKeys(user) }),
+          previousClassNotes({
+            ...login,
+            subject,
+            courseKeys: selectedCourseKeys(user),
+            timeZone: user.timezone,
+          }),
           18000,
           "",
         )
@@ -422,7 +427,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
     if (!notes.trim()) {
       return `No encontré el apunte de la clase anterior${subject ? ` de ${subject}` : ""}.${reminder}`;
     }
-    return `En la clase vieron:\n${notes}${reminder}`;
+    return `${notes}${reminder}`;
   }
   const lookupMessage = conversationQuestion(safeMessage, safePrevious);
   const classes = await classNotes(user, lookupMessage, tasks);
