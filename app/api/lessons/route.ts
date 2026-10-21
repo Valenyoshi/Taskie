@@ -1,12 +1,12 @@
+import { visibleTasks } from "@/lib/courses";
 import { autoLessons, buildLesson, cachedAutoLesson, fallbackLesson, hasRecentLessonSubject, subjectChoices } from "@/lib/lessons";
-import { listTasks } from "@/lib/db";
 import { isUser, json, requireUser } from "@/lib/http";
 import { claimLesson } from "@/lib/progress";
 
 export async function GET() {
   const user = await requireUser();
   if (!isUser(user)) return user;
-  const subjects = await subjectChoices(user, listTasks(user.id).map((task) => task.subject));
+  const subjects = await subjectChoices(user, visibleTasks(user).map((task) => task.subject));
   const lessons = await autoLessons(user, subjects);
   return json({ ok: true, lessons: lessons.map((item) => item.lesson) });
 }

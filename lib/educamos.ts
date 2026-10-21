@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { readFile, unlink, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
+import { courseGroup, coursesFromNames, coursesFromSelect, parseCourseSelect, type SchoolCourse } from "./courses";
 import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
@@ -13,9 +14,10 @@ export type RemoteTask = {
   status: "pending" | "done";
   needsFile: boolean;
   url: string | null;
+  courseKey?: string | null;
 };
 
-export type SyncResult = { ok: true; tasks: RemoteTask[] } | { ok: false; error: string };
+export type SyncResult = { ok: true; tasks: RemoteTask[]; courses?: SchoolCourse[] } | { ok: false; error: string };
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
@@ -535,9 +537,23 @@ export async function fetchLmsUploads(input: {
         status: await lmsAssignmentStatus(jar, root, sesskey, event.instance, url),
         needsFile: true,
         url,
+        courseKey: courseGroup(subject)?.key ?? null,
       });
     }
-    return { ok: true, tasks: tasks.filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, input.timeZone)) };
+    const enrolled = await moodleCall(jar, root, sesskey, [
+      {
+        methodname: "core_course_get_enrolled_courses_by_timeline_classification",
+        args: { offset: 0, limit: 48, classification: "inprogress", sort: "fullname" },
+      },
+    ]);
+    const names = ((enrolled[0]?.data as { courses?: { fullname?: string }[] } | undefined)?.courses ?? [])
+      .map((course) => htmlToText(course.fullname ?? ""))
+      .filter(Boolean);
+    return {
+      ok: true,
+      tasks: tasks.filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, input.timeZone)),
+      courses: coursesFromNames([...names, ...tasks.map((task) => task.subject)]),
+    };
   } catch {
     return { ok: false, error: "No se pudo abrir el aula. Revisá el enlace." };
   }
@@ -1030,6 +1046,57 @@ type LmsEvent = {
   action?: { name?: string; url?: string };
 };
 
+async function educamosTasks(
+  jar: Jar,
+  home: string,
+  base: string,
+  timeZone: string,
+  alumno: string | undefined,
+  selected: { field: string; courses: { value: string; label: string }[] } | null,
+  picked: { courses: SchoolCourse[]; keyForValue: Map<string, string> } | null,
+): Promise<RemoteTask[]> {
+  const today = localDateString(new Date(), timeZone);
+  const [y1, m1, d1] = today.split("-");
+  const [y2, m2, d2] = addDays(today, 90).split("-");
+  const load = async (courseValue?: string) => {
+    if (!alumno) return parseTasks(home, base, timeZone);
+    const body = new URLSearchParams({
+      alertaValidacion: "ValidationSummary",
+      contexto: "divListadoTareas",
+      AlumnoId: alumno,
+      FechaInicio: `${Number(d1)}/${Number(m1)}/${y1}`,
+      FechaFin: `${Number(d2)}/${Number(m2)}/${y2}`,
+      Pagina: "0",
+    });
+    if (selected && courseValue) body.set(selected.field, courseValue);
+    const list = await request(jar, `${base}/Home/ListadoTareas`, "POST", body.toString());
+    const parsed = parseTasks(list.text, base, timeZone);
+    return parsed.length > 0 ? parsed : parseTasks(home, base, timeZone);
+  };
+
+  if (!selected || !picked || selected.courses.length < 2) return load();
+
+  const batches = [];
+  for (const option of selected.courses) {
+    const parsed = await load(option.value);
+    batches.push({ key: picked.keyForValue.get(option.value) ?? option.value, tasks: parsed });
+  }
+  const sets = batches.map((batch) => new Set(batch.tasks.map((task) => task.externalId)));
+  const split = sets.some((set, index) => [...set].some((id) => sets.some((other, otherIndex) => index !== otherIndex && !other.has(id))));
+  if (!split) return load();
+
+  const tasks: RemoteTask[] = [];
+  const seen = new Set<string>();
+  for (const batch of batches) {
+    for (const task of batch.tasks) {
+      if (seen.has(task.externalId)) continue;
+      seen.add(task.externalId);
+      tasks.push({ ...task, courseKey: batch.key });
+    }
+  }
+  return tasks;
+}
+
 export async function fetchEducamosTasks(input: {
   url: string;
   username: string;
@@ -1075,29 +1142,17 @@ export async function fetchEducamosTasks(input: {
       return { ok: false, error: "Entré a Educamos, pero no llegué a tu agenda." };
     }
 
-    const tasks = parseTasks(page.text, base, input.timeZone);
     const alumno = page.text.match(/name="AlumnoId"[^>]*value="([^"]+)"/i)?.[1];
-    if (alumno) {
-      const today = localDateString(new Date(), input.timeZone);
-      const [y1, m1, d1] = today.split("-");
-      const [y2, m2, d2] = addDays(today, 90).split("-");
-      const body = new URLSearchParams({
-        alertaValidacion: "ValidationSummary",
-        contexto: "divListadoTareas",
-        AlumnoId: alumno,
-        FechaInicio: `${Number(d1)}/${Number(m1)}/${y1}`,
-        FechaFin: `${Number(d2)}/${Number(m2)}/${y2}`,
-        Pagina: "0",
-      });
-      const list = await request(jar, `${base}/Home/ListadoTareas`, "POST", body.toString());
-      for (const task of parseTasks(list.text, base, input.timeZone)) {
-        if (!tasks.some((item) => item.externalId === task.externalId)) tasks.push(task);
-      }
-    }
-
+    const selected = parseCourseSelect(page.text);
+    const picked = selected ? coursesFromSelect(selected) : null;
+    const tasks = await educamosTasks(jar, page.text, base, input.timeZone, alumno, selected, picked);
     const today = localDateString(new Date(), input.timeZone);
     const start = zonedTimeToUtc(today, "00:00:00", input.timeZone).toISOString();
-    return { ok: true, tasks: tasks.filter((task) => task.status === "done" || task.dueAt >= start) };
+    return {
+      ok: true,
+      tasks: tasks.filter((task) => task.status === "done" || task.dueAt >= start),
+      courses: picked && picked.courses.length >= 2 ? picked.courses : undefined,
+    };
   } catch {
     return { ok: false, error: "No se pudo abrir Educamos. Revisá la dirección del colegio." };
   }

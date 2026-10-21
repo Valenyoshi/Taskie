@@ -1,3 +1,4 @@
+import { CoursePicker } from "@/components/course-picker";
 import { HatIcon } from "@/components/school-icon";
 import { GoalBars } from "@/components/goal-bars";
 import { StreakFlame } from "@/components/streak-flame";
@@ -12,12 +13,13 @@ export default async function InicioPage() {
   if (!session) redirect("/entrar");
   const data = homeData(session.id);
   if (!data) redirect("/entrar");
-  const { user, missions, pending, done } = data;
+  const { user, missions, pending, done, courses, courseChoice } = data;
   const homework = pending.filter((task) => task.kind === "tarea");
   const uploads = pending.filter((task) => task.kind === "archivo");
 
   return (
     <div className="flex flex-col gap-4">
+      <CoursePicker courses={courses} selected={courseChoice} />
       <StreakFlame days={user.streak} />
       <section className="points-corral rise-in">
         <HatIcon />

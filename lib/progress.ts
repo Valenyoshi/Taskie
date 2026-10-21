@@ -10,7 +10,6 @@ import {
   hasClaim,
   listAchievementIds,
   listRewardIds,
-  listTasks,
   markPulled,
   setEquipped,
   setOpenDay,
@@ -19,6 +18,7 @@ import {
   type Task,
   type User,
 } from "./db";
+import { visibleTasks } from "./courses";
 import { POINTS, PULL_COST, rollRarity } from "./game";
 import {
   dailyMet,
@@ -51,7 +51,7 @@ function claim(
 export function applyMissions(userId: string, lines: string[]): void {
   const user = findUserById(userId);
   if (!user) return;
-  const tasks = listTasks(userId);
+  const tasks = visibleTasks(user);
   const today = localDateString(new Date(), user.timezone);
   for (const start of weekKeysOf(tasks, user.timezone)) {
     for (let i = 0; i < 7; i++) {
@@ -109,7 +109,7 @@ export function applyAchievements(userId: string, lines: string[]): void {
     changed = false;
     const user = findUserById(userId);
     if (!user) return;
-    const tasks = listTasks(userId);
+    const tasks = visibleTasks(user);
     const owned = new Set(listAchievementIds(userId));
     for (const achievement of ACHIEVEMENTS) {
       if (owned.has(achievement.id)) continue;

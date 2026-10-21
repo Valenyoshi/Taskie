@@ -1,5 +1,6 @@
+import { courseGroup, courseIdForName, coursesFromNames, type SchoolCourse } from "./courses";
 import { educamosLogin, hasEducamosLogin } from "./credentials";
-import { dropOldUntracked, findUserById, insertTask, listTasks, setSyncResult } from "./db";
+import { dropOldUntracked, findUserById, insertTask, listTasks, saveCourseDiscovery, setSyncResult, tagTaskCourse } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
 import { localDateString, zonedTimeToUtc } from "./time";
 
@@ -57,6 +58,22 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
     return { ok: false, error: result.error };
   }
 
+  const educamosCourses = result.ok ? result.courses ?? [] : [];
+  const classroomCourses = uploads.ok ? uploads.courses ?? [] : [];
+  const remembered = coursesFromNames(listTasks(userId).map((task) => task.subject));
+  const courses: SchoolCourse[] =
+    educamosCourses.length >= 2
+      ? educamosCourses
+      : classroomCourses.length >= 2
+        ? classroomCourses
+        : remembered.length >= 2
+          ? remembered
+          : [];
+  const courseKeyFor = (subject: string, explicit?: string | null) => {
+    if (explicit && courses.some((course) => course.id === explicit)) return explicit;
+    return courseIdForName(subject, courses) ?? explicit ?? courseGroup(subject)?.key ?? null;
+  };
+
   const now = new Date().toISOString();
   const tasks = [
     ...(result.ok ? result.tasks.map((task) => ({ ...task, source: "educamos" })) : []),
@@ -73,6 +90,7 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
         needsFile: task.needsFile,
         url: task.educamosUrl,
         source: "lms",
+        courseKey: task.courseKey,
       })),
   ];
   for (const task of tasks) {
@@ -88,9 +106,13 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
       source: task.source,
       educamosUrl: task.url,
       needsFile: task.source === "lms" ? true : task.needsFile,
+      courseKey: courseKeyFor(task.subject, task.courseKey),
       createdAt: now,
     });
+    const key = courseKeyFor(task.subject, task.courseKey);
+    if (task.externalId && key) tagTaskCourse(userId, task.externalId, key);
   }
+  saveCourseDiscovery(userId, courses);
   const today = localDateString(new Date(), user.timezone);
   dropOldUntracked(userId, zonedTimeToUtc(today, "00:00:00", user.timezone).toISOString());
   const error = !result.ok ? result.error : !uploads.ok ? uploads.error : null;

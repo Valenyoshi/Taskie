@@ -1,14 +1,15 @@
 import { aiFetch, scrubForAi, withAiShield } from "./ai-shield";
 import { plainChatText } from "./plain-text";
 import { classroomLogin } from "./credentials";
-import { listTasks, type Task, type User } from "./db";
+import { visibleTasks } from "./courses";
+import { type Task, type User } from "./db";
 import { asksForLesson, fetchTaskInstructions, notesForSubject } from "./educamos";
 import { PULL_COST } from "./game";
 import { blockedAnswer, homeworkBlock, isGreeting } from "./no-homework";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
-  return listTasks(user.id).filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone));
+  return visibleTasks(user).filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone));
 }
 
 function fold(value: string): string {

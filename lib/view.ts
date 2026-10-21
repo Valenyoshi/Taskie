@@ -1,4 +1,5 @@
 import { ACHIEVEMENTS, REWARDS, frameClass, kindLabel, rewardById, themeKey } from "./catalog";
+import { visibleTasks } from "./courses";
 import { findUserById, hasClaim, listAchievementIds, listRewardIds, listTasks, type Task, type User } from "./db";
 import { PULL_COST, rarityLabel } from "./game";
 import {
@@ -173,12 +174,14 @@ export function missionView(user: User, tasks: Task[]): MissionView {
 export function homeData(userId: string) {
   const user = findUserById(userId);
   if (!user) return null;
-  const tasks = listTasks(userId).filter(
+  const tasks = visibleTasks(user, listTasks(userId)).filter(
     (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone),
   );
   const views = tasks.map((task) => toTask(task, user.timezone));
   return {
     user: toPublic(user),
+    courses: user.courseOptions.length >= 2 ? user.courseOptions : [],
+    courseChoice: user.courseChoice,
     missions: missionView(user, tasks),
     pending: views.filter((task) => task.pending),
     done: views.filter((task) => !task.pending),
@@ -210,7 +213,7 @@ export function subjectTasks(userId: string, subject: string) {
 export function rewardsData(userId: string) {
   const user = findUserById(userId);
   if (!user) return null;
-  const tasks = listTasks(userId);
+  const tasks = visibleTasks(user, listTasks(userId));
   const owned = new Set(listRewardIds(userId));
   const unlocked = new Set(listAchievementIds(userId));
   const today = localDateString(new Date(), user.timezone);

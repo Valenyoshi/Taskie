@@ -40,6 +40,8 @@ export type User = {
   spins: number;
   foundSuper: boolean;
   createdAt: string;
+  courseOptions: { id: string; label: string }[];
+  courseChoice: string[] | null;
 };
 
 export type Task = {
@@ -59,6 +61,7 @@ export type Task = {
   filePath: string | null;
   needsFile: boolean;
   createdAt: string;
+  courseKey: string | null;
 };
 
 export type ChatMessage = {
@@ -104,6 +107,8 @@ type UserRow = {
   spins: number;
   found_super: number;
   created_at: string;
+  course_options: string | null;
+  course_choice: string | null;
 };
 
 type TaskRow = {
@@ -123,6 +128,7 @@ type TaskRow = {
   file_path: string | null;
   needs_file: number;
   created_at: string;
+  course_key: string | null;
 };
 
 const globalForDb = globalThis as unknown as {
@@ -167,7 +173,38 @@ function mapUser(row: UserRow): User {
     spins: row.spins ?? 0,
     foundSuper: row.found_super === 1,
     createdAt: row.created_at,
+    courseOptions: parseCourses(row.course_options),
+    courseChoice: parseChoice(row.course_choice),
   };
+}
+
+function parseCourses(raw: string | null | undefined): { id: string; label: string }[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is { id: string; label: string } =>
+        Boolean(item) &&
+        typeof item === "object" &&
+        typeof (item as { id?: unknown }).id === "string" &&
+        typeof (item as { label?: unknown }).label === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function parseChoice(raw: string | null | undefined): string[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    const ids = parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+    return ids.length > 0 ? ids : null;
+  } catch {
+    return null;
+  }
 }
 
 function mapTask(row: TaskRow): Task {
@@ -188,6 +225,7 @@ function mapTask(row: TaskRow): Task {
     filePath: row.file_path,
     needsFile: row.needs_file === 1,
     createdAt: row.created_at,
+    courseKey: row.course_key ?? null,
   };
 }
 
@@ -304,6 +342,9 @@ export function getDb(): Database.Database {
   if (!columns.some((column) => column.name === "tracked")) {
     globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN tracked INTEGER NOT NULL DEFAULT 0");
   }
+  if (!columns.some((column) => column.name === "course_key")) {
+    globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN course_key TEXT");
+  }
   const userColumns = globalForDb.rachaDb.prepare("PRAGMA table_info(users)").all() as { name: string }[];
   if (!userColumns.some((column) => column.name === "lms_url")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN lms_url TEXT");
@@ -313,6 +354,12 @@ export function getDb(): Database.Database {
   }
   if (!userColumns.some((column) => column.name === "data_key_enc")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN data_key_enc TEXT");
+  }
+  if (!userColumns.some((column) => column.name === "course_options")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN course_options TEXT");
+  }
+  if (!userColumns.some((column) => column.name === "course_choice")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN course_choice TEXT");
   }
   if (!userColumns.some((column) => column.name === "spins")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN spins INTEGER NOT NULL DEFAULT 0");
@@ -552,6 +599,32 @@ export function setNotifications(userId: string, enabled: boolean): void {
   getDb().prepare("UPDATE users SET notifications_enabled = ? WHERE id = ?").run(enabled ? 1 : 0, userId);
 }
 
+export function saveCourseDiscovery(userId: string, courses: { id: string; label: string }[]): void {
+  const current = findUserById(userId);
+  const ids = new Set(courses.map((course) => course.id));
+  const kept = current?.courseChoice?.filter((id) => ids.has(id)) ?? null;
+  const choice = courses.length >= 2 && kept && kept.length > 0 ? JSON.stringify(kept) : null;
+  getDb()
+    .prepare("UPDATE users SET course_options = ?, course_choice = ? WHERE id = ?")
+    .run(courses.length > 0 ? JSON.stringify(courses) : null, choice, userId);
+}
+
+export function setCourseChoice(userId: string, ids: string[]): boolean {
+  const current = findUserById(userId);
+  if (!current || current.courseOptions.length < 2) return false;
+  const known = new Set(current.courseOptions.map((course) => course.id));
+  const picked = [...new Set(ids)].filter((id) => known.has(id));
+  if (picked.length === 0) return false;
+  getDb().prepare("UPDATE users SET course_choice = ? WHERE id = ?").run(JSON.stringify(picked), userId);
+  return true;
+}
+
+export function tagTaskCourse(userId: string, externalId: string, courseKey: string): void {
+  getDb()
+    .prepare("UPDATE tasks SET course_key = ? WHERE user_id = ? AND external_id = ?")
+    .run(courseKey, userId, externalId);
+}
+
 export function setEquipped(userId: string, kind: "theme" | "frame" | "title", rewardId: string | null): void {
   const column = kind === "theme" ? "equipped_theme" : kind === "frame" ? "equipped_frame" : "equipped_title";
   getDb().prepare(`UPDATE users SET ${column} = ? WHERE id = ?`).run(rewardId, userId);
@@ -589,15 +662,20 @@ export function deleteSession(token: string): void {
   getDb().prepare("DELETE FROM sessions WHERE token = ?").run(hashToken(token));
 }
 
-export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completedAt" | "onTime" | "status"> & { status?: Task["status"] }): void {
+export function insertTask(
+  task: Omit<Task, "fileName" | "filePath" | "completedAt" | "onTime" | "status" | "courseKey"> & {
+    status?: Task["status"];
+    courseKey?: string | null;
+  },
+): void {
   const status = task.status ?? "pending";
   const completedAt = status === "done" ? task.createdAt : null;
   const onTime = status === "done" ? (task.dueAt >= task.createdAt ? 1 : 0) : null;
   getDb()
     .prepare(
       `INSERT INTO tasks (
-        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, completed_at, on_time, created_at, tracked
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, completed_at, on_time, created_at, tracked, course_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       ON CONFLICT(user_id, external_id) DO UPDATE SET
         subject = excluded.subject,
         title = excluded.title,
@@ -605,6 +683,7 @@ export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completed
         due_at = excluded.due_at,
         educamos_url = excluded.educamos_url,
         needs_file = excluded.needs_file,
+        course_key = COALESCE(excluded.course_key, tasks.course_key),
         tracked = 1,
         status = CASE WHEN tasks.status = 'pending' THEN excluded.status ELSE tasks.status END,
         completed_at = CASE
@@ -632,6 +711,7 @@ export function insertTask(task: Omit<Task, "fileName" | "filePath" | "completed
       completedAt,
       onTime,
       task.createdAt,
+      task.courseKey ?? null,
     );
 }
 

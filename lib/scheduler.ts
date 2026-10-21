@@ -1,4 +1,5 @@
-import { hasNotification, listPush, listTasks, listUsers, logNotification } from "./db";
+import { visibleTasks } from "./courses";
+import { hasNotification, listPush, listUsers, logNotification } from "./db";
 import { sendPush } from "./push";
 import { localDateString, localHour, pendingIsCurrent } from "./time";
 
@@ -23,7 +24,7 @@ export async function runReminders(now = new Date()): Promise<void> {
     if (subs.length === 0) continue;
     const today = localDateString(now, user.timezone);
     const hour = localHour(now, user.timezone);
-    const tasks = listTasks(user.id).filter(
+    const tasks = visibleTasks(user).filter(
       (task) => task.status === "pending" && pendingIsCurrent(task.dueAt, user.timezone, now),
     );
     const dueToday = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);

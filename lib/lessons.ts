@@ -3,7 +3,7 @@ import { classroomLogin } from "./credentials";
 import type { User } from "./db";
 import { listEnrolledSubjectNames, notesForSubject, recentClassTopics } from "./educamos";
 import { dedupeSubjects } from "./subject-color";
-import { listTasks } from "./db";
+import { visibleTasks } from "./courses";
 import { addDays, localDateString } from "./time";
 
 export type TeachStep = { kind: "teach"; text: string };
@@ -310,7 +310,7 @@ export function cachedAutoLesson(userId: string, subject: string, title: string)
 export function hasRecentLessonSubject(user: User, subject: string): boolean {
   const today = localDateString(new Date(), user.timezone);
   const start = addDays(today, -7);
-  return listTasks(user.id).some((task) => {
+  return visibleTasks(user).some((task) => {
     const day = localDateString(new Date(task.dueAt), user.timezone);
     return task.subject === subject && day >= start && day <= today && !NON_LESSON_TITLE.test(task.title);
   });
