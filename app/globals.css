@@ -1324,6 +1324,22 @@
   color: transparent;
 }
 
+.gradient-text.section-title-materias {
+  background-image: linear-gradient(100deg, #3f7d2e, #7fbf62, #2f681f, #5aa344);
+}
+
+.gradient-text.section-title-tienda {
+  background-image: linear-gradient(100deg, #c46b42, #e7a888, #a35330, #d48964);
+}
+
+.gradient-text.section-title-chat {
+  background-image: linear-gradient(100deg, #6d86d8, #b7a4e6, #4f68c4, #8f78d4);
+}
+
+.gradient-text.section-title-configuracion {
+  background-image: linear-gradient(100deg, #3d9a88, #7ec9b8, #2a7568, #5aaf9e);
+}
+
 .bobby-shop {
   display: flex;
   flex-direction: column;
