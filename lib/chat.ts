@@ -5,11 +5,13 @@ import { visibleTasks } from "./courses";
 import { type Task, type User } from "./db";
 import { asksForLesson, fetchTaskInstructions, notesForSubject } from "./educamos";
 import { PULL_COST } from "./game";
-import { blockedAnswer, homeworkBlock, isGreeting } from "./no-homework";
+import { blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
-  return visibleTasks(user).filter((task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone));
+  return visibleTasks(user).filter(
+    (task) => task.status === "done" || pendingIsCurrent(task.dueAt, user.timezone) || Boolean(task.courseKey),
+  );
 }
 
 function fold(value: string): string {
@@ -46,19 +48,21 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   const today = localDateString(new Date(), user.timezone);
   const todayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);
   const pending = tasks.filter((task) => task.status === "pending");
-  const intro = process.env.FREELLMAPI_API_KEY || process.env.GEMINI_API_KEY
-    ? ""
-    : "El modelo gratuito todavía no está conectado, así que te respondo con lo que hay en tu cuenta. ";
-
-  if (/hoy|vence|pendient|tarea/.test(q)) {
+  if (/\bhoy\b/.test(q) && !explainsHow(message)) {
     if (todayTasks.length === 0) {
-      return `${intro}Hoy no vence ninguna tarea. Tenés ${pending.length} pendiente${pending.length === 1 ? "" : "s"} en total.`;
+      return `Hoy no vence ninguna tarea. Tenés ${pending.length} pendiente${pending.length === 1 ? "" : "s"}.`;
     }
     const list = todayTasks
       .map((task) => `${task.subject}: ${task.title} (${task.status === "done" ? "lista" : "sin entregar"})`)
       .join(" ");
-    const done = todayTasks.filter((task) => task.onTime).length;
-    return `${intro}Hoy vencen ${todayTasks.length}. A tiempo van ${done}. ${list}`;
+    return `Hoy vencen ${todayTasks.length}. ${list}`;
+  }
+
+  if (/pendient/.test(q) && !explainsHow(message)) {
+    if (pending.length === 0) return "No tenés tareas pendientes.";
+    const list = pending.slice(0, 8).map((task) => `${task.subject}: ${task.title}`).join("; ");
+    const more = pending.length > 8 ? ` Y ${pending.length - 8} más.` : "";
+    return `Tenés ${pending.length} pendiente${pending.length === 1 ? "" : "s"}. ${list}.${more}`;
   }
 
   if (/semana/.test(q)) {
@@ -68,30 +72,56 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
       const day = localDateString(new Date(task.dueAt), user.timezone);
       return day >= start && day <= end;
     });
-    const list = week.map((task) => `${task.subject}: ${task.title}`).join("; ");
-    return `${intro}Esta semana hay ${week.length} tareas. ${list || "Nada cargado en estos días."}`;
+    const list = week
+      .map((task) => `${task.subject}: ${task.title} (${task.status === "done" ? "hecha" : "pendiente"})`)
+      .join("; ");
+    return `Esta semana hay ${week.length} tareas. ${list || "Nada cargado en estos días."}`;
   }
 
-  if (/materia|asignatura/.test(q)) {
-    const subjects = [...new Set(tasks.map((task) => task.subject))];
-    return `${intro}Tus materias con tareas son: ${subjects.join(", ") || "ninguna todavía"}.`;
+  if (/materia|asignatura/.test(q) && !explainsHow(message)) {
+    const subjects = [...new Set(pending.map((task) => task.subject))];
+    return `Tus materias con tareas pendientes son: ${subjects.join(", ") || "ninguna todavía"}.`;
   }
 
-  if (/punto|tirada|maquina|máquina/.test(q)) {
+  if (/sombrero|punto|tirada|maquina|máquina/.test(q)) {
     const missing = Math.max(0, PULL_COST - user.points);
     return missing === 0
-      ? `${intro}Tenés ${user.points} sombreros. Ya te alcanza para una tirada de ${PULL_COST}.`
-      : `${intro}Tenés ${user.points} sombreros. Te faltan ${missing} para una tirada de ${PULL_COST}. Cada 2 tareas alcanzan.`;
+      ? `Tenés ${user.points} sombreros. Ya te alcanza para una tirada de ${PULL_COST}.`
+      : `Tenés ${user.points} sombreros. Te faltan ${missing} para una tirada de ${PULL_COST}.`;
   }
 
-  if (/nivel|xp|experiencia/.test(q)) {
-    return `${intro}Taskie ya no usa niveles ni XP. Tu progreso se mide con sombreros y una racha de ${user.streak} días.`;
+  if (/racha/.test(q)) {
+    return user.streak > 0
+      ? `Tu racha es de ${user.streak} día${user.streak === 1 ? "" : "s"}. Se mantiene si entrás cada día.`
+      : "Todavía no tenés racha. Se empieza cuando entrás un día y seguís al día siguiente.";
+  }
+
+  if (/chatbot|para que serv|que podes hacer|que haces|como me ayud/.test(q)) {
+    return "Te digo qué tareas tenés, de qué materia son y te explico cómo hacerlas. No te escribo la entrega.";
+  }
+
+  if (/\bnivel\b|\bxp\b|\bexperiencia\b/.test(q)) {
+    return `Taskie ya no usa niveles ni XP. Tu progreso se mide con sombreros y una racha de ${user.streak} días.`;
+  }
+
+  if (isGreeting(message)) {
+    return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
+  }
+
+  if (explainsHow(message) || taskHowToRequest(message)) {
+    const named = tasksForQuestion(message, tasks);
+    if (named.length === 0) {
+      return "Decime cuál tarea, por ejemplo la maqueta de célula o los ejercicios de programación, y te explico cómo hacerla.";
+    }
+    return named
+      .map((task) => `${task.title} es de ${task.subject}. No pude leer la consigna. Abrila en la plataforma y fijate qué pide, qué hay que entregar y para cuándo.`)
+      .join(" ");
   }
 
   const next = pending[0];
-  return `${intro}Puedo decirte qué vence hoy, de qué materia es y cómo vas con los sombreros. ${
-    next ? `Lo próximo es ${next.title}, de ${next.subject}.` : "No tenés tareas pendientes."
-  }`;
+  return next
+    ? `Puedo decirte qué tenés pendiente y explicarte cómo hacer una tarea. Lo próximo es ${next.title}, de ${next.subject}.`
+    : "No tenés tareas pendientes. Si querés, preguntame cómo hacer alguna que ya hayas entregado.";
 }
 
 function studySystem(user: User, tasks: Task[], classes = ""): string {
@@ -151,8 +181,7 @@ export function tasksForQuestion(message: string, tasks: Task[]): Task[] {
   if (byTitle.length > 0) return byTitle.slice(0, 2);
   const bySubject = pending.filter((task) => mentions(task.subject, words));
   if (bySubject.length > 0) return bySubject.slice(0, 2);
-  const howTo = /como hacer|como la hago|como lo hago|que tengo que hacer|que hay que hacer|la tarea|una tarea|mi tarea|la entrega|el trabajo/.test(fold(message));
-  return howTo ? pending.slice(0, 1) : [];
+  return [];
 }
 
 function subjectForQuestion(message: string, tasks: Task[]): string {
@@ -223,10 +252,18 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
   return blocks;
 }
 
+function isFollowUp(message: string): boolean {
+  const q = fold(message).trim();
+  const words = q.split(/\s+/).filter(Boolean);
+  if (words.length > 7) return false;
+  return /\b(esa|ese|eso|misma|mismo|anterior)\b/.test(q);
+}
+
 function conversationQuestion(message: string, history: { role: "user" | "assistant"; content: string }[]): string {
+  if (!isFollowUp(message)) return message;
   const previousQuestions = history
     .filter((item) => item.role === "user")
-    .slice(-3)
+    .slice(-2)
     .map((item) => item.content);
   return [...previousQuestions, message].join(" ");
 }
@@ -247,22 +284,41 @@ function compactTaskAnswer(classes: string): string {
       .map((match) => match[1].replace(/\s+/g, " ").trim())
       .filter((value, index, all) => all.indexOf(value) === index)
       .slice(0, 8);
+    if (exercises.length === 0 && (!platform.trim() || /no encontr[eé] una consigna/i.test(platform))) return "";
     const delivery = /formato\s*\.pdf/i.test(platform) ? "Entregarlo en PDF." : "";
-    const details = exercises.length > 0 ? `Resolver: ${exercises.join("; ")}.` : "Seguir la consigna de la plataforma.";
+    const details = exercises.length > 0 ? `Resolver: ${exercises.join("; ")}.` : platform.replace(/\s+/g, " ").trim().slice(0, 280);
     return `- ${title}${subject ? ` (${subject})` : ""}. ${details} ${delivery}`.trim();
-  });
-  return summaries.length
-    ? `En resumen, tenés que:\n${summaries.join("\n")}`
-    : "En resumen, revisá la consigna de la plataforma y entregá el archivo que indica.";
+  }).filter(Boolean);
+  return summaries.length ? `En resumen, tenés que:\n${summaries.join("\n")}` : "";
 }
 
 function taskHowToRequest(message: string): boolean {
   return /como puedo hacer|como hacer|como se hace|como la hago|como lo hago|por donde empiezo|no entiendo como/.test(fold(message));
 }
 
+function isProgrammingBlock(block: string): boolean {
+  return /pseint|algoritmo|program/.test(fold(block));
+}
+
+function plainTaskHelp(classes: string): string {
+  const blocks = classes.split(/\n(?=Tarea: )/).filter((block) => block.includes("Tarea: "));
+  const lines = blocks.map((block) => {
+    const title = block.match(/^Tarea:\s*(.+)$/m)?.[1]?.trim() ?? "la tarea";
+    const subject = block.match(/^Materia:\s*(.+)$/m)?.[1]?.trim() ?? "";
+    const platform = (block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const useful = platform && !/no encontr[eé] una consigna/i.test(platform) ? platform.slice(0, 360) : "";
+    return useful
+      ? `${title}${subject ? ` (${subject})` : ""}. ${useful}`
+      : `${title}${subject ? ` es de ${subject}` : ""}. No encontré la consigna escrita en la plataforma.`;
+  });
+  return lines.join("\n");
+}
+
 function taskGuideAnswer(classes: string): string {
   const block = classes.split(/\n(?=Tarea: )/).find((item) => item.includes("Tarea: "));
-  if (!block) return "Empezá separando cada ejercicio en Entrada, Procesamiento y Salida. Después probalo en PSeInt y guardá el resultado en PDF.";
+  if (!block || !isProgrammingBlock(block)) return "";
   const platform = block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "";
   const related = [...platform.matchAll(/Material relacionado — ([^:]+):([\s\S]*?)(?=Material relacionado — |$)/g)];
   const main = related.find((match) => /pseint|ejercicios para resolver/i.test(match[1]))?.[2] ?? platform;
@@ -338,10 +394,15 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
   const classes = await classNotes(user, lookupMessage, tasks);
   const guide = classes && taskHowToRequest(safeMessage) ? taskGuideAnswer(classes) : "";
   const compact = classes && compactTaskRequest(safeMessage) ? compactTaskAnswer(classes) : "";
+  const help =
+    !guide && !compact && classes && (taskHowToRequest(safeMessage) || explainsHow(safeMessage))
+      ? plainTaskHelp(classes)
+      : "";
   const fallback = () =>
     guide ||
     compact ||
-    (classes
+    help ||
+    (classes && asksForLesson(safeMessage)
       ? `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`
       : localAnswer(safeMessage, user, tasks));
   const system = sanitizeChatText(studySystem(user, tasks, classes));
