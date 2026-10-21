@@ -1489,7 +1489,70 @@
   position: fixed;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
   pointer-events: none;
+}
+
+.section-wash::before,
+.section-wash::after {
+  content: "";
+  position: absolute;
+  width: 78vmax;
+  height: 78vmax;
+  border-radius: 50%;
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.section-wash::before {
+  top: -28%;
+  left: -18%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.72) 0%, transparent 68%);
+  animation: wash-float-a 26s ease-in-out infinite;
+}
+
+.section-wash::after {
+  right: -22%;
+  bottom: -30%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.38) 0%, transparent 70%);
+  animation: wash-float-b 34s ease-in-out infinite;
+}
+
+.section-wash.inicio::after {
+  background: radial-gradient(circle, rgba(243, 169, 195, 0.55) 0%, transparent 70%);
+}
+
+.section-wash.materias::after {
+  background: radial-gradient(circle, rgba(127, 191, 98, 0.5) 0%, transparent 70%);
+}
+
+.section-wash.tienda::after {
+  background: radial-gradient(circle, rgba(231, 168, 136, 0.55) 0%, transparent 70%);
+}
+
+.section-wash.chat::after {
+  background: radial-gradient(circle, rgba(176, 164, 232, 0.5) 0%, transparent 70%);
+}
+
+.section-wash.configuracion::after {
+  background: radial-gradient(circle, rgba(126, 201, 184, 0.55) 0%, transparent 70%);
+}
+
+@keyframes wash-float-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(14vw, 10vh, 0) scale(1.08); }
+}
+
+@keyframes wash-float-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-12vw, -14vh, 0) scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-wash::before,
+  .section-wash::after {
+    animation: none;
+  }
 }
 
 .section-wash.inicio {
