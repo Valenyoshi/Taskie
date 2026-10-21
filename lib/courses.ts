@@ -53,6 +53,17 @@ function foldCourseText(value: string): string {
     .trim();
 }
 
+export function selectedCourseKeys(user: User): string[] | null {
+  if (user.courseOptions.length < 2 || !user.courseChoice || user.courseChoice.length === 0) return null;
+  return user.courseChoice;
+}
+
+export function courseNameAllowed(name: string, keys: string[] | null): boolean {
+  if (!keys) return true;
+  const group = courseGroup(name);
+  return group ? keys.includes(group.key) : false;
+}
+
 export function courseIdForName(name: string, courses: SchoolCourse[]): string | null {
   const group = courseGroup(name);
   if (!group) return null;

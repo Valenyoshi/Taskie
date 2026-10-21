@@ -3,7 +3,8 @@ import { plainChatText } from "./plain-text";
 import { classroomLogin } from "./credentials";
 import { visibleTasks } from "./courses";
 import { type Task, type User } from "./db";
-import { asksForLesson, fetchTaskInstructions, notesForSubject } from "./educamos";
+import { asksForLesson, fetchTaskInstructions, notesForSubject, previousClassNotes } from "./educamos";
+import { selectedCourseKeys } from "./courses";
 import { PULL_COST } from "./game";
 import { blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
@@ -239,7 +240,12 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
         const [instructions, notes] = login
           ? await Promise.all([
               fetchTaskInstructions({ ...login, taskUrl: task.educamosUrl, taskTitle: task.title }),
-              notesForSubject({ ...login, subject: task.subject, query: task.title }),
+              notesForSubject({
+                ...login,
+                subject: task.subject,
+                query: task.title,
+                courseKeys: task.courseKey ? [task.courseKey] : selectedCourseKeys(user),
+              }),
             ])
           : ["", ""];
         rows.push(taskClassBlock(task, instructions, notes));
@@ -268,7 +274,14 @@ function conversationQuestion(message: string, history: { role: "user" | "assist
   return [...previousQuestions, message].join(" ");
 }
 
+function wantsClassRecap(message: string): boolean {
+  const q = fold(message);
+  return /clase anterior|lo que vi|lo que vimos|que vimos|que vi\b|que dimos|me olvide|resumen de la clase/.test(q)
+    || (/resum/.test(q) && /clase|matematic|lengua|biolog|histori|geograf|ingles|fisica|quimica|natural|program/.test(q) && !/tengo que hacer|hay que hacer|que pide/.test(q));
+}
+
 function compactTaskRequest(message: string): boolean {
+  if (wantsClassRecap(message)) return false;
   return /que es lo que tengo que hacer|que tengo que hacer|que hay que hacer|que pide|resum|resumido|breve|corto/.test(fold(message));
 }
 
@@ -390,6 +403,27 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
   const refused = await homeworkBlock(safeMessage, safePrevious);
   if (refused) return refused;
   const tasks = currentTasks(user);
+  if (wantsClassRecap(safeMessage)) {
+    const subject = subjectForQuestion(safeMessage, tasks);
+    const login = classroomLogin(user);
+    const notes = subject && login
+      ? await withDeadline(
+          previousClassNotes({ ...login, subject, courseKeys: selectedCourseKeys(user) }),
+          18000,
+          "",
+        )
+      : "";
+    const pending = tasks.filter(
+      (task) => task.status === "pending" && subject && mentions(task.subject, new Set(titleWords(safeMessage))),
+    );
+    const reminder = pending.length
+      ? `\n\nTambién tenés pendiente: ${pending.slice(0, 2).map((task) => `${task.title} (${task.subject})`).join("; ")}.`
+      : "";
+    if (!notes.trim()) {
+      return `No encontré el apunte de la clase anterior${subject ? ` de ${subject}` : ""}.${reminder}`;
+    }
+    return `En la clase vieron:\n${notes}${reminder}`;
+  }
   const lookupMessage = conversationQuestion(safeMessage, safePrevious);
   const classes = await classNotes(user, lookupMessage, tasks);
   const guide = classes && taskHowToRequest(safeMessage) ? taskGuideAnswer(classes) : "";

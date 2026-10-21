@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import { readFile, unlink, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
-import { courseGroup, coursesFromNames, coursesFromSelect, parseCourseSelect, type SchoolCourse } from "./courses";
+import { courseGroup, courseNameAllowed, coursesFromNames, coursesFromSelect, parseCourseSelect, type SchoolCourse } from "./courses";
 import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
@@ -874,6 +874,7 @@ export async function notesForSubject(input: {
   subject: string;
   query?: string;
   requireText?: boolean;
+  courseKeys?: string[] | null;
 }): Promise<string> {
   const titles = await topicsForSubject(input);
   const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
@@ -885,7 +886,8 @@ export async function notesForSubject(input: {
     .toLowerCase();
   const course = cached.courses.find((item) => {
     const name = item.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-    return name.includes(wanted) || wanted.includes(name);
+    const named = name.includes(wanted) || wanted.includes(name) || subjectMatches(item.name, input.subject);
+    return named && courseNameAllowed(item.name, input.courseKeys ?? null);
   });
   if (!course || course.resources.length === 0) return input.requireText ? "" : titles.join(". ");
   const words = new Set(lessonWords(input.query ?? ""));
@@ -931,6 +933,72 @@ export async function listEnrolledSubjectNames(input: {
       .filter(Boolean);
   } catch {
     return [];
+  }
+}
+
+function subjectMatches(courseName: string, subject: string): boolean {
+  const name = courseName.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const wanted = subject.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const words = wanted.split(/[^a-z0-9]+/).filter((word) => word.length > 3);
+  return words.some((word) => name.split(/[^a-z0-9]+/).some((token) => token.startsWith(word.slice(0, 6)) || word.startsWith(token.slice(0, 6))));
+}
+
+export async function previousClassNotes(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  subject: string;
+  courseKeys: string[] | null;
+}): Promise<string> {
+  try {
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return "";
+    const listed = await moodleCall(session.jar, session.root, session.sesskey, [
+      {
+        methodname: "core_course_get_enrolled_courses_by_timeline_classification",
+        args: { offset: 0, limit: 48, classification: "inprogress", sort: "fullname" },
+      },
+    ]);
+    const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
+      .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
+      .filter((course) => course.id && subjectMatches(course.name, input.subject) && courseNameAllowed(course.name, input.courseKeys))
+      .slice(0, 3);
+    if (enrolled.length === 0) return "";
+    const states = await moodleCall(
+      session.jar,
+      session.root,
+      session.sesskey,
+      enrolled.map((course) => ({ methodname: "core_courseformat_get_state", args: { courseid: course.id } })),
+    );
+    const courses = enrolled.map((course, index) => courseFromState(course.id, course.name, states[index]?.data));
+    const lines: string[] = [];
+    for (const course of courses) {
+      const topics = course.pieces
+        .map((piece) => piece.title.trim())
+        .filter((title) => {
+          const name = title.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+          if (title.length <= 2 || /foro|avisos|entrega|subir|espacio|pdf|tarea|general|^tema$/i.test(name)) return false;
+          if (/^(lunes|martes|miercoles|jueves|viernes|sabado|domingo)$/.test(name.trim())) return false;
+          if (/^(primer|segundo|tercer|cuarto|quinto) dia\b/.test(name)) return false;
+          return true;
+        });
+      const recent = topics.slice(-6);
+      const resources = course.resources
+        .filter((item) => !/entrega|subir|espacio|pdf/i.test(item.title))
+        .slice(-2);
+      if (resources.length > 0) {
+        await readResourceText(input.lmsUrl, input.username, input.password, [{ ...course, resources }], new Set(lessonWords(input.subject)));
+      }
+      const written = resources
+        .map((item) => item.text?.replace(/\s+/g, " ").trim() ?? "")
+        .filter((text) => text.length > 40)
+        .map((text) => text.slice(0, 420));
+      const body = [recent.map((title) => `• ${title}`).join("\n"), ...written].filter(Boolean).join("\n");
+      if (body) lines.push(`${course.name}\n${body}`);
+    }
+    return lines.join("\n\n");
+  } catch {
+    return "";
   }
 }
 
