@@ -1330,24 +1330,24 @@
 .gradient-text.section-title-configuracion {
   width: fit-content;
   margin-inline: auto;
-  background-size: 100% 100%;
-  animation: none;
+  background-size: 220% 220%;
+  animation: flow 7s linear infinite;
 }
 
 .gradient-text.section-title-materias {
-  background-image: linear-gradient(100deg, #146b22 0%, #9adf3a 55%, #d6ef55 100%);
+  background-image: linear-gradient(100deg, #146b22, #9adf3a, #d6ef55, #146b22);
 }
 
 .gradient-text.section-title-tienda {
-  background-image: linear-gradient(100deg, #9a3412 0%, #f05a1a 50%, #ff9f1c 100%);
+  background-image: linear-gradient(100deg, #9a3412, #f05a1a, #ff9f1c, #9a3412);
 }
 
 .gradient-text.section-title-chat {
-  background-image: linear-gradient(100deg, #3d4fd4 0%, #a855f7 52%, #f0abfc 100%);
+  background-image: linear-gradient(100deg, #3d4fd4, #a855f7, #f0abfc, #3d4fd4);
 }
 
 .gradient-text.section-title-configuracion {
-  background-image: linear-gradient(100deg, #0f7a68 0%, #2dd4bf 52%, #a7f3d0 100%);
+  background-image: linear-gradient(100deg, #0f7a68, #2dd4bf, #a7f3d0, #0f7a68);
 }
 
 .bobby-shop {
