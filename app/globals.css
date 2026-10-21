@@ -1491,15 +1491,14 @@
   z-index: 0;
   overflow: hidden;
   background-repeat: no-repeat;
-  background-size: 240% 100%;
-  background-position: 0% 50%;
-  animation: wash-shift 4s ease-in-out infinite;
+  background-size: 170% 170%, 170% 170%, 100% 100%;
+  animation: wash-shift 6s linear infinite alternate;
   pointer-events: none;
 }
 
 @keyframes wash-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  from { background-position: 0% 0%, 100% 100%, center; }
+  to { background-position: 100% 80%, 0% 10%, center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1509,11 +1508,17 @@
 }
 
 .section-wash.inicio {
-  background-image: linear-gradient(90deg, #f3a9c3 0%, #f3a9c3 46%, #fff 54%, #fff 100%);
+  background-image:
+    radial-gradient(circle at 15% 20%, #ff7aa2 0%, transparent 48%),
+    radial-gradient(circle at 85% 80%, #fff 0%, transparent 52%),
+    linear-gradient(160deg, #f3a9c3 0%, #fbd8e4 40%, #fff8fb 100%);
 }
 
 .section-wash.materias {
-  background-image: linear-gradient(90deg, #2f8a28 0%, #2f8a28 46%, #e4f7c4 54%, #e4f7c4 100%);
+  background-image:
+    radial-gradient(circle at 18% 16%, #2f8a28 0%, transparent 48%),
+    radial-gradient(circle at 82% 78%, #d6ef55 0%, transparent 52%),
+    linear-gradient(165deg, #7fbf62 0%, #e4f3d4 48%, #f7fbf3 100%);
 }
 
 .section-wash.ranking {
@@ -1521,7 +1526,10 @@
 }
 
 .section-wash.chat {
-  background-image: linear-gradient(90deg, #6d5ef0 0%, #6d5ef0 46%, #e4dcff 54%, #e4dcff 100%);
+  background-image:
+    radial-gradient(circle at 16% 18%, #5b4de0 0%, transparent 48%),
+    radial-gradient(circle at 84% 80%, #c9b6ff 0%, transparent 52%),
+    linear-gradient(180deg, #d5e4ff 0%, #efe4ff 48%, #f7f1e8 100%);
 }
 
 .ia-switch {
@@ -1993,7 +2001,10 @@ button:disabled {
 }
 
 .section-wash.configuracion {
-  background-image: linear-gradient(90deg, #1fa88f 0%, #1fa88f 46%, #e7fff8 54%, #e7fff8 100%);
+  background-image:
+    radial-gradient(circle at 82% 16%, #14967e 0%, transparent 48%),
+    radial-gradient(circle at 16% 82%, #b7f3e4 0%, transparent 52%),
+    linear-gradient(165deg, #a9ded0 0%, #dff3ed 48%, #f8fffc 100%);
 }
 
 .nav-scroll {
@@ -2005,7 +2016,10 @@ button:disabled {
 }
 
 .section-wash.tienda {
-  background-image: linear-gradient(90deg, #e07a45 0%, #e07a45 46%, #fff1e4 54%, #fff1e4 100%);
+  background-image:
+    radial-gradient(circle at 14% 18%, #e15a28 0%, transparent 48%),
+    radial-gradient(circle at 86% 78%, #ffd27a 0%, transparent 52%),
+    linear-gradient(165deg, #e7a888 0%, #f8dccb 48%, #fff7f2 100%);
 }
 
 .taskie-brand {
