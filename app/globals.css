@@ -1490,105 +1490,30 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background-size: 320% 320%;
+  background-repeat: no-repeat;
+  background-size: 240% 100%;
   background-position: 0% 50%;
-  animation: wash-shift 6s ease-in-out infinite;
+  animation: wash-shift 4s ease-in-out infinite;
   pointer-events: none;
-}
-
-.section-wash::before,
-.section-wash::after {
-  content: "";
-  position: absolute;
-  width: 52vmin;
-  height: 52vmin;
-  border-radius: 50%;
-  filter: blur(18px);
-  opacity: 0.9;
-  pointer-events: none;
-}
-
-.section-wash::before {
-  top: 6%;
-  left: -6%;
-  animation: wash-float-a 5s ease-in-out infinite;
-}
-
-.section-wash::after {
-  right: -8%;
-  bottom: 8%;
-  animation: wash-float-b 7s ease-in-out infinite;
-}
-
-.section-wash.inicio::before {
-  background: radial-gradient(circle, #ff8fb3 0%, rgba(243, 169, 195, 0.15) 70%);
-}
-
-.section-wash.inicio::after {
-  background: radial-gradient(circle, #fff 0%, rgba(255, 207, 224, 0.2) 68%);
-}
-
-.section-wash.materias::before {
-  background: radial-gradient(circle, #5ea83a 0%, rgba(127, 191, 98, 0.12) 70%);
-}
-
-.section-wash.materias::after {
-  background: radial-gradient(circle, #d6ef55 0%, rgba(228, 243, 212, 0.15) 70%);
-}
-
-.section-wash.tienda::before {
-  background: radial-gradient(circle, #e36a32 0%, rgba(231, 168, 136, 0.12) 70%);
-}
-
-.section-wash.tienda::after {
-  background: radial-gradient(circle, #ffd27a 0%, rgba(248, 220, 203, 0.15) 70%);
-}
-
-.section-wash.chat::before {
-  background: radial-gradient(circle, #6d5ef0 0%, rgba(176, 164, 232, 0.12) 70%);
-}
-
-.section-wash.chat::after {
-  background: radial-gradient(circle, #9ec0ff 0%, rgba(213, 228, 255, 0.15) 70%);
-}
-
-.section-wash.configuracion::before {
-  background: radial-gradient(circle, #1fa88f 0%, rgba(169, 222, 208, 0.12) 70%);
-}
-
-.section-wash.configuracion::after {
-  background: radial-gradient(circle, #d8fff4 0%, rgba(223, 243, 237, 0.15) 70%);
-}
-
-@keyframes wash-float-a {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(62vw, 48vh, 0); }
-}
-
-@keyframes wash-float-b {
-  0%, 100% { transform: translate3d(0, 0, 0); }
-  50% { transform: translate3d(-60vw, -50vh, 0); }
 }
 
 @keyframes wash-shift {
-  0%, 100% { background-position: 0% 40%; }
-  50% { background-position: 100% 60%; }
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .section-wash,
-  .section-wash::before,
-  .section-wash::after {
+  .section-wash {
     animation: none;
   }
 }
 
 .section-wash.inicio {
-  background-image: linear-gradient(115deg, #f3a9c3, #fff, #e56b98, #fff4f8, #f3a9c3);
+  background-image: linear-gradient(90deg, #f3a9c3 0%, #f3a9c3 46%, #fff 54%, #fff 100%);
 }
 
 .section-wash.materias {
-  background-image: linear-gradient(115deg, #3d9a2e, #e7f7c8, #1f6b22, #f4fbe8, #8fd14a);
+  background-image: linear-gradient(90deg, #2f8a28 0%, #2f8a28 46%, #e4f7c4 54%, #e4f7c4 100%);
 }
 
 .section-wash.ranking {
@@ -1596,7 +1521,7 @@
 }
 
 .section-wash.chat {
-  background-image: linear-gradient(115deg, #8aa4ff, #f4e9ff, #6d5ef0, #d5e4ff, #c084fc);
+  background-image: linear-gradient(90deg, #6d5ef0 0%, #6d5ef0 46%, #e4dcff 54%, #e4dcff 100%);
 }
 
 .ia-switch {
@@ -2068,7 +1993,7 @@ button:disabled {
 }
 
 .section-wash.configuracion {
-  background-image: linear-gradient(115deg, #7dcec0, #f4fffb, #1fa88f, #dff3ed, #5eead4);
+  background-image: linear-gradient(90deg, #1fa88f 0%, #1fa88f 46%, #e7fff8 54%, #e7fff8 100%);
 }
 
 .nav-scroll {
@@ -2080,7 +2005,7 @@ button:disabled {
 }
 
 .section-wash.tienda {
-  background-image: linear-gradient(115deg, #e07a45, #fff1e4, #c45a28, #ffd7b0, #ff9f1c);
+  background-image: linear-gradient(90deg, #e07a45 0%, #e07a45 46%, #fff1e4 54%, #fff1e4 100%);
 }
 
 .taskie-brand {
