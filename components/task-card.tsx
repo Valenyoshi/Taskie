@@ -238,7 +238,7 @@ export function TaskCard({ task }: { task: TaskView }) {
       <span className={`card-line ${struck ? "on" : ""}`} style={{ top: lineTop, color }} />
       {phase === "check" || phase === "leave" ? (
         <div className="card-cover" aria-hidden>
-          <span className="card-cover-mark" style={{ color }}>
+          <span className="card-cover-mark">
             <span className="default-check-mark">✓</span>
             <PixelCheck />
           </span>
