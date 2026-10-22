@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (candidates.length === 0) spendDecoyTime(password);
     recordFailure(ipKey, WINDOW_MS);
     recordFailure(nameKey, WINDOW_MS);
-    return json({ error: "Usuario o contraseña incorrectos." }, 400);
+    return json({ error: "Nombre o contraseña incorrectos." }, 400);
   }
   clearFailures(nameKey);
   await startSession(user.id);

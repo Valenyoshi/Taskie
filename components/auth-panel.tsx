@@ -77,8 +77,7 @@ export function AuthPanel() {
       <form className="mt-5 flex flex-col gap-3" onSubmit={onSubmit}>
         {mode === "crear" ? (
           <>
-            <Field label="Tu nombre" name="name" placeholder="Cómo querés que te llamemos" />
-            <Field label="Usuario de Taskie" name="username" placeholder="vale.curso" autoComplete="username" />
+            <Field label="Tu nombre" name="name" placeholder="Cómo querés que te llamemos" autoComplete="name" />
             <Field label="Contraseña de Taskie" name="password" type="password" autoComplete="new-password" />
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
@@ -119,7 +118,7 @@ export function AuthPanel() {
           </>
         ) : (
           <>
-            <Field label="Usuario" name="username" autoComplete="username" />
+            <Field label="Nombre" name="username" autoComplete="username" />
             <Field label="Contraseña" name="password" type="password" autoComplete="current-password" />
           </>
         )}
