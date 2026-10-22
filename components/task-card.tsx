@@ -138,7 +138,7 @@ export function TaskCard({ task }: { task: TaskView }) {
       else setError(data.error ?? "No se pudo marcar.");
       return;
     }
-    const remaining = 2100 - (Date.now() - started);
+    const remaining = 1400 - (Date.now() - started);
     if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
     setPhase("strike");
     window.dispatchEvent(
