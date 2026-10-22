@@ -634,16 +634,28 @@
 
 .logout-veil {
   position: fixed;
-  top: 1.35rem;
-  left: 2.4rem;
+  inset: 0;
   z-index: 120;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
+  display: grid;
+  place-items: center;
   background: var(--background);
-  pointer-events: none;
-  transform: translate(-50%, -50%) scale(1);
+  clip-path: circle(0% at 2.4rem 1.35rem);
   animation: logout-cover 0.55s ease-in forwards;
+}
+
+.logout-mark {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: logout-show 0.35s ease 0.32s forwards;
+}
+
+.logout-mark img {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
 }
 
 @keyframes logout-slip {
@@ -655,7 +667,11 @@
 }
 
 @keyframes logout-cover {
-  to { transform: translate(-50%, -50%) scale(220); }
+  to { clip-path: circle(150% at 2.4rem 1.35rem); }
+}
+
+@keyframes logout-show {
+  to { opacity: 1; transform: none; }
 }
 
 .done-fill {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { HandExitIcon } from "@/components/hand-drawn-icons";
 
@@ -12,7 +13,7 @@ export function LogoutButton() {
     if (leaving) return;
     setLeaving(true);
     const request = fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    const pause = new Promise((resolve) => window.setTimeout(resolve, 560));
+    const pause = new Promise((resolve) => window.setTimeout(resolve, 900));
     void Promise.all([request, pause]).then(() => {
       router.push("/entrar");
       router.refresh();
@@ -29,7 +30,17 @@ export function LogoutButton() {
         <HandExitIcon className="logout-icon size-3.5" />
         Salir
       </button>
-      {leaving ? <span className="logout-veil" aria-hidden /> : null}
+      {leaving
+        ? createPortal(
+            <div className="logout-veil" role="status" aria-label="Saliendo">
+              <div className="logout-mark">
+                <img src="/kitty-head.png" alt="" />
+                <p className="gradient-text font-display text-4xl">Taskie</p>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
