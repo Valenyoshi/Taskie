@@ -624,6 +624,40 @@
   transform: scale(0.92);
 }
 
+.logout-button.is-leaving {
+  animation: logout-slip 0.42s ease forwards;
+}
+
+.logout-button.is-leaving .logout-icon {
+  animation: logout-arrow 0.42s ease forwards;
+}
+
+.logout-veil {
+  position: fixed;
+  top: 1.35rem;
+  left: 2.4rem;
+  z-index: 120;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--background);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  animation: logout-cover 0.55s ease-in forwards;
+}
+
+@keyframes logout-slip {
+  to { transform: translateX(14px); opacity: 0; }
+}
+
+@keyframes logout-arrow {
+  to { transform: translateX(6px); }
+}
+
+@keyframes logout-cover {
+  to { transform: translate(-50%, -50%) scale(220); }
+}
+
 .done-fill {
   width: 28px;
   height: 28px;
