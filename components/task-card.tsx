@@ -119,6 +119,7 @@ export function TaskCard({ task }: { task: TaskView }) {
     setPhase("loading");
     setBusy(true);
     setError(null);
+    const started = Date.now();
     let res: Response;
     let data: { error?: string };
     try {
@@ -137,6 +138,8 @@ export function TaskCard({ task }: { task: TaskView }) {
       else setError(data.error ?? "No se pudo marcar.");
       return;
     }
+    const remaining = 1100 - (Date.now() - started);
+    if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
     setPhase("strike");
     window.dispatchEvent(
       new CustomEvent("racha-task-done", { detail: { daily: task.countsDaily, weekly: task.countsWeekly } }),
@@ -197,7 +200,7 @@ export function TaskCard({ task }: { task: TaskView }) {
           </h3>
         </div>
         {phase === "loading" ? (
-          <span className="spinner" aria-label="Cargando" />
+          <span className="done-fill" style={{ color }} aria-label="Cargando" />
         ) : phase === "idle" ? (
           <span className="flex shrink-0 items-center gap-1">
             {task.kind !== "archivo" ? (
