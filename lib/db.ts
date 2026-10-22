@@ -541,6 +541,7 @@ export function createUser(input: {
   timezone: string;
   isDemo: boolean;
   platform?: "educamos" | "teams";
+  teamsAccount?: string | null;
 }): void {
   const dataKey = createDataKey(input.id);
   const sealed = input.educamosLogin
@@ -553,8 +554,8 @@ export function createUser(input: {
     .prepare(
       `INSERT INTO users (
         id, name, username, password_hash, educamos_url, educamos_username, educamos_password_enc,
-        educamos_user_index, data_key_enc, lms_url, timezone, is_demo, created_at, platform
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        educamos_user_index, data_key_enc, lms_url, timezone, is_demo, created_at, platform, teams_account
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.id,
@@ -571,6 +572,7 @@ export function createUser(input: {
       input.isDemo ? 1 : 0,
       new Date().toISOString(),
       input.platform ?? "educamos",
+      input.teamsAccount ?? null,
     );
 }
 

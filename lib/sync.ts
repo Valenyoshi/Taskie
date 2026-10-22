@@ -1,8 +1,8 @@
 import { courseGroup, courseIdForName, courseKeyFromTitle, coursesFromNames, type SchoolCourse } from "./courses";
 import { educamosLogin, hasEducamosLogin } from "./credentials";
-import { dropOldUntracked, findUserById, insertTask, listTasks, openTeamsRefresh, saveCourseDiscovery, saveTeamsConnection, setSyncResult, tagTaskCourse, type User } from "./db";
+import { dropOldUntracked, findUserById, insertTask, listTasks, openEducamosLogin, saveCourseDiscovery, setSyncResult, tagTaskCourse, type User } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
-import { fetchTeamsTasks, refreshTeamsAccess } from "./teams";
+import { fetchTeamsTasks, loginTeams } from "./teams";
 import { localDateString, zonedTimeToUtc } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
@@ -129,19 +129,16 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
 }
 
 async function syncTeams(user: User): Promise<{ ok: boolean; error?: string; count?: number }> {
-  const refreshToken = openTeamsRefresh(user);
-  if (!refreshToken) {
-    const error = "Falta conectar Microsoft Teams. Creá la cuenta de nuevo y elegí Teams.";
+  const login = openEducamosLogin(user);
+  if (!login) {
+    const error = "Falta el usuario o la contraseña de Teams. Volvé a crear la cuenta.";
     setSyncResult(user.id, error);
     return { ok: false, error };
   }
-  const access = await refreshTeamsAccess(refreshToken);
+  const access = await loginTeams(login.username, login.password);
   if (!access.ok) {
     setSyncResult(user.id, access.error);
     return access;
-  }
-  if (access.refreshToken !== refreshToken) {
-    saveTeamsConnection(user.id, { refreshToken: access.refreshToken, account: user.teamsAccount ?? "Cuenta de Microsoft" });
   }
   const result = await fetchTeamsTasks(access.accessToken);
   if (!result.ok) {

@@ -12,6 +12,8 @@ export async function POST(request: Request) {
     educamosUrl?: string;
     educamosUsername?: string;
     educamosPassword?: string;
+    teamsUsername?: string;
+    teamsPassword?: string;
     lmsUrl?: string;
     timezone?: string;
     platform?: string;
@@ -24,6 +26,8 @@ export async function POST(request: Request) {
   const educamosUrl = body.educamosUrl?.trim() ?? "";
   const educamosUsername = body.educamosUsername?.trim() ?? "";
   const educamosPassword = body.educamosPassword ?? "";
+  const teamsUsername = body.teamsUsername?.trim() ?? "";
+  const teamsPassword = body.teamsPassword ?? "";
   const lmsUrl = body.lmsUrl?.trim() || null;
   const timezone = body.timezone?.trim() || "America/Argentina/Buenos_Aires";
   const platform = body.platform === "teams" ? "teams" : "educamos";
@@ -36,6 +40,9 @@ export async function POST(request: Request) {
   if (platform === "educamos" && (!educamosUrl || !educamosUsername || !educamosPassword)) {
     return json({ error: "Completá la URL del colegio, el usuario y la contraseña de Educamos." }, 400);
   }
+  if (platform === "teams" && (!teamsUsername || !teamsPassword)) {
+    return json({ error: "Completá el usuario y la contraseña de Teams." }, 400);
+  }
 
   if (findUserByUsername(username)) return json({ error: "Ese usuario ya existe." }, 400);
 
@@ -46,14 +53,17 @@ export async function POST(request: Request) {
     username,
     passwordHash: hashSync(password, 12),
     educamosUrl: platform === "teams" ? null : educamosUrl,
-    educamosLogin: platform === "teams" ? null : { username: educamosUsername, password: educamosPassword },
+    educamosLogin:
+      platform === "teams"
+        ? { username: teamsUsername, password: teamsPassword }
+        : { username: educamosUsername, password: educamosPassword },
     lmsUrl: platform === "teams" ? null : lmsUrl,
     timezone,
     isDemo: false,
     platform,
+    teamsAccount: platform === "teams" ? teamsUsername : null,
   });
   await startSession(id);
-  if (platform === "teams") return json({ ok: true, connect: "teams" });
   const sync = await syncUser(id);
   return json({ ok: true, syncError: sync.ok ? null : sync.error ?? null });
 }

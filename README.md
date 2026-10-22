@@ -31,7 +31,7 @@ Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejem
 Al crear la cuenta se elige de dónde salen las tareas.
 
 - **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola si no pegás el enlace.
-- **Microsoft Teams.** Después de crear la cuenta, Taskie abre el ingreso de Microsoft del colegio y trae las tareas de cada clase. Hace falta una aplicación en Microsoft Entra con `MICROSOFT_CLIENT_ID`, los permisos `EduAssignments.Read` y `EduRoster.ReadBasic`, y la redirección `/api/auth/teams/callback`. El permiso para volver a entrar queda cifrado en el cofre del alumno.
+- **Microsoft Teams.** Van el usuario y la contraseña de Microsoft del colegio, igual que en Educamos. Taskie entra a Teams con esos datos y trae las tareas de cada clase. La contraseña queda cifrada en el cofre del alumno y solo se envía a Microsoft.
 
 ## Educamos
 
@@ -40,7 +40,7 @@ Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la
 ## Seguridad
 
 - **Cofre por alumno.** Cada cuenta tiene su propia clave de datos de 256 bits, guardada envuelta (cifrada) con una clave derivada por HKDF-SHA256 de la clave maestra y del id del alumno.
-- **Credenciales de Educamos.** El usuario y la contraseña se cifran con AES-256-GCM, con IV aleatorio, relleno a bloques de 64 bytes para ocultar el largo, y datos asociados que atan cada valor a su alumno y a su campo. Copiar un valor a otra fila o a otro campo hace fallar el descifrado.
+- **Credenciales del colegio.** El usuario y la contraseña de Educamos o de Teams se cifran con AES-256-GCM, con IV aleatorio, relleno a bloques de 64 bytes para ocultar el largo, y datos asociados que atan cada valor a su alumno y a su campo. Copiar un valor a otra fila o a otro campo hace fallar el descifrado. La contraseña de Teams solo se envía a Microsoft.
 - **Índice ciego.** Para iniciar sesión con el usuario de Educamos se guarda solo una huella HMAC-SHA256, no el usuario.
 - **Chat cifrado.** Los mensajes y los títulos de las conversaciones se guardan con la misma clave del alumno.
 - **Sesiones.** La cookie es `HttpOnly`, `SameSite=Lax` y `Secure` bajo HTTPS. En la base solo queda el SHA-256 del token.

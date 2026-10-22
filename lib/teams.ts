@@ -1,74 +1,36 @@
-import { createHash, randomBytes } from "crypto";
 import { courseGroup } from "./courses";
 import type { RemoteTask } from "./educamos";
 
-const SCOPES = ["openid", "profile", "offline_access", "User.Read", "EduAssignments.Read", "EduRoster.ReadBasic"];
+const TEAMS_CLIENT = "1fec8e78-bce4-4aaf-ab1b-5451cc387264";
+const TEAMS_REDIRECT = "https://teams.microsoft.com/go";
+const TEAMS_SCOPE = "openid profile offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/EduAssignments.Read https://graph.microsoft.com/EduRoster.ReadBasic";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
-export function teamsClientId(): string | null {
-  const id = process.env.MICROSOFT_CLIENT_ID?.trim();
-  return id || null;
-}
+type SignInConfig = {
+  flowToken: string;
+  ctx: string;
+  canary: string;
+  postUrl: string;
+  credentialUrl: string;
+  requestId: string;
+};
 
-export function teamsTenant(): string {
-  return process.env.MICROSOFT_TENANT?.trim() || "organizations";
-}
-
-export function teamsRedirectUri(request: Request): string {
-  const url = new URL(request.url);
-  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || url.protocol.replace(":", "");
-  const host = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || url.host;
-  return `${proto}://${host}/api/auth/teams/callback`;
-}
-
-export function teamsAuthorizeUrl(input: { redirectUri: string; state: string; challenge: string }): string {
-  const params = new URLSearchParams({
-    client_id: teamsClientId() ?? "",
-    response_type: "code",
-    redirect_uri: input.redirectUri,
-    response_mode: "query",
-    scope: SCOPES.join(" "),
-    state: input.state,
-    code_challenge: input.challenge,
-    code_challenge_method: "S256",
-    prompt: "select_account",
-  });
-  return `https://login.microsoftonline.com/${encodeURIComponent(teamsTenant())}/oauth2/v2.0/authorize?${params}`;
-}
-
-export function newOauthProof(): { state: string; verifier: string; challenge: string } {
-  const state = randomBytes(24).toString("base64url");
-  const verifier = randomBytes(32).toString("base64url");
-  const challenge = createHash("sha256").update(verifier).digest("base64url");
-  return { state, verifier, challenge };
-}
-
-type TokenBundle = { accessToken: string; refreshToken: string; account: string };
-
-export async function exchangeTeamsCode(input: {
-  code: string;
-  verifier: string;
-  redirectUri: string;
-}): Promise<{ ok: true; tokens: TokenBundle } | { ok: false; error: string }> {
-  const tokens = await tokenRequest({
-    grant_type: "authorization_code",
-    code: input.code,
-    redirect_uri: input.redirectUri,
-    code_verifier: input.verifier,
-  });
-  if (!tokens.ok) return tokens;
-  const account = await accountLabel(tokens.accessToken);
-  return { ok: true, tokens: { ...tokens, account } };
-}
-
-export async function refreshTeamsAccess(refreshToken: string): Promise<
-  { ok: true; accessToken: string; refreshToken: string } | { ok: false; error: string }
-> {
-  const tokens = await tokenRequest({
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-  });
-  if (!tokens.ok) return tokens;
-  return { ok: true, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken || refreshToken };
+export async function loginTeams(
+  username: string,
+  password: string,
+): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
+  try {
+    const jar = new CookieJar();
+    const opened = await openSignIn(jar);
+    if (!opened.ok) return opened;
+    const found = await lookupAccount(jar, opened.config, username);
+    if (!found.ok) return found;
+    const posted = await postPassword(jar, found.config, username, password);
+    if (!posted.ok) return posted;
+    return exchangeCode(posted.code);
+  } catch {
+    return { ok: false, error: "No pude entrar a Microsoft Teams." };
+  }
 }
 
 export async function fetchTeamsTasks(accessToken: string): Promise<
@@ -134,38 +96,248 @@ export function assignmentTask(subject: string, item: TeamsAssignment, submissio
   };
 }
 
-async function tokenRequest(
-  fields: Record<string, string>,
-): Promise<{ ok: true; accessToken: string; refreshToken: string } | { ok: false; error: string }> {
-  const clientId = teamsClientId();
-  if (!clientId) return { ok: false, error: "Falta el identificador de la aplicación de Microsoft." };
-  const body = new URLSearchParams({ client_id: clientId, scope: SCOPES.join(" "), ...fields });
-  const secret = process.env.MICROSOFT_CLIENT_SECRET?.trim();
-  if (secret) body.set("client_secret", secret);
-  const response = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(teamsTenant())}/oauth2/v2.0/token`, {
+class CookieJar {
+  private cookies = new Map<string, string>();
+
+  store(response: Response) {
+    const list = typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
+    for (const cookie of list) {
+      const [pair] = cookie.split(";");
+      const eq = pair.indexOf("=");
+      if (eq > 0) this.cookies.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+    }
+  }
+
+  header() {
+    return [...this.cookies.entries()].map(([key, value]) => `${key}=${value}`).join("; ");
+  }
+}
+
+async function openSignIn(jar: CookieJar): Promise<{ ok: true; config: SignInConfig } | { ok: false; error: string }> {
+  const params = new URLSearchParams({
+    client_id: TEAMS_CLIENT,
+    response_type: "code",
+    redirect_uri: TEAMS_REDIRECT,
+    scope: TEAMS_SCOPE,
+    response_mode: "query",
+  });
+  let url = `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?${params}`;
+  for (let hop = 0; hop < 4; hop++) {
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: { "user-agent": UA, accept: "text/html", cookie: jar.header() },
+      signal: AbortSignal.timeout(20000),
+    });
+    jar.store(response);
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) break;
+      url = new URL(location, url).href;
+      continue;
+    }
+    const html = await response.text();
+    const config = readSignIn(html, url);
+    if (config?.flowToken) return { ok: true, config };
+    if (config?.postUrl) {
+      url = config.postUrl;
+      continue;
+    }
+    break;
+  }
+  return { ok: false, error: "No pude abrir la entrada de Microsoft Teams." };
+}
+
+async function lookupAccount(
+  jar: CookieJar,
+  config: SignInConfig,
+  username: string,
+): Promise<{ ok: true; config: SignInConfig } | { ok: false; error: string }> {
+  const response = await fetch(config.credentialUrl, {
+    method: "POST",
+    headers: {
+      "user-agent": UA,
+      accept: "application/json",
+      "content-type": "application/json",
+      cookie: jar.header(),
+    },
+    body: JSON.stringify({
+      username,
+      isOtherIdpSupported: true,
+      checkPhones: false,
+      isRemoteNGCSupported: false,
+      isCookieBannerShown: false,
+      isFidoSupported: false,
+      flowToken: config.flowToken,
+      originalRequest: config.ctx,
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  jar.store(response);
+  const data = (await response.json().catch(() => null)) as {
+    IfExistsResult?: number;
+    FlowToken?: string;
+    Credentials?: { PrefCredential?: number; HasPassword?: boolean; FederationRedirectUrl?: string | null };
+  } | null;
+  if (!response.ok || !data) return { ok: false, error: "No pude consultar la cuenta de Teams." };
+  if (data.Credentials?.FederationRedirectUrl) {
+    return { ok: false, error: "Esa cuenta entra por otra página del colegio, no con la contraseña de Microsoft." };
+  }
+  const exists = data.IfExistsResult === 0 || data.IfExistsResult === 5 || data.IfExistsResult === 6;
+  const password = data.Credentials?.HasPassword === true || data.Credentials?.PrefCredential === 1;
+  if (!exists && !password) return { ok: false, error: "Teams no aceptó el usuario o la contraseña." };
+  return {
+    ok: true,
+    config: { ...config, flowToken: data.FlowToken || config.flowToken },
+  };
+}
+
+async function postPassword(
+  jar: CookieJar,
+  config: SignInConfig,
+  username: string,
+  password: string,
+): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
+  if (!microsoftLogin(config.postUrl)) return { ok: false, error: "No envié la contraseña: la página de Teams no era de Microsoft." };
+  const body = new URLSearchParams({
+    i13: "0",
+    login: username,
+    loginfmt: username,
+    type: "11",
+    LoginOptions: "3",
+    passwd: password,
+    ps: "2",
+    canary: config.canary,
+    ctx: config.ctx,
+    hpgrequestid: config.requestId,
+    flowToken: config.flowToken,
+    PPSX: "PassportR",
+    NewUser: "1",
+    fspost: "0",
+    i21: "0",
+    CookieDisclosure: "0",
+    IsFidoSupported: "0",
+    isSignupPost: "0",
+    i19: "1512",
+  });
+  return followLogin(jar, config.postUrl, body);
+}
+
+async function followLogin(
+  jar: CookieJar,
+  url: string,
+  body?: URLSearchParams,
+): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
+  let current = url;
+  let payload = body;
+  for (let hop = 0; hop < 8; hop++) {
+    if (payload && !microsoftLogin(current)) return { ok: false, error: "No envié la contraseña fuera de Microsoft." };
+    const response = await fetch(current, {
+      method: payload ? "POST" : "GET",
+      redirect: "manual",
+      headers: {
+        "user-agent": UA,
+        accept: "text/html",
+        cookie: jar.header(),
+        ...(payload ? { "content-type": "application/x-www-form-urlencoded", origin: "https://login.microsoftonline.com" } : {}),
+      },
+      body: payload?.toString(),
+      signal: AbortSignal.timeout(20000),
+    });
+    jar.store(response);
+    const location = response.headers.get("location");
+    if (response.status >= 300 && response.status < 400 && location) {
+      const next = new URL(location, current);
+      const code = next.searchParams.get("code");
+      if (code) return { ok: true, code };
+      current = next.href;
+      payload = undefined;
+      continue;
+    }
+    const html = await response.text();
+    const code = new URL(response.url || current).searchParams.get("code");
+    if (code) return { ok: true, code };
+    const problem = loginProblem(html);
+    if (problem) return { ok: false, error: problem };
+    const config = readSignIn(html, current);
+    if (config && /kmsi|stay signed in|mantener la sesión/i.test(html)) {
+      current = config.postUrl;
+      payload = new URLSearchParams({
+        LoginOptions: "3",
+        type: "28",
+        ctx: config.ctx,
+        flowToken: config.flowToken,
+        canary: config.canary,
+        hpgrequestid: config.requestId,
+      });
+      continue;
+    }
+    if (config?.flowToken && !payload) return { ok: false, error: "Teams no aceptó el usuario o la contraseña." };
+    break;
+  }
+  return { ok: false, error: "No pude terminar la entrada a Teams." };
+}
+
+function readSignIn(html: string, pageUrl: string): SignInConfig | null {
+  const raw = html.match(/\$Config=(\{[\s\S]*?\});/)?.[1];
+  if (!raw) return null;
+  const data = JSON.parse(raw) as {
+    sFT?: string;
+    sCtx?: string;
+    canary?: string;
+    apiCanary?: string;
+    urlPost?: string;
+    urlGetCredentialType?: string;
+    sessionId?: string;
+    correlationId?: string;
+  };
+  return {
+    flowToken: data.sFT ?? "",
+    ctx: data.sCtx ?? "",
+    canary: data.canary || data.apiCanary || "",
+    postUrl: data.urlPost ? new URL(data.urlPost, pageUrl).href : "",
+    credentialUrl: data.urlGetCredentialType ? new URL(data.urlGetCredentialType, pageUrl).href : "",
+    requestId: data.sessionId || data.correlationId || "",
+  };
+}
+
+function loginProblem(html: string): string | null {
+  if (/AADSTS50076|AADSTS50079|AADSTS50158|idDiv_SAOTCS_Proofs|ConvergedProofUp/i.test(html)) {
+    return "Microsoft pide un código extra. Taskie entra solo con usuario y contraseña.";
+  }
+  if (/AADSTS50126|AADSTS50034|AADSTS50053|AADSTS50055/i.test(html)) {
+    return "Teams no aceptó el usuario o la contraseña.";
+  }
+  const text = html.match(/"sErrTxt":"([^"]+)"/)?.[1];
+  if (text && !/^\s*$/.test(text)) return "Teams no aceptó el usuario o la contraseña.";
+  return null;
+}
+
+function microsoftLogin(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "login.microsoftonline.com" || host === "login.microsoft.com" || host === "login.live.com";
+  } catch {
+    return false;
+  }
+}
+
+async function exchangeCode(code: string): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
+  const body = new URLSearchParams({
+    client_id: TEAMS_CLIENT,
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: TEAMS_REDIRECT,
+    scope: TEAMS_SCOPE,
+  });
+  const response = await fetch("https://login.microsoftonline.com/organizations/oauth2/v2.0/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
     signal: AbortSignal.timeout(20000),
   });
-  const data = (await response.json().catch(() => null)) as {
-    access_token?: string;
-    refresh_token?: string;
-    error_description?: string;
-  } | null;
-  if (!response.ok || !data?.access_token) {
-    return { ok: false, error: cleanMicrosoftError(data?.error_description) };
-  }
-  return { ok: true, accessToken: data.access_token, refreshToken: data.refresh_token ?? "" };
-}
-
-async function accountLabel(accessToken: string): Promise<string> {
-  const me = await graphGet<{ userPrincipalName?: string; mail?: string; displayName?: string }>(
-    accessToken,
-    "https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName",
-  );
-  if (!me.ok) return "Cuenta de Microsoft";
-  return me.data.mail || me.data.userPrincipalName || me.data.displayName || "Cuenta de Microsoft";
+  const data = (await response.json().catch(() => null)) as { access_token?: string; error_description?: string } | null;
+  if (!response.ok || !data?.access_token) return { ok: false, error: cleanMicrosoftError(data?.error_description) };
+  return { ok: true, accessToken: data.access_token };
 }
 
 async function graphGet<T>(accessToken: string, url: string): Promise<{ ok: true; data: T } | { ok: false; error: string }> {

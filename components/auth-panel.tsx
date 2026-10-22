@@ -26,14 +26,10 @@ export function AuthPanel() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...payload, timezone }),
     });
-    const data = (await res.json()) as { error?: string; syncError?: string | null; connect?: string };
+    const data = (await res.json()) as { error?: string; syncError?: string | null };
     setBusy(false);
     if (!res.ok) {
       setError(data.error ?? "No pude entrar.");
-      return;
-    }
-    if (data.connect === "teams") {
-      window.location.href = "/api/auth/teams/start";
       return;
     }
     if (data.syncError) setSyncNote(data.syncError);
@@ -113,9 +109,13 @@ export function AuthPanel() {
                 </p>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Después de crear la cuenta vas a entrar con el usuario de Microsoft del colegio. Taskie trae las tareas publicadas en Teams.
-              </p>
+              <>
+                <Field label="Usuario de Teams" name="teamsUsername" placeholder="alumno@colegio.edu" autoComplete="off" />
+                <Field label="Contraseña de Teams" name="teamsPassword" type="password" autoComplete="off" />
+                <p className="text-xs text-muted-foreground">
+                  Es el usuario y la contraseña de Microsoft del colegio. Taskie los usa solo para entrar a Teams y traer las tareas.
+                </p>
+              </>
             )}
           </>
         ) : (
@@ -127,7 +127,7 @@ export function AuthPanel() {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {syncNote ? <p className="text-sm">{syncNote}</p> : null}
         <Button className="h-11" type="submit" disabled={busy}>
-          {busy ? "Buscando tus tareas…" : mode === "crear" ? (school === "teams" ? "Crear cuenta y conectar Teams" : "Crear cuenta y buscar tareas") : "Entrar"}
+          {busy ? "Buscando tus tareas…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
         </Button>
       </form>
       <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>
