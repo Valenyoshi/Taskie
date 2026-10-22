@@ -200,7 +200,12 @@ export function TaskCard({ task }: { task: TaskView }) {
           </h3>
         </div>
         {phase === "loading" ? (
-          <span className="done-fill" style={{ color }} aria-label="Cargando" />
+          <span className="done-fill" style={{ color }} aria-label="Cargando">
+            <svg viewBox="0 0 28 28" aria-hidden>
+              <circle className="done-fill-track" cx="14" cy="14" r="12.9" />
+              <circle className="done-fill-arc" cx="14" cy="14" r="12.9" />
+            </svg>
+          </span>
         ) : phase === "idle" ? (
           <span className="flex shrink-0 items-center gap-1">
             {task.kind !== "archivo" ? (

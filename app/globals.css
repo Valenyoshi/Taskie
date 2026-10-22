@@ -625,29 +625,38 @@
 }
 
 .done-fill {
-  position: relative;
   width: 28px;
   height: 28px;
   flex: none;
-  overflow: hidden;
-  border: 2.2px solid currentColor;
-  border-radius: 999px;
-  background: color-mix(in srgb, currentColor 8%, white);
 }
 
-.done-fill::before {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 0;
-  background: currentColor;
-  animation: ring-fill 1.1s ease-in forwards;
+.done-fill svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
 }
 
-@keyframes ring-fill {
-  to { height: 100%; }
+.done-fill-track,
+.done-fill-arc {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.done-fill-track {
+  stroke: color-mix(in srgb, currentColor 22%, white);
+}
+
+.done-fill-arc {
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 81.05;
+  stroke-dashoffset: 81.05;
+  animation: ring-draw 1.1s ease-in forwards;
+}
+
+@keyframes ring-draw {
+  to { stroke-dashoffset: 0; }
 }
 
 
