@@ -1,12 +1,14 @@
 import { courseGroup, courseIdForName, courseKeyFromTitle, coursesFromNames, type SchoolCourse } from "./courses";
 import { educamosLogin, hasEducamosLogin } from "./credentials";
-import { dropOldUntracked, findUserById, insertTask, listTasks, saveCourseDiscovery, setSyncResult, tagTaskCourse } from "./db";
+import { dropOldUntracked, findUserById, insertTask, listTasks, openTeamsRefresh, saveCourseDiscovery, saveTeamsConnection, setSyncResult, tagTaskCourse, type User } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
+import { fetchTeamsTasks, refreshTeamsAccess } from "./teams";
 import { localDateString, zonedTimeToUtc } from "./time";
 
 export async function syncUser(userId: string): Promise<{ ok: boolean; error?: string; count?: number }> {
   const user = findUserById(userId);
   if (!user) return { ok: false, error: "No encontré tu cuenta." };
+  if (user.platform === "teams") return syncTeams(user);
   if (!hasEducamosLogin(user)) {
     const error = user.isDemo
       ? "Esta cuenta de prueba usa tareas de ejemplo, no las de un colegio."
@@ -124,4 +126,49 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
   const error = !result.ok ? result.error : !uploads.ok ? uploads.error : null;
   setSyncResult(userId, error);
   return error ? { ok: false, error, count: tasks.length } : { ok: true, count: tasks.length };
+}
+
+async function syncTeams(user: User): Promise<{ ok: boolean; error?: string; count?: number }> {
+  const refreshToken = openTeamsRefresh(user);
+  if (!refreshToken) {
+    const error = "Falta conectar Microsoft Teams. Creá la cuenta de nuevo y elegí Teams.";
+    setSyncResult(user.id, error);
+    return { ok: false, error };
+  }
+  const access = await refreshTeamsAccess(refreshToken);
+  if (!access.ok) {
+    setSyncResult(user.id, access.error);
+    return access;
+  }
+  if (access.refreshToken !== refreshToken) {
+    saveTeamsConnection(user.id, { refreshToken: access.refreshToken, account: user.teamsAccount ?? "Cuenta de Microsoft" });
+  }
+  const result = await fetchTeamsTasks(access.accessToken);
+  if (!result.ok) {
+    setSyncResult(user.id, result.error);
+    return result;
+  }
+  const now = new Date().toISOString();
+  for (const task of result.tasks) {
+    insertTask({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      externalId: task.externalId,
+      subject: task.subject,
+      title: task.title,
+      description: task.description,
+      dueAt: task.dueAt,
+      status: task.status,
+      source: "teams",
+      educamosUrl: task.url,
+      needsFile: false,
+      courseKey: task.courseKey ?? courseGroup(task.subject)?.key ?? null,
+      createdAt: now,
+    });
+  }
+  saveCourseDiscovery(user.id, result.courses);
+  const today = localDateString(new Date(), user.timezone);
+  dropOldUntracked(user.id, zonedTimeToUtc(today, "00:00:00", user.timezone).toISOString());
+  setSyncResult(user.id, null);
+  return { ok: true, count: result.tasks.length };
 }

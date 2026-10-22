@@ -36,6 +36,9 @@ export type User = {
   syncError: string | null;
   lastSyncAt: string | null;
   isDemo: boolean;
+  platform: "educamos" | "teams";
+  teamsAccount: string | null;
+  teamsRefreshEnc: string | null;
   pulled: boolean;
   spins: number;
   foundSuper: boolean;
@@ -109,6 +112,9 @@ type UserRow = {
   created_at: string;
   course_options: string | null;
   course_choice: string | null;
+  platform: string | null;
+  teams_account: string | null;
+  teams_refresh_enc: string | null;
 };
 
 type TaskRow = {
@@ -139,6 +145,7 @@ const globalForDb = globalThis as unknown as {
 
 export const EDUCAMOS_USER_FIELD = "educamos.username";
 export const EDUCAMOS_PASSWORD_FIELD = "educamos.password";
+export const TEAMS_REFRESH_FIELD = "teams.refresh";
 const messageField = (id: string) => `chat.message|${id}`;
 const titleField = (id: string) => `chat.title|${id}`;
 
@@ -169,6 +176,9 @@ function mapUser(row: UserRow): User {
     syncError: row.sync_error,
     lastSyncAt: row.last_sync_at,
     isDemo: row.is_demo === 1,
+    platform: row.platform === "teams" ? "teams" : "educamos",
+    teamsAccount: row.teams_account ?? null,
+    teamsRefreshEnc: row.teams_refresh_enc ?? null,
     pulled: row.pulled === 1,
     spins: row.spins ?? 0,
     foundSuper: row.found_super === 1,
@@ -361,6 +371,15 @@ export function getDb(): Database.Database {
   if (!userColumns.some((column) => column.name === "course_choice")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN course_choice TEXT");
   }
+  if (!userColumns.some((column) => column.name === "platform")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN platform TEXT NOT NULL DEFAULT 'educamos'");
+  }
+  if (!userColumns.some((column) => column.name === "teams_account")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN teams_account TEXT");
+  }
+  if (!userColumns.some((column) => column.name === "teams_refresh_enc")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN teams_refresh_enc TEXT");
+  }
   if (!userColumns.some((column) => column.name === "spins")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN spins INTEGER NOT NULL DEFAULT 0");
     globalForDb.rachaDb.exec(
@@ -521,6 +540,7 @@ export function createUser(input: {
   lmsUrl?: string | null;
   timezone: string;
   isDemo: boolean;
+  platform?: "educamos" | "teams";
 }): void {
   const dataKey = createDataKey(input.id);
   const sealed = input.educamosLogin
@@ -533,8 +553,8 @@ export function createUser(input: {
     .prepare(
       `INSERT INTO users (
         id, name, username, password_hash, educamos_url, educamos_username, educamos_password_enc,
-        educamos_user_index, data_key_enc, lms_url, timezone, is_demo, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        educamos_user_index, data_key_enc, lms_url, timezone, is_demo, created_at, platform
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.id,
@@ -550,7 +570,25 @@ export function createUser(input: {
       input.timezone,
       input.isDemo ? 1 : 0,
       new Date().toISOString(),
+      input.platform ?? "educamos",
     );
+}
+
+export function saveTeamsConnection(userId: string, input: { refreshToken: string; account: string }): void {
+  const key = userKey(userId);
+  const sealed = withUserKey(userId, key, (box) => box.seal(TEAMS_REFRESH_FIELD, input.refreshToken));
+  getDb()
+    .prepare("UPDATE users SET platform = 'teams', teams_account = ?, teams_refresh_enc = ? WHERE id = ?")
+    .run(input.account, sealed, userId);
+}
+
+export function openTeamsRefresh(user: User): string | null {
+  if (!user.teamsRefreshEnc || !user.dataKeyEnc || !isSealed(user.teamsRefreshEnc)) return null;
+  try {
+    return withUserKey(user.id, user.dataKeyEnc, (box) => box.open(TEAMS_REFRESH_FIELD, user.teamsRefreshEnc!));
+  } catch {
+    return null;
+  }
 }
 
 export function findUserByUsername(username: string): User | null {

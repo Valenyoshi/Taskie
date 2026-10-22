@@ -26,6 +26,13 @@ Abrí [http://127.0.0.1:43123](http://127.0.0.1:43123).
 
 Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejemplo**.
 
+## Colegio: Educamos o Teams
+
+Al crear la cuenta se elige de dónde salen las tareas.
+
+- **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola si no pegás el enlace.
+- **Microsoft Teams.** Después de crear la cuenta, Taskie abre el ingreso de Microsoft del colegio y trae las tareas de cada clase. Hace falta una aplicación en Microsoft Entra con `MICROSOFT_CLIENT_ID`, los permisos `EduAssignments.Read` y `EduRoster.ReadBasic`, y la redirección `/api/auth/teams/callback`. El permiso para volver a entrar queda cifrado en el cofre del alumno.
+
 ## Educamos
 
 Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la contraseña de Educamos. Las credenciales se usan únicamente en el servidor para entrar al aula: nunca se envían al modelo de IA ni se muestran en el navegador.

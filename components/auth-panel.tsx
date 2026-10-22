@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 export function AuthPanel() {
   const router = useRouter();
   const [mode, setMode] = useState<"entrar" | "crear">("crear");
+  const [school, setSchool] = useState<"educamos" | "teams">("educamos");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncNote, setSyncNote] = useState<string | null>(null);
@@ -25,10 +26,14 @@ export function AuthPanel() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...payload, timezone }),
     });
-    const data = (await res.json()) as { error?: string; syncError?: string | null };
+    const data = (await res.json()) as { error?: string; syncError?: string | null; connect?: string };
     setBusy(false);
     if (!res.ok) {
       setError(data.error ?? "No pude entrar.");
+      return;
+    }
+    if (data.connect === "teams") {
+      window.location.href = "/api/auth/teams/start";
       return;
     }
     if (data.syncError) setSyncNote(data.syncError);
@@ -79,14 +84,39 @@ export function AuthPanel() {
             <Field label="Tu nombre" name="name" placeholder="Cómo querés que te llamemos" />
             <Field label="Usuario de Taskie" name="username" placeholder="vale.curso" autoComplete="username" />
             <Field label="Contraseña de Taskie" name="password" type="password" autoComplete="new-password" />
-            <p className="pt-2 text-sm font-medium">Tu colegio en Educamos</p>
-            <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
-            <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />
-            <Field label="Contraseña de Educamos" name="educamosPassword" type="password" autoComplete="off" />
-            <Field label="Enlace del aula" name="lmsUrl" placeholder="https://lms.educamos.com/edison_mza/my/" required={false} />
-            <p className="text-xs text-muted-foreground">
-              Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están las entregas para subir archivos.
-            </p>
+            <p className="pt-2 text-sm font-medium">De dónde salen las tareas</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={`rounded-xl px-3 py-3 text-left text-sm font-semibold ${school === "educamos" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
+                onClick={() => setSchool("educamos")}
+              >
+                Educamos y Moodle
+              </button>
+              <button
+                type="button"
+                className={`rounded-xl px-3 py-3 text-left text-sm font-semibold ${school === "teams" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
+                onClick={() => setSchool("teams")}
+              >
+                Microsoft Teams
+              </button>
+            </div>
+            <input type="hidden" name="platform" value={school} />
+            {school === "educamos" ? (
+              <>
+                <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
+                <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />
+                <Field label="Contraseña de Educamos" name="educamosPassword" type="password" autoComplete="off" />
+                <Field label="Enlace del aula" name="lmsUrl" placeholder="https://lms.educamos.com/edison_mza/my/" required={false} />
+                <p className="text-xs text-muted-foreground">
+                  Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están las entregas para subir archivos.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Después de crear la cuenta vas a entrar con el usuario de Microsoft del colegio. Taskie trae las tareas publicadas en Teams.
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -97,7 +127,7 @@ export function AuthPanel() {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {syncNote ? <p className="text-sm">{syncNote}</p> : null}
         <Button className="h-11" type="submit" disabled={busy}>
-          {busy ? "Buscando tus tareas…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
+          {busy ? "Buscando tus tareas…" : mode === "crear" ? (school === "teams" ? "Crear cuenta y conectar Teams" : "Crear cuenta y buscar tareas") : "Entrar"}
         </Button>
       </form>
       <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>

@@ -8,6 +8,13 @@ export default async function ConfiguracionPage() {
   if (!session) redirect("/entrar");
   return (
     <div className="flex flex-col gap-4">
+      <p className="rounded-2xl bg-card px-4 py-3 text-sm">
+        {session.platform === "teams"
+          ? `Las tareas salen de Microsoft Teams${session.teamsAccount ? `, cuenta ${session.teamsAccount}` : ""}.`
+          : session.isDemo
+            ? "Esta cuenta usa tareas de ejemplo."
+            : "Las tareas salen de Educamos y del aula de Moodle."}
+      </p>
       <CoursePicker courses={session.courseOptions} selected={session.courseChoice} />
       <NotifyToggle enabled={session.notificationsEnabled} />
     </div>
