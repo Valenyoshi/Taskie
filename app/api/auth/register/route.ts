@@ -30,13 +30,14 @@ export async function POST(request: Request) {
   const teamsPassword = body.teamsPassword ?? "";
   const lmsUrl = body.lmsUrl?.trim() || null;
   const timezone = body.timezone?.trim() || "America/Argentina/Buenos_Aires";
-  const platform = body.platform === "teams" ? "teams" : "educamos";
+  const platform = body.platform === "teams" ? "teams" : body.platform === "educamos" ? "educamos" : "";
 
   if (name.length < 2 || name.length > 40) return json({ error: "El nombre tiene que tener entre 2 y 40 letras." }, 400);
   if (!/^[a-zA-Z0-9._-]{3,24}$/.test(username)) {
     return json({ error: "El usuario usa letras, números, punto o guion, de 3 a 24." }, 400);
   }
   if (password.length < 6) return json({ error: "La contraseña de Taskie necesita al menos 6 caracteres." }, 400);
+  if (!platform) return json({ error: "Elegí Educamos o Teams." }, 400);
   if (platform === "educamos" && (!educamosUrl || !educamosUsername || !educamosPassword)) {
     return json({ error: "Completá la URL del colegio, el usuario y la contraseña de Educamos." }, 400);
   }

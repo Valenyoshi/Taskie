@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 export function AuthPanel() {
   const router = useRouter();
   const [mode, setMode] = useState<"entrar" | "crear">("crear");
-  const [school, setSchool] = useState<"educamos" | "teams">("educamos");
+  const [school, setSchool] = useState<"educamos" | "teams" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncNote, setSyncNote] = useState<string | null>(null);
@@ -80,24 +80,27 @@ export function AuthPanel() {
             <Field label="Tu nombre" name="name" placeholder="Cómo querés que te llamemos" />
             <Field label="Usuario de Taskie" name="username" placeholder="vale.curso" autoComplete="username" />
             <Field label="Contraseña de Taskie" name="password" type="password" autoComplete="new-password" />
-            <p className="pt-2 text-sm font-medium">De dónde salen las tareas</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 type="button"
-                className={`rounded-xl px-3 py-3 text-left text-sm font-semibold ${school === "educamos" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
+                aria-label="Educamos y Moodle"
+                aria-pressed={school === "educamos"}
+                className={`flex h-20 items-center justify-center rounded-xl px-3 ${school === "educamos" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
                 onClick={() => setSchool("educamos")}
               >
-                Educamos y Moodle
+                <EducamosLogo />
               </button>
               <button
                 type="button"
-                className={`rounded-xl px-3 py-3 text-left text-sm font-semibold ${school === "teams" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
+                aria-label="Microsoft Teams"
+                aria-pressed={school === "teams"}
+                className={`flex h-20 items-center justify-center rounded-xl px-3 ${school === "teams" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
                 onClick={() => setSchool("teams")}
               >
-                Microsoft Teams
+                <TeamsLogo />
               </button>
             </div>
-            <input type="hidden" name="platform" value={school} />
+            {school ? <input type="hidden" name="platform" value={school} /> : null}
             {school === "educamos" ? (
               <>
                 <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
@@ -108,7 +111,7 @@ export function AuthPanel() {
                   Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están las entregas para subir archivos.
                 </p>
               </>
-            ) : (
+            ) : school === "teams" ? (
               <>
                 <Field label="Usuario de Teams" name="teamsUsername" placeholder="alumno@colegio.edu" autoComplete="off" />
                 <Field label="Contraseña de Teams" name="teamsPassword" type="password" autoComplete="off" />
@@ -116,7 +119,7 @@ export function AuthPanel() {
                   Es el usuario y la contraseña de Microsoft del colegio. Taskie los usa solo para entrar a Teams y traer las tareas.
                 </p>
               </>
-            )}
+            ) : null}
           </>
         ) : (
           <>
@@ -126,7 +129,7 @@ export function AuthPanel() {
         )}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {syncNote ? <p className="text-sm">{syncNote}</p> : null}
-        <Button className="h-11" type="submit" disabled={busy}>
+        <Button className="h-11" type="submit" disabled={busy || (mode === "crear" && !school)}>
           {busy ? "Buscando tus tareas…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
         </Button>
       </form>
@@ -135,6 +138,22 @@ export function AuthPanel() {
       </Button>
       </div>
     </div>
+  );
+}
+
+function EducamosLogo() {
+  return <img src="/educamos.png" alt="" className="size-12" />;
+}
+
+function TeamsLogo() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-12" aria-hidden>
+      <rect width="48" height="48" rx="10" fill="#5b5fc7" />
+      <circle cx="33.5" cy="13" r="4" fill="#7b83eb" />
+      <path d="M27 19.5h13a2 2 0 0 1 2 2V32a6 6 0 0 1-6 6h-5.2A8 8 0 0 1 27 30.2V19.5Z" fill="#7b83eb" />
+      <circle cx="19" cy="16" r="5.2" fill="#fff" />
+      <path d="M7 37.5c.4-6.4 5.2-10 12-10s11.6 3.6 12 10v1.5H7v-1.5Z" fill="#fff" />
+    </svg>
   );
 }
 
