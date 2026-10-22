@@ -130,7 +130,7 @@ export function AuthPanel() {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {syncNote ? <p className="text-sm">{syncNote}</p> : null}
         <Button className="h-11" type="submit" disabled={busy || (mode === "crear" && !school)}>
-          {busy ? "Buscando tus tareas…" : mode === "crear" ? "Crear cuenta y buscar tareas" : "Entrar"}
+          {mode === "crear" ? "Crear cuenta" : "Entrar"}
         </Button>
       </form>
       <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>
@@ -146,15 +146,7 @@ function EducamosLogo() {
 }
 
 function TeamsLogo() {
-  return (
-    <svg viewBox="0 0 48 48" className="size-12" aria-hidden>
-      <rect width="48" height="48" rx="10" fill="#5b5fc7" />
-      <circle cx="33.5" cy="13" r="4" fill="#7b83eb" />
-      <path d="M27 19.5h13a2 2 0 0 1 2 2V32a6 6 0 0 1-6 6h-5.2A8 8 0 0 1 27 30.2V19.5Z" fill="#7b83eb" />
-      <circle cx="19" cy="16" r="5.2" fill="#fff" />
-      <path d="M7 37.5c.4-6.4 5.2-10 12-10s11.6 3.6 12 10v1.5H7v-1.5Z" fill="#fff" />
-    </svg>
-  );
+  return <img src="/teams.svg" alt="" className="size-12" />;
 }
 
 function Field({
