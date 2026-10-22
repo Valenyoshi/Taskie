@@ -658,6 +658,43 @@
   object-fit: contain;
 }
 
+.logout-bye {
+  max-width: 220px;
+  margin: 0;
+  border-radius: 16px;
+  background: #fffdfb;
+  padding: 8px 12px;
+  color: #3d2a22;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 8px 0 rgba(61, 42, 34, 0.08);
+}
+
+.logout-bye::after {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 6px auto -14px;
+  background: #fffdfb;
+  transform: rotate(45deg);
+}
+
+.logout-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
 @keyframes logout-slip {
   to { transform: translateX(14px); opacity: 0; }
 }

@@ -5,15 +5,25 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { HandExitIcon } from "@/components/hand-drawn-icons";
 
+const GOODBYES = [
+  "¡Chau! Nos vemos mañana.",
+  "Andá tranqui, yo cuido las tareas.",
+  "¡Hasta luego! Volvé pronto.",
+  "Buen descanso. Mañana seguimos.",
+  "Chau, que te vaya lindo.",
+];
+
 export function LogoutButton() {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  const [goodbye, setGoodbye] = useState(GOODBYES[0]);
 
   function exit() {
     if (leaving) return;
+    setGoodbye(GOODBYES[Math.floor(Math.random() * GOODBYES.length)]);
     setLeaving(true);
     const request = fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    const pause = new Promise((resolve) => window.setTimeout(resolve, 900));
+    const pause = new Promise((resolve) => window.setTimeout(resolve, 1600));
     void Promise.all([request, pause]).then(() => {
       router.push("/entrar");
       router.refresh();
@@ -34,8 +44,17 @@ export function LogoutButton() {
         ? createPortal(
             <div className="logout-veil" role="status" aria-label="Saliendo">
               <div className="logout-mark">
+                <p className="logout-bye">{goodbye}</p>
                 <img src="/kitty-head.png" alt="" />
                 <p className="gradient-text font-display text-4xl">Taskie</p>
+                <span className="logout-status">
+                  Saliendo
+                  <span className="taskie-loader-dots" aria-hidden>
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                </span>
               </div>
             </div>,
             document.body,
