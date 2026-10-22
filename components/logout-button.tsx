@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { HandExitIcon } from "@/components/hand-drawn-icons";
 
 const GOODBYES = [
-  "¡Chau! Nos vemos mañana.",
-  "Andá tranqui, yo cuido las tareas.",
-  "¡Hasta luego! Volvé pronto.",
+  "¡Adiós! Nos vemos mañana.",
+  "Tranquilo, yo cuido las tareas.",
+  "¡Hasta luego! Vuelve pronto.",
   "Buen descanso. Mañana seguimos.",
-  "Chau, que te vaya lindo.",
+  "Adiós, que te vaya bien.",
 ];
 
 export function LogoutButton() {
