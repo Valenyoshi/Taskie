@@ -193,12 +193,13 @@ export function homeData(userId: string) {
 export function subjectsData(userId: string) {
   const home = homeData(userId);
   if (!home) return null;
-  const map = new Map<string, { subject: string; total: number; done: number; pending: number }>();
+  const map = new Map<string, { subject: string; total: number; done: number; pending: number; tasks: TaskView[] }>();
   for (const task of [...home.pending, ...home.done]) {
-    const row = map.get(task.subject) ?? { subject: task.subject, total: 0, done: 0, pending: 0 };
+    const row = map.get(task.subject) ?? { subject: task.subject, total: 0, done: 0, pending: 0, tasks: [] };
     row.total += 1;
     if (task.pending) row.pending += 1;
     else row.done += 1;
+    row.tasks.push(task);
     map.set(task.subject, row);
   }
   return { user: home.user, subjects: [...map.values()].sort((a, b) => a.subject.localeCompare(b.subject, "es")) };
