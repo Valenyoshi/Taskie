@@ -1329,41 +1329,66 @@ function isCoursePoster(text: string): boolean {
 }
 
 function narrateClass(course: string, title: string, body: string, situations: string[]): string {
-  const agenda = agendaLine(body);
-  const material = materialLine(situations);
-  const detail = [agenda, material].filter(Boolean).join(" ");
-  if (!detail) return "";
+  const text = body.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+  const pieces = [
+    /repaso|aclar/.test(text) ? "repasaron para aclarar dudas" : "",
+    materialLine(situations).replace(/\.$/, ""),
+    practicalLine(text).replace(/\.$/, ""),
+  ].filter(Boolean);
+  if (pieces.length === 0) return "";
+  let story = pieces.join(". ");
+  if (!/[.!?]$/.test(story)) story += ".";
+  const when = classWhen(text);
+  story = when ? `${when} ${story.charAt(0).toLowerCase()}${story.slice(1)}` : `${story.charAt(0).toUpperCase()}${story.slice(1)}`;
   const topic = title.replace(/\s+/g, " ").trim().replace(/\.$/, "").replace(/(\d)\.\s+/, "$1, ");
-  return `En la última clase de ${course} (${topic}): ${detail}`;
+  return `En la última clase de ${course} (${topic}): ${story}`;
 }
 
-function agendaLine(raw: string): string {
-  const text = raw.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+function classWhen(text: string): string {
   const weekday = /lunes|martes|miercoles|jueves|viernes/.exec(text)?.[0] ?? "";
   const day = weekday ? new RegExp(`${weekday}\\s+(\\d{1,2})`).exec(text)?.[1] : "";
-  const weekdayLabel = weekday === "miercoles" ? "miércoles" : weekday;
-  const when = weekday && day ? `El ${weekdayLabel} ${day}` : "";
-  const bits: string[] = [];
-  if (/repaso|aclar/.test(text)) bits.push("repasaron para aclarar dudas");
-  if (/grafi/.test(text)) bits.push("analizaron gráficos");
-  if (/trabajo practico/.test(text)) {
-    const topic = /trabajo practico de ([a-z]+)/.exec(text)?.[1];
-    const topicLabel = topic === "funcion" ? "función" : topic === "estadistica" ? "estadística" : topic;
-    bits.push(`hicieron el trabajo práctico${topicLabel ? ` de ${topicLabel}` : ""}`);
-  }
-  if (!when && bits.length === 0) return "";
-  const story = joinSpanish(bits);
-  const delivery = /fotocopia/.test(text) ? " Se entrega en fotocopia." : "";
-  if (!story) return when ? `${when} hubo clase.` : "";
-  const sentence = when ? `${when} ${story}.` : `${story.charAt(0).toUpperCase()}${story.slice(1)}.`;
-  return `${sentence}${delivery}`;
+  if (!weekday || !day) return "";
+  return `El ${weekday === "miercoles" ? "miércoles" : weekday} ${day}`;
+}
+
+function practicalLine(text: string): string {
+  if (!/trabajo practico/.test(text)) return "";
+  const topic = /trabajo practico de ([a-z]+)/.exec(text)?.[1];
+  const topicLabel = topic === "funcion" ? "función" : topic === "estadistica" ? "estadística" : topic;
+  const name = `el trabajo práctico${topicLabel ? ` de ${topicLabel}` : ""}`;
+  if (/fotocopia/.test(text)) return `Hicieron ${name}. Se entrega en fotocopia.`;
+  return `Hicieron ${name}.`;
+}
+
+function briefSituation(sentence: string): string {
+  const folded = sentence.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const known: [RegExp, string][] = [
+    [/presion|paciente|urgencias/, "la presión de un paciente en urgencias"],
+    [/furgoneta|velocidad/, "la velocidad de una furgoneta durante una mañana"],
+    [/aguila|conejo|paloma/, "un águila que sale del nido a cazar"],
+    [/accidentes/, "los accidentes de tráfico de varios años"],
+    [/globo/, "un globo que sube y estalla"],
+    [/golosinas|ingresos/, "el dinero de un puesto de golosinas"],
+  ];
+  for (const [pattern, label] of known) if (pattern.test(folded)) return label;
+  const stripped = sentence
+    .replace(/^en la siguiente gr[aá]fica se ha representado\s+/i, "")
+    .replace(/^esta gr[aá]fica,? nos muestra\s+/i, "")
+    .replace(/^un equipo de [a-záéíóúñ]+ ha observado\s+/i, "")
+    .replace(/^se suelta\s+/i, "")
+    .replace(/[“”"][\s\S]*$/, "")
+    .split(",")[0]
+    .replace(/\s+/g, " ")
+    .trim();
+  if (stripped.length < 12) return "";
+  return stripped.length > 90 ? stripped.slice(0, 86).replace(/\s+\S*$/, "").trim() : stripped;
 }
 
 function materialLine(situations: string[]): string {
-  const items = situations.map((item) => item.replace(/\.$/, ""));
+  const items = [...new Set(situations.map(briefSituation).filter(Boolean))];
   if (items.length === 0) return "";
-  if (items.length === 1) return `El gráfico de la clase: ${items[0]}.`;
-  return `Los gráficos de la clase: ${items.join(". ")}.`;
+  if (items.length === 1) return `Vieron el gráfico de ${items[0]}.`;
+  return `Vieron estos gráficos: ${joinSpanish(items)}.`;
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
@@ -1383,7 +1408,7 @@ async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promi
 function joinSpanish(bits: string[]): string {
   if (bits.length <= 1) return bits[0] ?? "";
   if (bits.length === 2) return `${bits[0]} y ${bits[1]}`;
-  return `${bits.slice(0, -1).join(", ")} y ${bits[bits.length - 1]}`;
+  return `${bits.slice(0, -1).join(", ")}, y ${bits[bits.length - 1]}`;
 }
 
 async function loadLessons(

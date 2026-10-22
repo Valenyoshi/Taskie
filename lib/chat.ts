@@ -419,7 +419,11 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
         )
       : "";
     const pending = tasks.filter(
-      (task) => task.status === "pending" && subject && mentions(task.subject, new Set(titleWords(safeMessage))),
+      (task) =>
+        task.status === "pending" &&
+        pendingIsCurrent(task.dueAt, user.timezone) &&
+        subject &&
+        mentions(task.subject, new Set(titleWords(safeMessage))),
     );
     const reminder = pending.length
       ? `\n\nTambién tenés pendiente: ${pending.slice(0, 2).map((task) => `${task.title} (${task.subject})`).join("; ")}.`
