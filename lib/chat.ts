@@ -414,7 +414,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
             courseKeys: selectedCourseKeys(user),
             timeZone: user.timezone,
           }),
-          18000,
+          40000,
           "",
         )
       : "";

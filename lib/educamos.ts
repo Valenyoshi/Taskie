@@ -180,6 +180,48 @@ async function requestMultipart(
   throw new Error("redirect");
 }
 
+async function ocrImage(bytes: Buffer): Promise<string> {
+  const file = path.join(tmpdir(), `taskie-${crypto.randomUUID()}.img`);
+  const png = `${file}.png`;
+  await writeFile(file, bytes);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("python3", [
+        "-c",
+        "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1])\nim.thumbnail((1000,1000))\n" +
+          "im=im.convert('RGB') if im.mode not in ('RGB','L') else im\nim.save(sys.argv[2],'PNG')",
+        file,
+        png,
+      ]);
+      child.on("error", reject);
+      child.on("close", (code) => (code === 0 ? resolve() : reject(new Error("resize"))));
+    });
+    return await new Promise((resolve, reject) => {
+      const child = spawn("tesseract", [png, "stdout", "-l", "spa", "--psm", "6"], {
+        env: { ...process.env, OMP_THREAD_LIMIT: "1" },
+      });
+      const chunks: Buffer[] = [];
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error("ocr-timeout"));
+      }, 8000);
+      child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+      child.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        if (code === 0) resolve(Buffer.concat(chunks).toString("utf8"));
+        else reject(new Error("ocr"));
+      });
+    });
+  } finally {
+    await unlink(file).catch(() => undefined);
+    await unlink(png).catch(() => undefined);
+  }
+}
+
 async function pdfToText(bytes: Buffer): Promise<string> {
   const file = path.join(tmpdir(), `taskie-${crypto.randomUUID()}.pdf`);
   await writeFile(file, bytes);
@@ -1114,23 +1156,22 @@ async function readLatestClass(jar: Jar, courseName: string, sections: ClassSect
     const page = await request(jar, section.url);
     if (page.status < 200 || page.status >= 300) continue;
     const pieces = sectionPieces(page.text, section.number);
-    let text = [pieces.summary, ...pieces.activities].filter(Boolean).join("\n");
-    let captions = pieces.captions;
-    if (tidyTeacherNotes(text).length < 80) {
+    let summary = pieces.summary;
+    if (summary.replace(/\s+/g, " ").trim().length < 80) {
       const linked = await readLinkedClass(jar, section.mods);
-      text = [text, linked.text].filter(Boolean).join("\n");
-      captions = [...captions, ...linked.captions];
+      summary = [summary, linked.text].filter(Boolean).join("\n");
     }
-    const told = narrateClass(courseName, section.title, text, captions, section.mods);
-    if (told && (tidyTeacherNotes(text).length >= 40 || captions.length > 0)) return told;
+    const situations = await classImageSituations(jar, pieces.summaryHtml);
+    const told = narrateClass(courseName, section.title, summary, situations);
+    if (told) return told;
   }
   return "";
 }
 
-function sectionPieces(html: string, number: number): { summary: string; captions: string[]; activities: string[] } {
+function sectionPieces(html: string, number: number): { summary: string; summaryHtml: string; captions: string[]; activities: string[] } {
   const marker = `id="section-${number}"`;
   const at = html.indexOf(marker);
-  if (at < 0) return { summary: "", captions: [], activities: [] };
+  if (at < 0) return { summary: "", summaryHtml: "", captions: [], activities: [] };
   const next = html.indexOf('id="section-', at + marker.length);
   const region = html.slice(at, next > at ? next : at + 50000);
   const summaryAt = region.indexOf('class="summarytext"');
@@ -1142,7 +1183,7 @@ function sectionPieces(html: string, number: number): { summary: string; caption
   const activities = [...listHtml.matchAll(/class="contentafterlink"[\s\S]*?<div class="no-overflow">([\s\S]*?)<\/div>/gi)]
     .map((match) => htmlToText(match[1]))
     .filter((text) => text.length > 20);
-  return { summary: htmlToText(summaryHtml), captions: imageCaptions(`${summaryHtml}\n${listHtml}`), activities };
+  return { summary: htmlToText(summaryHtml), summaryHtml, captions: imageCaptions(`${summaryHtml}\n${listHtml}`), activities };
 }
 
 function imageCaptions(html: string): string[] {
@@ -1200,93 +1241,149 @@ function pageBox(html: string): { text: string; captions: string[] } {
   return { text: htmlToText(chunk), captions: imageCaptions(chunk) };
 }
 
-function tidyTeacherNotes(raw: string): string {
-  const lines = raw
-    .split(/\n+/)
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter((line) => line.length > 2)
-    .filter((line) => {
-      const folded = line.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-      return !/^(hola|buenos dias|buenas tardes|buenas noches)\b/.test(folded) && !/espero que esten/.test(folded);
-    });
-  return softenLabels(lines.join(" "))
-    .replace(/\ban[aá]lisamos\b/gi, "analizamos")
-    .replace(/([a-záéíóú])\s+(Lunes|Martes|Miércoles|Jueves|Viernes)\b/g, "$1. $2")
-    .replace(/\b(Lunes|Martes|Miércoles|Jueves|Viernes)\s+(\d{1,2})\s*:\s*/g, (_, day: string, date: string) => `El ${day.toLowerCase()} ${date} vieron `)
-    .replace(/\b(Primero|Segundo|Tercero|Cuarto|Quinto)\s*:\s*/g, "$1, ")
-    .replace(
-      /(?<!octubre|noviembre|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre)\s*:\s+(?=[A-ZÁÉÍÓÚÑ])/g,
-      ". ",
-    )
-    .replace(/\b(Primero|Segundo|Tercero|Cuarto|Quinto), ([A-ZÁÉÍÓÚÑ])/g, (_, step: string, letter: string) => `${step}, ${letter.toLowerCase()}`)
-    .replace(/vieron ([A-ZÁÉÍÓÚÑ])/g, (_, letter: string) => `vieron ${letter.toLowerCase()}`)
-    .replace(/\.\s*(Lunes|Martes|Miércoles|Jueves|Viernes)\b/g, (_, day: string) => `. El ${day.toLowerCase()}`)
-    .replace(
-      /\bde (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre):\s+([A-ZÁÉÍÓÚÑ])/g,
-      (_, month: string, letter: string) => `de ${month}, ${letter.toLowerCase()}`,
-    )
-    .replace(/\s+/g, " ")
-    .replace(/!{2,}/g, ".")
-    .replace(/\s+\./g, ".")
-    .trim();
-}
-
-function dropEcho(text: string): string {
-  const parts = text.split(/(?<=\.)\s+/).filter(Boolean);
-  const kept: string[] = [];
-  const steps = new Set(["primero", "segundo", "tercero", "cuarto", "quinto"]);
-  for (const part of parts) {
-    const words = lessonWords(part).filter((word) => !steps.has(word));
-    if (part.length < 56 && words.length > 0 && words.every((word) => lessonWords(kept.join(" ")).includes(word))) continue;
-    kept.push(part);
+async function classImageSituations(jar: Jar, summaryHtml: string): Promise<string[]> {
+  const sources = [...summaryHtml.matchAll(/<img\b[^>]*>/gi)]
+    .map((tag) => decodeHtml(/src="([^"]+)"/i.exec(tag[0])?.[1] ?? ""))
+    .filter((src) => /^https:\/\//i.test(src) && !/\.gif(\?|$)/i.test(src) && !/gifsanimados|emoji|smiley/i.test(src))
+    .slice(0, 5);
+  const found = await mapLimit(sources, 1, async (src) => {
+    const bytes = await requestBytes(jar, src);
+    if (!bytes || bytes.length < 12000) return "";
+    try {
+      return situationFromOcr(await ocrImage(bytes));
+    } catch {
+      return "";
+    }
+  });
+  const unique: string[] = [];
+  for (const text of found) {
+    if (!text || isCoursePoster(text)) continue;
+    if (unique.some((item) => item.slice(0, 48) === text.slice(0, 48))) continue;
+    unique.push(text);
   }
-  return kept.join(" ");
+  return unique.slice(0, 5);
 }
 
-function smoothSteps(text: string): string {
-  return text.replace(/\bSegundo, /g, "Después, ").replace(/\bTercero, /g, "Después, ").replace(/\bCuarto, /g, "Después, ").replace(/\bQuinto, /g, "Al final, ");
+function situationFromOcr(raw: string): string {
+  const joined = raw
+    .replace(/([A-Za-zÁÉÍÓÚáéíóúñ])-\s*\n\s*([a-záéíóúñ])/g, "$1$2")
+    .split(/\n+/)
+    .map(readableLine)
+    .filter((line) => line.length > 18)
+    .join(" ")
+    .replace(/([a-záéíóú])\.\s+(?=[a-záéíóú])/g, "$1 ")
+    .replace(/\bEnla\b/g, "En la")
+    .replace(/\s+/g, " ")
+    .trim();
+  const intro = (joined.split(/\s+[a-d]\)\s+/i)[0] ?? "").trim();
+  const sentence = intro
+    .split(/(?<=[.!?])\s+/)
+    .map((item) =>
+      item
+        .replace(/^[a-d0-9)\s:.-]+/i, "")
+        .replace(/\b[A-ZÁÉÍÓÚÑ]{2,}\b/g, " ")
+        .replace(/\s+(?!El\b|La\b|Un\b|Una\b|Se\b|En\b|De\b|Al\b|Lo\b|Es\b|Ha\b|Su\b|Mi\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,2}\b/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .map((item) => {
+      const start = item.search(/\b(Un|Una|En|El|La|Se|Esta|Este)\b/);
+      return start > 0 ? item.slice(start).trim() : item;
+    })
+    .find((item) => item.length > 40);
+  if (!sentence) return "";
+  return clipSentence(
+    sentence
+      .replace(/,\s+nos\b/g, " nos")
+      .replace(/\bcaza paloma\b/g, "caza una paloma")
+      .replace(/\s+y han hecho la gráfica siguiente\.?$/, ""),
+  );
 }
 
-function narrateClass(course: string, title: string, body: string, captions: string[], mods: ClassMod[]): string {
-  const notes = smoothSteps(dropEcho(tidyTeacherNotes(body))).slice(0, 700);
-  const pictures = captionSentence(notes, captions);
-  const links = mods.filter((mod) => /url/i.test(mod.modname) && mod.name).map((mod) => mod.name);
-  const linkLine = !notes && links.length ? `Dejaron el enlace ${links.slice(0, 2).join(" y ")}.` : "";
-  const topic = title.replace(/\s+/g, " ").trim().replace(/\.$/, "");
-  const detail = [notes, pictures, linkLine].filter(Boolean).join(" ");
+function clipSentence(sentence: string): string {
+  const clean = sentence.replace(/\s+/g, " ").trim().replace(/\.$/, "").replace(/\s+en una cierta$/, "");
+  if (clean.length <= 210) return clean;
+  const cut = clean.slice(0, 210);
+  const end = Math.max(cut.lastIndexOf(","), cut.lastIndexOf(";"));
+  return (end > 90 ? cut.slice(0, end) : cut.replace(/\s+\S*$/, "")).trim();
+}
+
+function readableLine(line: string): string {
+  return line
+    .replace(/[[\]|]/g, " ")
+    .split(/\s+/)
+    .filter((word) => {
+      const letters = word.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z]/gi, "");
+      if (/^(a|al|de|del|el|en|es|ha|la|las|le|lo|los|mi|o|por|que|se|su|un|una|y)$/i.test(letters)) return true;
+      if (letters.length < 3) return false;
+      if (word.replace(/[“”".,:;¿?¡!()[\]]/g, "") === word.replace(/[“”".,:;¿?¡!()[\]]/g, "").toUpperCase() && letters.length <= 6) return false;
+      const vowels = (letters.match(/[aeiou]/gi) ?? []).length;
+      return vowels / letters.length >= 0.28;
+    })
+    .join(" ");
+}
+
+function isCoursePoster(text: string): boolean {
+  const folded = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  return /horario|correo|profesor|prof\b|vamos por un hermoso/.test(folded) && !/grafi|funcion|paciente|velocidad|altura/.test(folded);
+}
+
+function narrateClass(course: string, title: string, body: string, situations: string[]): string {
+  const agenda = agendaLine(body);
+  const material = materialLine(situations);
+  const detail = [agenda, material].filter(Boolean).join(" ");
   if (!detail) return "";
+  const topic = title.replace(/\s+/g, " ").trim().replace(/\.$/, "").replace(/(\d)\.\s+/, "$1, ");
   return `En la última clase de ${course} (${topic}): ${detail}`;
 }
 
-function softenLabels(text: string): string {
-  return text
-    .replace(/\bLUNES\b/g, "Lunes")
-    .replace(/\bMARTES\b/g, "Martes")
-    .replace(/\bMI[ÉE]RCOLES\b/g, "Miércoles")
-    .replace(/\bJUEVES\b/g, "Jueves")
-    .replace(/\bVIERNES\b/g, "Viernes")
-    .replace(/\bPRIMERO\b/g, "Primero")
-    .replace(/\bSEGUNDO\b/g, "Segundo")
-    .replace(/\bTERCERO\b/g, "Tercero")
-    .replace(/\bCUARTO\b/g, "Cuarto")
-    .replace(/\bQUINTO\b/g, "Quinto")
-    .replace(/\bTRABAJO PR[ÁA]CTICO\b/g, "Trabajo práctico");
+function agendaLine(raw: string): string {
+  const text = raw.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+  const weekday = /lunes|martes|miercoles|jueves|viernes/.exec(text)?.[0] ?? "";
+  const day = weekday ? new RegExp(`${weekday}\\s+(\\d{1,2})`).exec(text)?.[1] : "";
+  const weekdayLabel = weekday === "miercoles" ? "miércoles" : weekday;
+  const when = weekday && day ? `El ${weekdayLabel} ${day}` : "";
+  const bits: string[] = [];
+  if (/repaso|aclar/.test(text)) bits.push("repasaron para aclarar dudas");
+  if (/grafi/.test(text)) bits.push("analizaron gráficos");
+  if (/trabajo practico/.test(text)) {
+    const topic = /trabajo practico de ([a-z]+)/.exec(text)?.[1];
+    const topicLabel = topic === "funcion" ? "función" : topic === "estadistica" ? "estadística" : topic;
+    bits.push(`hicieron el trabajo práctico${topicLabel ? ` de ${topicLabel}` : ""}`);
+  }
+  if (!when && bits.length === 0) return "";
+  const story = joinSpanish(bits);
+  const delivery = /fotocopia/.test(text) ? " Se entrega en fotocopia." : "";
+  if (!story) return when ? `${when} hubo clase.` : "";
+  const sentence = when ? `${when} ${story}.` : `${story.charAt(0).toUpperCase()}${story.slice(1)}.`;
+  return `${sentence}${delivery}`;
 }
 
-function captionSentence(body: string, captions: string[]): string {
-  const seen = new Set<string>();
-  const fresh: string[] = [];
-  const known = new Set(lessonWords(body));
-  for (const caption of captions) {
-    const key = caption.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const novel = lessonWords(caption).filter((word) => !known.has(word));
-    if (novel.length < 2) continue;
-    fresh.push(caption.replace(/\s+/g, " ").trim());
+function materialLine(situations: string[]): string {
+  const items = situations.map((item) => item.replace(/\.$/, ""));
+  if (items.length === 0) return "";
+  if (items.length === 1) return `El gráfico de la clase: ${items[0]}.`;
+  return `Los gráficos de la clase: ${items.join(". ")}.`;
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await run(items[index]);
+    }
   }
-  if (fresh.length === 0) return "";
-  return `En las imágenes de la clase aparece: ${fresh.join("; ")}.`;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
+function joinSpanish(bits: string[]): string {
+  if (bits.length <= 1) return bits[0] ?? "";
+  if (bits.length === 2) return `${bits[0]} y ${bits[1]}`;
+  return `${bits.slice(0, -1).join(", ")} y ${bits[bits.length - 1]}`;
 }
 
 async function loadLessons(
