@@ -14,7 +14,6 @@ export async function POST(request: Request) {
     educamosPassword?: string;
     teamsUsername?: string;
     teamsPassword?: string;
-    lmsUrl?: string;
     timezone?: string;
     platform?: string;
   } | null;
@@ -28,7 +27,6 @@ export async function POST(request: Request) {
   const educamosPassword = body.educamosPassword ?? "";
   const teamsUsername = body.teamsUsername?.trim() ?? "";
   const teamsPassword = body.teamsPassword ?? "";
-  const lmsUrl = body.lmsUrl?.trim() || null;
   const timezone = body.timezone?.trim() || "America/Argentina/Buenos_Aires";
   const platform = body.platform === "teams" ? "teams" : body.platform === "educamos" ? "educamos" : "";
 
@@ -58,7 +56,7 @@ export async function POST(request: Request) {
       platform === "teams"
         ? { username: teamsUsername, password: teamsPassword }
         : { username: educamosUsername, password: educamosPassword },
-    lmsUrl: platform === "teams" ? null : lmsUrl,
+    lmsUrl: null,
     timezone,
     isDemo: false,
     platform,

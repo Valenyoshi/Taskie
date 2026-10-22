@@ -5,7 +5,7 @@ Web para ver las tareas de Educamos, entregarlas y ganar sombreros. Se usa en el
 ## Qué tiene
 
 - Cuenta de Taskie y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
-- Puntos para subir archivos del aula (`https://lms.educamos.com/tucolegio/my/`). Si no cargás ese enlace, se arma con la dirección del colegio.
+- Puntos para subir archivos del aula. El enlace se arma solo con la dirección del colegio (`tucolegio.educamos.com` pasa a `https://lms.educamos.com/tucolegio`).
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
 - Sombreros por entregas, racha, misiones y logros.
@@ -30,7 +30,7 @@ Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejem
 
 Al crear la cuenta se elige de dónde salen las tareas.
 
-- **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola si no pegás el enlace.
+- **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola con esa dirección.
 - **Microsoft Teams.** Van el usuario y la contraseña de Microsoft del colegio, igual que en Educamos. Taskie entra a Teams con esos datos y trae las tareas de cada clase. La contraseña queda cifrada en el cofre del alumno y solo se envía a Microsoft.
 
 ## Educamos

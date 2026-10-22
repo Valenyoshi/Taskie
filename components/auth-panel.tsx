@@ -106,10 +106,6 @@ export function AuthPanel() {
                 <Field label="Dirección del colegio" name="educamosUrl" placeholder="https://tucolegio.educamos.com" />
                 <Field label="Usuario de Educamos" name="educamosUsername" autoComplete="off" />
                 <Field label="Contraseña de Educamos" name="educamosPassword" type="password" autoComplete="off" />
-                <Field label="Enlace del aula" name="lmsUrl" placeholder="https://lms.educamos.com/edison_mza/my/" required={false} />
-                <p className="text-xs text-muted-foreground">
-                  Opcional. Si lo dejás vacío, lo armamos con la dirección del colegio. Ahí están las entregas para subir archivos.
-                </p>
               </>
             ) : school === "teams" ? (
               <>
