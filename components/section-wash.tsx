@@ -1,16 +1,30 @@
 "use client";
 
+import { useLayoutEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+
+function toneFor(pathname: string) {
+  if (pathname.startsWith("/inicio")) return "inicio";
+  if (pathname.startsWith("/materias")) return "materias";
+  if (pathname.startsWith("/premios")) return "tienda";
+  if (pathname.startsWith("/chat")) return "chat";
+  if (pathname.startsWith("/configuracion")) return "configuracion";
+  if (pathname.startsWith("/ranking")) return "ranking";
+  if (pathname.startsWith("/concentracion")) return "concentracion";
+  return "";
+}
 
 export function SectionWash() {
   const pathname = usePathname();
-  let tone = "";
-  if (pathname.startsWith("/inicio")) tone = "inicio";
-  else if (pathname.startsWith("/materias")) tone = "materias";
-  else if (pathname.startsWith("/premios")) tone = "tienda";
-  else if (pathname.startsWith("/chat")) tone = "chat";
-  else if (pathname.startsWith("/configuracion")) tone = "configuracion";
+  const tone = toneFor(pathname);
+  const [variant, setVariant] = useState(1);
+
+  useLayoutEffect(() => {
+    if (!tone) return;
+    setVariant(1 + Math.floor(Math.random() * 4));
+  }, [tone]);
+
   if (!tone) return null;
 
-  return <div className={`section-wash ${tone}`} aria-hidden />;
+  return <div className={`section-wash ${tone} v${variant}`} aria-hidden />;
 }
