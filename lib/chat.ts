@@ -5,7 +5,6 @@ import { visibleTasks } from "./courses";
 import { type Task, type User } from "./db";
 import { asksForLesson, fetchTaskInstructions, notesForSubject, previousClassNotes } from "./educamos";
 import { selectedCourseKeys } from "./courses";
-import { PULL_COST } from "./game";
 import { blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
 import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
@@ -38,8 +37,7 @@ export function taskSnapshot(user: User, tasks: Task[]): string {
     return `- ${task.subject}: ${task.title}. ${state}. ${dueLabel(task.dueAt, user.timezone)}. (${when})`;
   });
   return [
-    `El alumno tiene ${user.points} sombreros y una racha de ${user.streak} días.`,
-    `Cada 2 tareas entregadas dan aproximadamente un giro de ${PULL_COST} sombreros.`,
+    `La racha es de ${user.streak} días.`,
     lines.length ? lines.join("\n") : "No hay tareas cargadas.",
   ].join("\n");
 }
@@ -84,11 +82,8 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
     return `Tus materias con tareas pendientes son: ${subjects.join(", ") || "ninguna todavía"}.`;
   }
 
-  if (/sombrero|punto|tirada|maquina|máquina/.test(q)) {
-    const missing = Math.max(0, PULL_COST - user.points);
-    return missing === 0
-      ? `Tenés ${user.points} sombreros. Ya te alcanza para una tirada de ${PULL_COST}.`
-      : `Tenés ${user.points} sombreros. Te faltan ${missing} para una tirada de ${PULL_COST}.`;
+  if (/sombrero|tirada|maquina|máquina/.test(q)) {
+    return `La racha es de ${user.streak} día${user.streak === 1 ? "" : "s"}. Las tareas pendientes están en Inicio.`;
   }
 
   if (/racha/.test(q)) {
@@ -102,7 +97,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   }
 
   if (/\bnivel\b|\bxp\b|\bexperiencia\b/.test(q)) {
-    return `Taskie ya no usa niveles ni XP. Tu progreso se mide con sombreros y una racha de ${user.streak} días.`;
+    return `Taskie ya no usa niveles ni XP. Tu progreso es la racha de ${user.streak} día${user.streak === 1 ? "" : "s"} y las tareas que vas entregando.`;
   }
 
   if (isGreeting(message)) {

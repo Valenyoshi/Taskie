@@ -8,7 +8,6 @@ import {
   NavHomeIcon,
   NavIaIcon,
   NavMateriasIcon,
-  NavTemasIcon,
 } from "@/components/hand-drawn-icons";
 import { cn } from "cn";
 
@@ -16,7 +15,6 @@ const items = [
   { href: "/inicio", label: "Inicio", icon: NavHomeIcon, motion: "home" },
   { href: "/materias", label: "Materias", icon: NavMateriasIcon, motion: "subjects" },
   { href: "/chat", label: "IA", icon: NavIaIcon, motion: "ia" },
-  { href: "/premios", label: "Temas", icon: NavTemasIcon, motion: "store" },
   { href: "/configuracion", label: "Configuración", icon: NavConfigIcon, motion: "settings" },
 ];
 

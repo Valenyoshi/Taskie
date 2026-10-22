@@ -7,7 +7,6 @@ type RewardPopupProps = {
   title: string;
   description: string;
   streak?: number;
-  points: number;
   storageKey?: string;
   onClose?: () => void;
 };
@@ -17,7 +16,6 @@ export function RewardPopup({
   title,
   description,
   streak,
-  points,
   storageKey,
   onClose,
 }: RewardPopupProps) {
@@ -71,12 +69,6 @@ export function RewardPopup({
             🔥 Racha de {streak} {streak === 1 ? "día" : "días"}
           </p>
         ) : null}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="col-span-2 rounded-2xl bg-[color-mix(in_oklab,var(--pine)_15%,transparent)] px-3 py-3">
-            <p className="text-xs font-bold uppercase text-muted-foreground">Sombreros</p>
-            <p className="font-display text-2xl text-pine">+{points}</p>
-          </div>
-        </div>
         <button type="button" className="lesson-next mt-5 w-full" onClick={close} autoFocus>
           Seguir
         </button>

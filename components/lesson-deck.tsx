@@ -112,9 +112,8 @@ export function LessonDeck({ streak }: { streak: number }) {
     <RewardPopup
       open
       title="¡Lección empezada!"
-      description={`Completá el repaso de ${lesson.subject} y seguí sumando.`}
+      description={`Completá el repaso de ${lesson.subject}.`}
       streak={streak}
-      points={reward.points}
       onClose={() => setReward(null)}
     />
   ) : null;

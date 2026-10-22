@@ -21,7 +21,6 @@ export const REWARDS: RewardDef[] = [
     kind: "theme",
     rarity: "rare",
     blurb: "Un check pixelado para celebrar cada tarea terminada.",
-    cost: 100,
   },
   { id: "lapiz", name: "Lápiz", emoji: "✏️", kind: "medal", rarity: "common", blurb: "El de siempre." },
   { id: "regla", name: "Regla", emoji: "📏", kind: "medal", rarity: "common", blurb: "Para la línea recta." },
@@ -60,9 +59,26 @@ export function rewardById(id: string): RewardDef | undefined {
   return REWARDS.find((reward) => reward.id === id);
 }
 
+export const APPEARANCE_THEMES = [
+  { id: "cuaderno", name: "Cuaderno" },
+  { id: "bosque", name: "Bosque" },
+  { id: "pizarra", name: "Pizarra" },
+  { id: "noche", name: "Noche" },
+  { id: "oro", name: "Oro" },
+  { id: "check-retro", name: "Check retro" },
+] as const;
+
+export type AppearanceThemeId = (typeof APPEARANCE_THEMES)[number]["id"];
+
+const COLOR_THEMES = new Set<string>(["bosque", "pizarra", "noche", "oro"]);
+
+export function isAppearanceTheme(id: string): id is AppearanceThemeId {
+  return APPEARANCE_THEMES.some((theme) => theme.id === id);
+}
+
 export function themeKey(rewardId: string | null): string {
-  const reward = rewardId ? rewardById(rewardId) : undefined;
-  return reward?.theme ?? "cuaderno";
+  if (rewardId && COLOR_THEMES.has(rewardId)) return rewardId;
+  return "cuaderno";
 }
 
 export function frameClass(rewardId: string | null): string {

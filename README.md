@@ -1,6 +1,6 @@
 # Taskie
 
-Web para ver las tareas de Educamos, entregarlas y ganar sombreros. Se usa en el navegador de la computadora o del celular, y se puede instalar en la pantalla de inicio.
+Web para ver las tareas de Educamos y entregarlas. Se usa en el navegador de la computadora o del celular, y se puede instalar en la pantalla de inicio.
 
 ## Qué tiene
 
@@ -8,10 +8,9 @@ Web para ver las tareas de Educamos, entregarlas y ganar sombreros. Se usa en el
 - Puntos para subir archivos del aula. El enlace se arma solo con la dirección del colegio (`tucolegio.educamos.com` pasa a `https://lms.educamos.com/tucolegio`).
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
-- Sombreros por entregas, racha, misiones y logros.
-- La tienda de Bobby, con literas para la mercadería.
+- Temas en Configuración: el aspecto de la app, sin tienda.
 - Logros, racha por entrar y la sección IA: chat y repasos cortos.
-- Barras diarias y semanales con confeti, sin zoom, y recompensa en sombreros.
+- Barras diarias y semanales.
 - Lecciones preparadas automáticamente con los temas recientes de cada materia.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
 
@@ -71,11 +70,6 @@ En Lecciones hay uno o dos repasos de menos de 3 minutos por materia, preparados
 
 Al entrar, Taskie busca de nuevo las tareas del colegio. En Configuración hay un interruptor y un botón **Probar aviso**. Hace falta dar permiso en el navegador. En Android Chrome funcionan en la web y en la app instalada. En iPhone, el aviso push llega cuando el sitio está agregado a la pantalla de inicio. Los recordatorios usan las mismas tareas pendientes que Inicio.
 
-## Recompensas
+## Racha
 
-- Tarea a tiempo: 25 sombreros.
-- Tarea tarde: 25 sombreros.
-- Día: si completás a tiempo al menos el 60 % de lo que vence hoy, 40 sombreros.
-- Semana: si completás a tiempo todo lo que vence esa semana, 100 sombreros.
-- Combo, si además cada día con tareas llegó al 60 %: 60 sombreros.
-- Entrar un día nuevo: 5 sombreros y un día de racha.
+Entrar un día nuevo suma un día de racha. Si falta un día, vuelve a empezar. El aspecto de la app se elige en Configuración.

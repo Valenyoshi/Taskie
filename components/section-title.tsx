@@ -12,9 +12,6 @@ export function SectionTitle({ username }: { username: string }) {
   else if (pathname.startsWith("/materias")) {
     title = "Materias";
     tone = "materias";
-  } else if (pathname.startsWith("/premios")) {
-    title = "Temas";
-    tone = "tienda";
   } else if (pathname.startsWith("/chat")) {
     title = "IA";
     tone = "chat";
@@ -46,13 +43,11 @@ export function SectionTitle({ username }: { username: string }) {
   const toneClass =
     tone === "materias"
       ? "section-title-materias"
-      : tone === "tienda"
-        ? "section-title-tienda"
-        : tone === "chat"
-          ? "section-title-chat"
-          : tone === "configuracion"
-            ? "section-title-configuracion"
-            : "";
+      : tone === "chat"
+        ? "section-title-chat"
+        : tone === "configuracion"
+          ? "section-title-configuracion"
+          : "";
   return (
     <p className={`gradient-text ${toneClass} font-display leading-none ${title.length > 12 ? "text-4xl sm:text-5xl" : "text-5xl"}`}>
       {title}

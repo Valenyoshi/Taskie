@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { CoursePicker } from "@/components/course-picker";
 import { NotifyToggle } from "@/components/notify-card";
+import { ThemePicker } from "@/components/theme-picker";
 import { getCurrentUser } from "@/lib/session";
 
 export default async function ConfiguracionPage() {
@@ -16,6 +17,7 @@ export default async function ConfiguracionPage() {
             : "Las tareas salen de Educamos y del aula de Moodle."}
       </p>
       <CoursePicker courses={session.courseOptions} selected={session.courseChoice} />
+      <ThemePicker equipped={session.equippedTheme} />
       <NotifyToggle enabled={session.notificationsEnabled} />
     </div>
   );

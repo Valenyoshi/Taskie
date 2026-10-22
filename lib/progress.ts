@@ -1,4 +1,4 @@
-import { ACHIEVEMENTS, REWARDS, rewardById, type AchievementId } from "./catalog";
+import { ACHIEVEMENTS, REWARDS, isAppearanceTheme, rewardById, type AchievementId } from "./catalog";
 import {
   addAchievement,
   addClaim,
@@ -45,7 +45,7 @@ function claim(
   if (hasClaim(userId, kind, periodKey)) return;
   if (!addClaim(userId, kind, periodKey, points)) return;
   addPoints(userId, points);
-  lines.push(`${label}: +${points} sombreros.`);
+  lines.push(`${label}.`);
 }
 
 export function applyMissions(userId: string, lines: string[]): void {
@@ -116,7 +116,7 @@ export function applyAchievements(userId: string, lines: string[]): void {
       if (!achievementMet(achievement.id, user, tasks)) continue;
       if (!addAchievement(userId, achievement.id)) continue;
       addPoints(userId, achievement.points);
-      lines.push(`Logro ${achievement.name}: +${achievement.points} sombreros.`);
+      lines.push(`Logro ${achievement.name}.`);
       changed = true;
     }
   }
@@ -132,7 +132,7 @@ export function touchOpen(userId: string): string[] {
   if (user.lastOpenDate && addDays(user.lastOpenDate, 1) === today) streak = user.streak + 1;
   const opened = setOpenDay(userId, streak, today, POINTS.streakOpen);
   if (opened) {
-    lines.push(`Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}. +${POINTS.streakOpen} sombreros.`);
+    lines.push(`Taskie · racha de ${streak} ${streak === 1 ? "día" : "días"}.`);
   }
   applyMissions(userId, lines);
   applyAchievements(userId, lines);
@@ -167,8 +167,7 @@ export function deliverTask(userId: string, taskId: string): { ok: true; lines: 
     if (!markTaskDone(taskId, userId, completedAt, onTime)) {
       return { ok: false as const, error: "Esa tarea ya está entregada." };
     }
-    const points = Math.round((onTime ? POINTS.onTime : POINTS.late) * (task.source === "lms" ? 1.25 : 1));
-    lines.push(onTime ? `Entrega a tiempo: +${points} sombreros.` : `Entrega tarde: +${points} sombreros.`);
+    lines.push(onTime ? "Entrega a tiempo." : "Entrega tarde.");
     applyMissions(userId, lines);
     applyAchievements(userId, lines);
     return { ok: true as const, lines };
@@ -182,7 +181,7 @@ export function buyPull(userId: string):
   const user = findUserById(userId);
   if (!user) return { ok: false, error: "No encontré tu cuenta." };
   if (user.points < PULL_COST) {
-    return { ok: false, error: `Te faltan ${PULL_COST - user.points} sombreros para una tirada.` };
+    return { ok: false, error: "No alcanza para una tirada." };
   }
   const rarity = rollRarity();
   const pool = REWARDS.filter((reward) => reward.rarity === rarity);
@@ -193,14 +192,14 @@ export function buyPull(userId: string):
     const beforeUser = findUserById(userId);
     if (!beforeUser) return { ok: false as const, error: "No encontré tu cuenta." };
     if (!spendPoints(userId, PULL_COST)) {
-      return { ok: false as const, error: `Te faltan sombreros para una tirada.` };
+      return { ok: false as const, error: "No alcanza para una tirada." };
     }
     const owned = new Set(listRewardIds(userId));
     const duplicate = owned.has(reward.id);
-    const lines = [`Tirada: −${PULL_COST} sombreros.`];
+    const lines = ["Tirada."];
     if (duplicate) {
       addPoints(userId, POINTS.duplicate);
-      lines.push(`Te salió otra vez ${reward.name}. Como ya lo tenías, sumás +${POINTS.duplicate} sombreros.`);
+      lines.push(`Te salió otra vez ${reward.name}.`);
     } else {
       addReward(userId, reward.id);
       lines.push(`Te salió ${reward.name} (${rarity === "super" ? "súper raro" : rarity === "rare" ? "raro" : "común"}).`);
@@ -212,6 +211,11 @@ export function buyPull(userId: string):
 }
 
 export function equipReward(userId: string, kind: "theme" | "frame" | "title", rewardId: string | null): { ok: true } | { ok: false; error: string } {
+  if (kind === "theme") {
+    if (rewardId && !isAppearanceTheme(rewardId)) return { ok: false, error: "Ese tema no existe." };
+    setEquipped(userId, "theme", !rewardId || rewardId === "cuaderno" ? null : rewardId);
+    return { ok: true };
+  }
   if (rewardId) {
     const reward = rewardById(rewardId);
     if (!reward || reward.kind !== kind) return { ok: false, error: "Ese premio no se puede poner ahí." };
@@ -221,17 +225,6 @@ export function equipReward(userId: string, kind: "theme" | "frame" | "title", r
   return { ok: true };
 }
 
-export function purchaseReward(userId: string, rewardId: string): { ok: true } | { ok: false; error: string } {
-  const reward = rewardById(rewardId);
-  if (!reward || reward.kind !== "theme" || !reward.cost) {
-    return { ok: false, error: "Ese producto no está a la venta." };
-  }
-  if (listRewardIds(userId).includes(rewardId)) {
-    return { ok: false, error: "Ya tenés ese producto." };
-  }
-  if (!spendPoints(userId, reward.cost)) {
-    return { ok: false, error: `Te faltan ${reward.cost - (findUserById(userId)?.points ?? 0)} sombreros.` };
-  }
-  addReward(userId, rewardId);
-  return { ok: true };
+export function purchaseReward(_userId: string, _rewardId: string): { ok: false; error: string } {
+  return { ok: false, error: "Elegí el tema en Configuración." };
 }

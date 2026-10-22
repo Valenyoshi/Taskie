@@ -5,7 +5,6 @@ import { RewardPopup } from "@/components/reward-popup";
 import { SectionTitle } from "@/components/section-title";
 import { SectionWash } from "@/components/section-wash";
 import { themeKey } from "@/lib/catalog";
-import { POINTS } from "@/lib/game";
 import { findUserById } from "@/lib/db";
 import { touchOpen } from "@/lib/progress";
 import { getCurrentUser } from "@/lib/session";
@@ -38,9 +37,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <RewardPopup
         open={openedStreak}
         title="¡Racha iniciada!"
-        description="Entraste hoy y sumaste una recompensa."
+        description="Entraste hoy. La racha sigue."
         streak={user.streak}
-        points={POINTS.streakOpen}
         storageKey={rewardKey}
       />
     </div>

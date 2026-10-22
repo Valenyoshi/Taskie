@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 function toneFor(pathname: string) {
   if (pathname.startsWith("/inicio")) return "inicio";
   if (pathname.startsWith("/materias")) return "materias";
-  if (pathname.startsWith("/premios")) return "tienda";
   if (pathname.startsWith("/chat")) return "chat";
   if (pathname.startsWith("/configuracion")) return "configuracion";
   if (pathname.startsWith("/ranking")) return "ranking";
