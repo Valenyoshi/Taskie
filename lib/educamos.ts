@@ -602,7 +602,7 @@ export async function fetchLmsUploads(input: {
             externalId: `lms-${item.id}`,
             subject: item.subject,
             title: item.title,
-            description: "Punto de entrega del aula. Hay que subir un archivo.",
+            description: "",
             dueAt: item.dueAt,
             status,
             needsFile: true,

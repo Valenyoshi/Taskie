@@ -98,7 +98,8 @@ export function toTask(task: Task, timeZone: string): TaskView {
     id: task.id,
     subject: task.subject,
     title: task.title,
-    description: task.description,
+    description:
+      task.description === "Punto de entrega del aula. Hay que subir un archivo." ? "" : task.description,
     dueAt: task.dueAt,
     dueLabel: dueLabel(task.dueAt, timeZone),
     shortDue: shortDue(task.dueAt, timeZone),
