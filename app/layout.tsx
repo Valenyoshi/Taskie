@@ -29,7 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="antialiased">
         {children}
         <NavigationLoader />
-        <p className="pointer-events-none fixed top-3 right-3 z-30 text-[11px] font-semibold tracking-wide text-muted-foreground">
+        <p className="pointer-events-none fixed top-3 right-3 z-50 text-[11px] font-semibold tracking-wide text-muted-foreground">
           made by Valen
         </p>
       </body>

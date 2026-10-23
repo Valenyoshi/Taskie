@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthPanel } from "@/components/auth-panel";
 import { SchoolIcon } from "@/components/school-icon";
@@ -27,6 +28,9 @@ export default async function EntrarPage() {
         <section>
           <p className="font-display text-5xl leading-none text-coral sm:text-6xl">Taskie</p>
           <h1 className="gradient-text mt-3 font-display text-5xl leading-none">Las tareas del colegio, con otro nivel.</h1>
+          <Link href="/" className="mt-4 inline-block text-sm font-semibold text-muted-foreground">
+            Ver la presentación
+          </Link>
         </section>
         <AuthPanel />
       </div>
