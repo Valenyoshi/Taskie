@@ -12,9 +12,11 @@ export default async function ConfiguracionPage() {
       <p className="rounded-2xl bg-card px-4 py-3 text-sm">
         {session.platform === "teams"
           ? `Las tareas salen de Microsoft Teams${session.teamsAccount ? `, cuenta ${session.teamsAccount}` : ""}.`
-          : session.isDemo
-            ? "Esta cuenta usa tareas de ejemplo."
-            : "Las tareas salen de Educamos y del aula de Moodle."}
+          : session.platform === "classroom"
+            ? `Las tareas salen de Google Classroom${session.teamsAccount ? `, cuenta ${session.teamsAccount}` : ""}.`
+            : session.isDemo
+              ? "Esta cuenta usa tareas de ejemplo."
+              : "Las tareas salen de Educamos y del aula de Moodle."}
       </p>
       <CoursePicker courses={session.courseOptions} selected={session.courseChoice} />
       <ThemePicker equipped={session.equippedTheme} />

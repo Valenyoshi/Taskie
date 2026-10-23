@@ -25,12 +25,13 @@ Abrí [http://127.0.0.1:43123](http://127.0.0.1:43123).
 
 Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejemplo**.
 
-## Colegio: Educamos o Teams
+## Colegio: Educamos, Teams o Classroom
 
 Al crear la cuenta se elige de dónde salen las tareas.
 
 - **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola con esa dirección.
 - **Microsoft Teams.** Van el usuario y la contraseña de Microsoft del colegio, igual que en Educamos. Taskie entra a Teams con esos datos y trae las tareas de cada clase. La contraseña queda cifrada en el cofre del alumno y solo se envía a Microsoft.
+- **Google Classroom.** Van el correo y la contraseña de Google del colegio. Taskie abre Classroom con esos datos y trae las tareas de cada clase. La contraseña queda cifrada y solo se escribe en la página de Google. Si Google pide un código extra, hay que entrar sin ese código o desactivarlo para esa cuenta. En el servidor hace falta Chrome.
 
 ## Educamos
 
@@ -46,6 +47,7 @@ Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la
 - **Inicio de sesión.** Las comparaciones son de tiempo constante, el error es genérico y hay un límite de 8 intentos cada 15 minutos por usuario.
 - **IA.** Toda consulta pasa por `lib/ai-shield.ts`. Ahí se tachan la contraseña y el usuario de Educamos, los tokens, las sesiones y las claves de API, y el nombre del alumno se cambia por "el alumno". Si después de eso queda una credencial, la consulta no se envía. Solo se aceptan servicios HTTPS (o `localhost`), sin redirecciones.
 - **Educamos.** Solo por HTTPS. La contraseña se envía únicamente al mismo sitio del formulario o a un dominio `educamos.com`.
+- **Google Classroom.** La contraseña se escribe solo en `accounts.google.com`. No se manda a la IA ni se muestra en la app.
 - **Disco.** `data/` queda con permisos `700` y los archivos con `600`.
 
 La clave maestra se crea sola en `data/master.key`. En producción conviene ponerla en `TASKIE_MASTER_KEY` (32 bytes en hex o base64) y no dejarla en el disco junto a la base. Si se pierde la clave maestra, no se pueden recuperar las credenciales guardadas.

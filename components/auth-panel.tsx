@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 export function AuthPanel() {
   const router = useRouter();
   const [mode, setMode] = useState<"entrar" | "crear">("crear");
-  const [school, setSchool] = useState<"educamos" | "teams" | null>(null);
+  const [school, setSchool] = useState<"educamos" | "teams" | "classroom" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncNote, setSyncNote] = useState<string | null>(null);
@@ -79,7 +79,7 @@ export function AuthPanel() {
           <>
             <Field label="Tu nombre" name="name" placeholder="Cómo querés que te llamemos" autoComplete="name" />
             <Field label="Contraseña de Taskie" name="password" type="password" autoComplete="new-password" />
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="grid grid-cols-3 gap-2 pt-2">
               <button
                 type="button"
                 aria-label="Educamos y Moodle"
@@ -98,6 +98,15 @@ export function AuthPanel() {
               >
                 <TeamsLogo />
               </button>
+              <button
+                type="button"
+                aria-label="Google Classroom"
+                aria-pressed={school === "classroom"}
+                className={`flex h-20 items-center justify-center rounded-xl px-3 ${school === "classroom" ? "bg-muted ring-2 ring-primary" : "bg-muted/50"}`}
+                onClick={() => setSchool("classroom")}
+              >
+                <ClassroomLogo />
+              </button>
             </div>
             {school ? <input type="hidden" name="platform" value={school} /> : null}
             {school === "educamos" ? (
@@ -112,6 +121,14 @@ export function AuthPanel() {
                 <Field label="Contraseña de Teams" name="teamsPassword" type="password" autoComplete="off" />
                 <p className="text-xs text-muted-foreground">
                   Es el usuario y la contraseña de Microsoft del colegio. Taskie los usa solo para entrar a Teams y traer las tareas.
+                </p>
+              </>
+            ) : school === "classroom" ? (
+              <>
+                <Field label="Correo de Google" name="classroomUsername" placeholder="alumno@colegio.edu" autoComplete="off" />
+                <Field label="Contraseña de Google" name="classroomPassword" type="password" autoComplete="off" />
+                <p className="text-xs text-muted-foreground">
+                  Es el correo y la contraseña de Google del colegio. Taskie los usa solo para entrar a Classroom y traer las tareas.
                 </p>
               </>
             ) : null}
@@ -142,6 +159,10 @@ function EducamosLogo() {
 
 function TeamsLogo() {
   return <img src="/teams.svg" alt="" className="size-12" />;
+}
+
+function ClassroomLogo() {
+  return <img src="/classroom.svg" alt="" className="size-12 object-contain" />;
 }
 
 function Field({

@@ -2,6 +2,7 @@ import { courseGroup, courseIdForName, courseKeyFromTitle, coursesFromNames, typ
 import { educamosLogin, hasEducamosLogin } from "./credentials";
 import { dropOldUntracked, findUserById, insertTask, listTasks, openEducamosLogin, saveCourseDiscovery, setSyncResult, tagTaskCourse, type User } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
+import { fetchClassroomTasks } from "./classroom";
 import { fetchTeamsTasks, loginTeams } from "./teams";
 import { localDateString, zonedTimeToUtc } from "./time";
 
@@ -9,6 +10,7 @@ export async function syncUser(userId: string): Promise<{ ok: boolean; error?: s
   const user = findUserById(userId);
   if (!user) return { ok: false, error: "No encontré tu cuenta." };
   if (user.platform === "teams") return syncTeams(user);
+  if (user.platform === "classroom") return syncClassroom(user);
   if (!hasEducamosLogin(user)) {
     const error = user.isDemo
       ? "Esta cuenta de prueba usa tareas de ejemplo, no las de un colegio."
@@ -157,6 +159,47 @@ async function syncTeams(user: User): Promise<{ ok: boolean; error?: string; cou
       dueAt: task.dueAt,
       status: task.status,
       source: "teams",
+      educamosUrl: task.url,
+      needsFile: false,
+      courseKey: task.courseKey ?? courseGroup(task.subject)?.key ?? null,
+      createdAt: now,
+    });
+  }
+  saveCourseDiscovery(user.id, result.courses);
+  const today = localDateString(new Date(), user.timezone);
+  dropOldUntracked(user.id, zonedTimeToUtc(today, "00:00:00", user.timezone).toISOString());
+  setSyncResult(user.id, null);
+  return { ok: true, count: result.tasks.length };
+}
+
+async function syncClassroom(user: User): Promise<{ ok: boolean; error?: string; count?: number }> {
+  const login = openEducamosLogin(user);
+  if (!login) {
+    const error = "Falta el correo o la contraseña de Google. Volvé a crear la cuenta.";
+    setSyncResult(user.id, error);
+    return { ok: false, error };
+  }
+  const result = await fetchClassroomTasks({
+    username: login.username,
+    password: login.password,
+    timeZone: user.timezone,
+  });
+  if (!result.ok) {
+    setSyncResult(user.id, result.error);
+    return result;
+  }
+  const now = new Date().toISOString();
+  for (const task of result.tasks) {
+    insertTask({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      externalId: task.externalId,
+      subject: task.subject,
+      title: task.title,
+      description: task.description,
+      dueAt: task.dueAt,
+      status: task.status,
+      source: "classroom",
       educamosUrl: task.url,
       needsFile: false,
       courseKey: task.courseKey ?? courseGroup(task.subject)?.key ?? null,

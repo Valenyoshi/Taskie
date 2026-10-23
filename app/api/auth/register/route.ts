@@ -14,6 +14,8 @@ export async function POST(request: Request) {
     educamosPassword?: string;
     teamsUsername?: string;
     teamsPassword?: string;
+    classroomUsername?: string;
+    classroomPassword?: string;
     timezone?: string;
     platform?: string;
   } | null;
@@ -27,17 +29,23 @@ export async function POST(request: Request) {
   const educamosPassword = body.educamosPassword ?? "";
   const teamsUsername = body.teamsUsername?.trim() ?? "";
   const teamsPassword = body.teamsPassword ?? "";
+  const classroomUsername = body.classroomUsername?.trim() ?? "";
+  const classroomPassword = body.classroomPassword ?? "";
   const timezone = body.timezone?.trim() || "America/Argentina/Buenos_Aires";
-  const platform = body.platform === "teams" ? "teams" : body.platform === "educamos" ? "educamos" : "";
+  const platform =
+    body.platform === "teams" ? "teams" : body.platform === "classroom" ? "classroom" : body.platform === "educamos" ? "educamos" : "";
 
   if (name.length < 2 || name.length > 40) return json({ error: "El nombre tiene que tener entre 2 y 40 letras." }, 400);
   if (password.length < 6) return json({ error: "La contraseña de Taskie necesita al menos 6 caracteres." }, 400);
-  if (!platform) return json({ error: "Elegí Educamos o Teams." }, 400);
+  if (!platform) return json({ error: "Elegí Educamos, Teams o Classroom." }, 400);
   if (platform === "educamos" && (!educamosUrl || !educamosUsername || !educamosPassword)) {
     return json({ error: "Completá la URL del colegio, el usuario y la contraseña de Educamos." }, 400);
   }
   if (platform === "teams" && (!teamsUsername || !teamsPassword)) {
     return json({ error: "Completá el usuario y la contraseña de Teams." }, 400);
+  }
+  if (platform === "classroom" && (!classroomUsername || !classroomPassword)) {
+    return json({ error: "Completá el correo y la contraseña de Google." }, 400);
   }
 
   if (findUserByUsername(username)) return json({ error: "Ese nombre ya tiene una cuenta." }, 400);
@@ -48,16 +56,18 @@ export async function POST(request: Request) {
     name,
     username,
     passwordHash: hashSync(password, 12),
-    educamosUrl: platform === "teams" ? null : educamosUrl,
+    educamosUrl: platform === "educamos" ? educamosUrl : null,
     educamosLogin:
       platform === "teams"
         ? { username: teamsUsername, password: teamsPassword }
-        : { username: educamosUsername, password: educamosPassword },
+        : platform === "classroom"
+          ? { username: classroomUsername, password: classroomPassword }
+          : { username: educamosUsername, password: educamosPassword },
     lmsUrl: null,
     timezone,
     isDemo: false,
     platform,
-    teamsAccount: platform === "teams" ? teamsUsername : null,
+    teamsAccount: platform === "teams" ? teamsUsername : platform === "classroom" ? classroomUsername : null,
   });
   await startSession(id);
   const sync = await syncUser(id);

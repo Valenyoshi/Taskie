@@ -36,7 +36,7 @@ export type User = {
   syncError: string | null;
   lastSyncAt: string | null;
   isDemo: boolean;
-  platform: "educamos" | "teams";
+  platform: "educamos" | "teams" | "classroom";
   teamsAccount: string | null;
   teamsRefreshEnc: string | null;
   pulled: boolean;
@@ -176,7 +176,7 @@ function mapUser(row: UserRow): User {
     syncError: row.sync_error,
     lastSyncAt: row.last_sync_at,
     isDemo: row.is_demo === 1,
-    platform: row.platform === "teams" ? "teams" : "educamos",
+    platform: row.platform === "teams" ? "teams" : row.platform === "classroom" ? "classroom" : "educamos",
     teamsAccount: row.teams_account ?? null,
     teamsRefreshEnc: row.teams_refresh_enc ?? null,
     pulled: row.pulled === 1,
@@ -540,7 +540,7 @@ export function createUser(input: {
   lmsUrl?: string | null;
   timezone: string;
   isDemo: boolean;
-  platform?: "educamos" | "teams";
+  platform?: "educamos" | "teams" | "classroom";
   teamsAccount?: string | null;
 }): void {
   const dataKey = createDataKey(input.id);

@@ -276,7 +276,13 @@ export function TaskCard({ task }: { task: TaskView }) {
           ) : null}
           {task.educamosUrl ? (
             <a className="block text-sm font-semibold" style={{ color }} href={task.educamosUrl} target="_blank" rel="noreferrer">
-              {/teams\.microsoft|microsoftonline/i.test(task.educamosUrl) ? "Teams" : task.kind === "archivo" ? "Aula" : "Educamos"}
+              {/classroom\.google/.test(task.educamosUrl)
+                ? "Classroom"
+                : /teams\.microsoft|microsoftonline/i.test(task.educamosUrl)
+                  ? "Teams"
+                  : task.kind === "archivo"
+                    ? "Aula"
+                    : "Educamos"}
             </a>
           ) : null}
         </div>
