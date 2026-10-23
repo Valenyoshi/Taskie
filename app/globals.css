@@ -2616,7 +2616,23 @@ button:disabled {
   line-height: 0.98;
 }
 
-.present-hero h1,
+.present-hero h1 {
+  display: grid;
+  justify-items: center;
+  gap: 0.16em;
+}
+
+.present-name {
+  font-size: clamp(4.6rem, 12vw, 9.6rem);
+  line-height: 0.88;
+}
+
+.present-slogan {
+  max-width: 12ch;
+  font-size: clamp(2.3rem, 5.6vw, 4.8rem);
+  line-height: 0.95;
+}
+
 .present-close h2 {
   max-width: 16ch;
   font-size: clamp(3.1rem, 8vw, 7.4rem);

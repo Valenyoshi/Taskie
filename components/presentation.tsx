@@ -23,7 +23,10 @@ export function Presentation() {
       </header>
 
       <section className="present-hero">
-        <h1>Taskie. Las tareas del colegio, en orden.</h1>
+        <h1>
+          <span className="gradient-text font-display present-name">Taskie</span>
+          <span className="gradient-text font-display present-slogan">tu compañero de clases</span>
+        </h1>
       </section>
 
       <section className="present-about" aria-label="Sobre Taskie">
