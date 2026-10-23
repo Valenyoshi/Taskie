@@ -14,7 +14,7 @@ export function Presentation() {
   return (
     <main className="present">
       <header className="present-nav">
-        <Link href="/" className="text-[17px] font-semibold tracking-tight">
+        <Link href="/" className="gradient-text text-[17px] font-semibold tracking-tight">
           Taskie
         </Link>
         <Link href="/entrar" className="present-cta">
