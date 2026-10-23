@@ -24,13 +24,6 @@ export function Presentation() {
 
       <section className="present-hero">
         <h1>Taskie. Las tareas del colegio, en orden.</h1>
-        <p>Lo que hay que entregar, de qué materia es y para cuándo. En el celular y en la computadora.</p>
-        <div className="present-phone" aria-hidden>
-          <p className="text-left text-sm font-semibold">Por hacer</p>
-          <Task title="Problemas de proporcionalidad" meta="Matemática · Hoy" stripe="#e8a317" />
-          <Task title="Comentario de un cuento" meta="Lengua · Hoy" stripe="#7c3aed" />
-          <Task title="Partes de la célula" meta="Biología · Mañana" stripe="#65a30d" />
-        </div>
       </section>
 
       <section className="present-about" aria-label="Sobre Taskie">
