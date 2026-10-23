@@ -2619,7 +2619,7 @@ button:disabled {
 .present-hero h1 {
   display: grid;
   justify-items: center;
-  gap: 0.42em;
+  gap: 0.92em;
 }
 
 .present-name {
