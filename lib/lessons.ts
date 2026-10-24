@@ -87,7 +87,7 @@ function parseLesson(raw: string, subject: string): Lesson | null {
       .map((option) => cleanLessonText(option))
       .filter(Boolean)
       .slice(0, 3);
-    while (options.length < 3) options.push(options.length === 1 ? "Ninguna de esas" : "No está en la clase");
+    while (options.length < 3) options.push(options.length === 1 ? "Ninguna de esas opciones" : "No está en la clase");
     let answer = Number(row.answer ?? row.correcta);
     if (typeof row.answer === "string" && /^[abc]$/i.test(row.answer.trim())) answer = row.answer.trim().toLowerCase().charCodeAt(0) - 97;
     if (!Number.isInteger(answer) || answer < 0 || answer > 2) answer = 0;

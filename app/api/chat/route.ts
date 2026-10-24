@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!isUser(user)) return user;
   const body = (await request.json().catch(() => null)) as { message?: string; conversationId?: string | null } | null;
   const message = body?.message?.trim() ?? "";
-  if (!message || message.length > 2000) return json({ error: "Escribí una pregunta, de hasta 2000 caracteres." }, 400);
+  if (!message || message.length > 2000) return json({ error: "Escribí una pregunta de hasta 2000 caracteres." }, 400);
   const conversation = body?.conversationId ? findConversation(user.id, body.conversationId) : createConversation(user.id);
   if (!conversation) return json({ error: "Ese chat no existe." }, 404);
   const safeMessage = sanitizeChatText(message);

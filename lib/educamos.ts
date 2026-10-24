@@ -1501,7 +1501,7 @@ async function readResourceText(
     }
     return { ok: true };
   } catch {
-    return { ok: false, error: "No se pudo leer los apuntes de la clase." };
+    return { ok: false, error: "No se pudieron leer los apuntes de la clase." };
   }
 }
 
@@ -1510,7 +1510,7 @@ function briefFromLessons(courses: LessonCourse[], matched: LessonCourse[], word
   const lines = [
     matched.length > 0
       ? "Material de las clases que coinciden con el tema. Enseñá solo esto, en este orden, y no adelantes lo que no aparece."
-      : "Ninguna clase coincide con el tema. Esto es el índice de lo que sí enseñan. No lo presentes como si hubieran dado otra cosa.",
+      : "Ninguna clase coincide con el tema. Esto es el índice de lo que sí enseñan. No lo presentes como si se hubiera enseñado otra cosa.",
   ];
   let used = 0;
   for (const course of chosen) {

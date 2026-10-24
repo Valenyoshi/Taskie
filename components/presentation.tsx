@@ -25,7 +25,7 @@ export function Presentation() {
       <section className="present-hero">
         <h1>
           <span className="gradient-text font-display present-name">Taskie</span>
-          <span className="gradient-text font-display present-slogan">tu compañero de clases que conecta con todo</span>
+          <span className="gradient-text font-display present-slogan">tu compañero de clases, que conecta con todo</span>
         </h1>
       </section>
 
@@ -77,8 +77,8 @@ export function Presentation() {
       <section id="materias" className="present-feature">
         <div>
           <p className="present-kicker">Materias</p>
-          <h2>Una flecha, y aparecen.</h2>
-          <p>Biología, matemática, historia. Cada materia se abre en el mismo lugar y muestra sus tareas, sin cambiar de pantalla.</p>
+          <h2>Una flecha y aparecen.</h2>
+          <p>Biología, Matemática e Historia. Cada materia se abre en el mismo lugar y muestra sus tareas, sin cambiar de pantalla.</p>
         </div>
         <div className="present-phone">
           <div className="flex items-center justify-between text-left">
@@ -102,7 +102,7 @@ export function Presentation() {
           </p>
         </div>
         <div className="present-chat">
-          <p className="present-bubble me">¿Qué vimos en la última clase de matemática?</p>
+          <p className="present-bubble me">¿Qué vimos en la última clase de Matemática?</p>
           <div className="present-bubble kitty">
             <img src="/kitty-head.png" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
             <p>Repasaron gráficos. El práctico de funciones está en la fotocopia.</p>

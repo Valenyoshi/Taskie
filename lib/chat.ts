@@ -107,7 +107,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   if (explainsHow(message) || taskHowToRequest(message)) {
     const named = tasksForQuestion(message, tasks);
     if (named.length === 0) {
-      return "Decime cuál tarea, por ejemplo la maqueta de célula o los ejercicios de programación, y te explico cómo hacerla.";
+      return "Decime qué tarea, por ejemplo la maqueta de la célula o los ejercicios de programación, y te explico cómo hacerla.";
     }
     return named
       .map((task) => `${task.title} es de ${task.subject}. No pude leer la consigna. Abrila en la plataforma y fijate qué pide, qué hay que entregar y para cuándo.`)
