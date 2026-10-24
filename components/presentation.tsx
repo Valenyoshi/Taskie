@@ -33,7 +33,6 @@ export function Presentation() {
         <h2>Las tareas ordenadas.</h2>
         <p>
           Taskie junta las tareas del colegio en un solo lugar. Ves lo pendiente, lo marcás cuando está listo y seguís.
-          Las tareas salen de Educamos, de Microsoft Teams o de Google Classroom.
         </p>
         <nav className="present-jump" aria-label="Funciones">
           {jumps.map(([href, label]) => (
