@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  HandChevronDown,
   NavConfigIcon,
   NavHomeIcon,
   NavIaIcon,
@@ -217,6 +218,12 @@ function HomeShot() {
         <div className="present-home-heading">Por hacer</div>
         <div className="present-home-stack">
           <HomeTask subject="Historia" title="Causas de la revolución" due="Hoy" color="#c2410c" />
+        </div>
+        <div className="present-home-done">
+          <div className="present-home-done-label">
+            Hechas · 2
+            <HandChevronDown className="size-3.5 rotate-180" />
+          </div>
           <HomeTask subject="Inglés" title="Irregular verbs" due="Hoy" color="#db3e8a" done />
           <HomeTask subject="Matemática" title="Ecuaciones de primer grado" due="Hoy" color="#e8a317" done />
         </div>
