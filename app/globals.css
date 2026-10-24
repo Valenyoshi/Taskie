@@ -2706,24 +2706,6 @@ button:disabled {
   line-height: 1.35;
 }
 
-.present-jump {
-  display: flex;
-  gap: 10px;
-  max-width: 920px;
-  margin: 42px auto 0;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.present-jump a {
-  flex: none;
-  border-radius: 999px;
-  background: white;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .present-feature {
   display: grid;
   min-height: 100dvh;

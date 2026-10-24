@@ -1,15 +1,5 @@
 import Link from "next/link";
 
-const jumps = [
-  ["#inicio", "Inicio"],
-  ["#colegio", "Colegio"],
-  ["#materias", "Materias"],
-  ["#ia", "IA"],
-  ["#listo", "Al terminar"],
-  ["#ritmo", "El ritmo"],
-  ["#extras", "Extras"],
-];
-
 export function Presentation() {
   return (
     <main className="present">
@@ -34,13 +24,6 @@ export function Presentation() {
         <p>
           Taskie junta las tareas del colegio en un solo lugar. Ves lo pendiente, lo marcás cuando está listo y seguís.
         </p>
-        <nav className="present-jump" aria-label="Funciones">
-          {jumps.map(([href, label]) => (
-            <a key={href} href={href}>
-              {label}
-            </a>
-          ))}
-        </nav>
       </section>
 
       <section id="inicio" className="present-feature">
