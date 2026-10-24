@@ -217,8 +217,8 @@ function HomeShot() {
         <div className="present-home-heading">Por hacer</div>
         <div className="present-home-stack">
           <HomeTask subject="Historia" title="Causas de la revolución" due="Hoy" color="#c2410c" />
-          <HomeTask subject="Inglés" title="Irregular verbs" due="Hoy" color="#db3e8a" />
-          <HomeTask subject="Matemática" title="Ecuaciones de primer grado" due="Hoy" color="#e8a317" />
+          <HomeTask subject="Inglés" title="Irregular verbs" due="Hoy" color="#db3e8a" done />
+          <HomeTask subject="Matemática" title="Ecuaciones de primer grado" due="Hoy" color="#e8a317" done />
         </div>
         <nav className="present-home-nav" aria-hidden>
           <span className="on">
@@ -248,14 +248,16 @@ function HomeTask({
   title,
   due,
   color,
+  done = false,
 }: {
   subject: string;
   title: string;
   due: string;
   color: string;
+  done?: boolean;
 }) {
   return (
-    <div className="present-home-task" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
+    <div className={`present-home-task${done ? " is-done" : ""}`} style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
       <div>
         <div className="present-home-meta">
           <span style={{ color }}>
@@ -266,7 +268,13 @@ function HomeTask({
         </div>
         <strong style={{ color }}>{title}</strong>
       </div>
-      <span className="present-home-ring" style={{ color }} />
+      {done ? (
+        <span className="present-home-check" style={{ color }} aria-label="Lista">
+          ✓
+        </span>
+      ) : (
+        <span className="present-home-ring" style={{ color }} />
+      )}
     </div>
   );
 }
