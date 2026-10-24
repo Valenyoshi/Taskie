@@ -1,4 +1,11 @@
 import Link from "next/link";
+import {
+  NavConfigIcon,
+  NavHomeIcon,
+  NavIaIcon,
+  NavMateriasIcon,
+} from "@/components/hand-drawn-icons";
+import { SubjectMark } from "@/components/subject-mark";
 
 export function Presentation() {
   return (
@@ -26,18 +33,14 @@ export function Presentation() {
         </p>
       </section>
 
-      <section id="inicio" className="present-feature">
+      <section id="inicio" className="present-feature present-feature-shot">
+        <HomeShot />
         <div>
           <p className="present-kicker">Inicio</p>
           <h2>Lo de hoy, primero.</h2>
           <p>
             Cada tarjeta trae la materia, el título y la fecha. Lo de hoy queda arriba. Si hay que subir un archivo, tiene su propio grupo.
           </p>
-        </div>
-        <div className="present-phone">
-          <Task title="Causas de la revolución" meta="Historia · Hoy" stripe="#c2410c" />
-          <Task title="Irregular verbs" meta="Inglés · Hoy" stripe="#db3e8a" />
-          <Task title="Mapa de ríos" meta="Geografía · Mañana" stripe="#0369a1" />
         </div>
       </section>
 
@@ -176,6 +179,95 @@ function Task({ title, meta, stripe }: { title: string; meta: string; stripe: st
     <div className="present-task" style={{ ["--stripe" as string]: stripe }}>
       <span style={{ color: stripe }}>{meta}</span>
       <strong>{title}</strong>
+    </div>
+  );
+}
+
+function HomeShot() {
+  return (
+    <figure className="present-device" aria-label="Inicio de Taskie con tareas del día">
+      <div className="present-island" aria-hidden />
+      <div className="present-device-screen">
+        <div className="present-status" aria-hidden>
+          <span>9:41</span>
+          <span className="present-status-dots">●●● ●</span>
+        </div>
+        <div className="present-home-brand">
+          <img src="/kitty.png" alt="" width={42} height={70} />
+          <span className="gradient-text font-display">Taskie</span>
+        </div>
+        <div className="present-home-bars" aria-hidden>
+          <div className="present-home-bar day">
+            <span>
+              Hoy <b>3/5</b>
+            </span>
+            <i>
+              <em style={{ width: "60%" }} />
+            </i>
+          </div>
+          <div className="present-home-bar week">
+            <span>
+              Semana <b>8/11</b>
+            </span>
+            <i>
+              <em style={{ width: "72%" }} />
+            </i>
+          </div>
+        </div>
+        <div className="present-home-heading">Por hacer</div>
+        <div className="present-home-stack">
+          <HomeTask subject="Historia" title="Causas de la revolución" due="Hoy" color="#c2410c" />
+          <HomeTask subject="Inglés" title="Irregular verbs" due="Hoy" color="#db3e8a" />
+          <HomeTask subject="Matemática" title="Ecuaciones de primer grado" due="Hoy" color="#e8a317" />
+          <HomeTask subject="Geografía" title="Mapa de ríos" due="Mañana" color="#0369a1" />
+        </div>
+        <nav className="present-home-nav" aria-hidden>
+          <span className="on">
+            <NavHomeIcon className="size-5" />
+            Inicio
+          </span>
+          <span>
+            <NavMateriasIcon className="size-5" />
+            Materias
+          </span>
+          <span>
+            <NavIaIcon className="size-5" />
+            IA
+          </span>
+          <span>
+            <NavConfigIcon className="size-5" />
+            Configuración
+          </span>
+        </nav>
+      </div>
+    </figure>
+  );
+}
+
+function HomeTask({
+  subject,
+  title,
+  due,
+  color,
+}: {
+  subject: string;
+  title: string;
+  due: string;
+  color: string;
+}) {
+  return (
+    <div className="present-home-task" style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
+      <div>
+        <div className="present-home-meta">
+          <span style={{ color }}>
+            <SubjectMark subject={subject} size={16} />
+            {subject}
+          </span>
+          <em>{due}</em>
+        </div>
+        <strong style={{ color }}>{title}</strong>
+      </div>
+      <span className="present-home-ring" style={{ color }} />
     </div>
   );
 }
