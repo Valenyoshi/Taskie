@@ -30,7 +30,7 @@ export function Presentation() {
       </section>
 
       <section className="present-about" aria-label="Sobre Taskie">
-        <h2>Una lista para el día de clases.</h2>
+        <h2>Las tareas ordenadas.</h2>
         <p>
           Taskie junta las tareas del colegio en un solo lugar. Ves lo pendiente, lo marcás cuando está listo y seguís.
           Las tareas salen de Educamos, de Microsoft Teams o de Google Classroom.
