@@ -2799,7 +2799,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 14px;
+  padding: 0 14px 64px;
 }
 
 .present-home-task {
@@ -2859,10 +2859,11 @@ button:disabled {
   right: 0;
   bottom: 0;
   left: 0;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   border-top: 1px solid rgb(0 0 0 / 8%);
-  background: rgb(255 253 248 / 94%);
+  background: rgb(255 253 248 / 96%);
   padding: 8px 4px 12px;
 }
 
@@ -2878,17 +2879,6 @@ button:disabled {
 
 .present-home-nav span.on {
   color: #e25b45;
-}
-
-.present-device-screen::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 54px;
-  left: 0;
-  height: 56px;
-  background: linear-gradient(transparent, oklch(0.962 0.018 88));
-  pointer-events: none;
 }
 
 .present-task {

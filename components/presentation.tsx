@@ -219,7 +219,6 @@ function HomeShot() {
           <HomeTask subject="Historia" title="Causas de la revolución" due="Hoy" color="#c2410c" />
           <HomeTask subject="Inglés" title="Irregular verbs" due="Hoy" color="#db3e8a" />
           <HomeTask subject="Matemática" title="Ecuaciones de primer grado" due="Hoy" color="#e8a317" />
-          <HomeTask subject="Geografía" title="Mapa de ríos" due="Mañana" color="#0369a1" />
         </div>
         <nav className="present-home-nav" aria-hidden>
           <span className="on">
