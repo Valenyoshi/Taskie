@@ -2635,7 +2635,7 @@ button:disabled {
 }
 
 .present-slogan {
-  max-width: 14ch;
+  max-width: 22ch;
   font-size: clamp(2.9rem, 7vw, 6rem);
   line-height: 0.95;
 }

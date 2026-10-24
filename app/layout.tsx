@@ -8,7 +8,7 @@ const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: "Taskie",
-  description: "Taskie, tu compañero de clases.",
+  description: "Taskie, tu compañero de clases que conecta con todo.",
   manifest: "/manifest.webmanifest",
   applicationName: "Taskie",
   appleWebApp: { capable: true, title: "Taskie", statusBarStyle: "default" },

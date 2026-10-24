@@ -25,7 +25,7 @@ export function Presentation() {
       <section className="present-hero">
         <h1>
           <span className="gradient-text font-display present-name">Taskie</span>
-          <span className="gradient-text font-display present-slogan">tu compañero de clases</span>
+          <span className="gradient-text font-display present-slogan">tu compañero de clases que conecta con todo</span>
         </h1>
       </section>
 
