@@ -2856,12 +2856,15 @@ button:disabled {
 
 .present-home-task strong {
   display: block;
+  overflow: hidden;
   margin-top: 2px;
   font-family: var(--font-display), ui-serif, Georgia, serif;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .present-home-ring {
