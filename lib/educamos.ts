@@ -3,6 +3,7 @@ import { readFile, unlink, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { courseGroup, courseNameAllowed, coursesFromNames, coursesFromSelect, parseCourseSelect, type SchoolCourse } from "./courses";
+import { docxToText, isZip } from "./documents";
 import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
@@ -236,6 +237,21 @@ async function pdfToText(bytes: Buffer): Promise<string> {
   } finally {
     await unlink(file).catch(() => undefined);
   }
+}
+
+/** Texto de un archivo bajado del aula: PDF, Word (.docx) o una página HTML. */
+async function fileToText(bytes: Buffer): Promise<string> {
+  const head = bytes.subarray(0, 5).toString("utf8");
+  if (head.startsWith("%PDF")) {
+    try {
+      return htmlToText(await pdfToText(bytes));
+    } catch {
+      return "";
+    }
+  }
+  if (isZip(bytes)) return docxToText(bytes);
+  const text = htmlToText(bytes.toString("utf8"));
+  return /^[\x09-\x7E\u00A0-\uFFFF\r\n]*$/.test(text) ? text : "";
 }
 
 function dmyToIso(value: string): string | null {
@@ -685,6 +701,20 @@ function assignmentInstructions(html: string): string {
   return clip(htmlToText(raw), 5000);
 }
 
+/** Archivos adjuntos a la consigna (pluginfile.php) que se pueden leer: PDF y Word. */
+function assignmentFiles(html: string, root: string): { name: string; url: string }[] {
+  const files: { name: string; url: string }[] = [];
+  for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']*pluginfile\.php[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const url = decodeHtml(match[1]);
+    const filePath = decodeURIComponent(url.split("?")[0]);
+    if (!/\/mod_assign\/intro/i.test(filePath) || !/\.(pdf|docx)$/i.test(filePath)) continue;
+    const absolute = /^https?:\/\//i.test(url) ? url : `${root}/${url.replace(/^\/+/, "")}`;
+    if (files.some((file) => file.url === absolute)) continue;
+    files.push({ name: htmlToText(match[2]) || filePath.split("/").pop() || "Archivo", url: absolute });
+  }
+  return files.slice(0, 3);
+}
+
 function activityWords(value: string): string[] {
   return value
     .normalize("NFD")
@@ -736,6 +766,11 @@ export async function fetchTaskInstructions(input: {
     const page = await request(session.jar, input.taskUrl);
     if (page.status < 200 || page.status >= 300) return "";
     const parts = [assignmentInstructions(page.text)].filter(Boolean);
+    for (const file of assignmentFiles(page.text, session.root)) {
+      const bytes = await requestBytes(session.jar, file.url).catch(() => null);
+      const text = bytes ? clip(await fileToText(bytes), 6000) : "";
+      if (text.length > 40) parts.push(`Archivo de la consigna — ${file.name}: ${text}`);
+    }
     if (input.taskTitle) {
       for (const link of relatedActivityLinks(page.text, input.taskTitle)) {
         const relatedUrl = /^https?:\/\//i.test(link.url)
@@ -1208,13 +1243,9 @@ async function readLinkedClass(jar: Jar, mods: ClassMod[]): Promise<{ text: stri
       const bytes = await requestBytes(jar, mod.url);
       const head = bytes?.subarray(0, 5).toString("utf8") ?? "";
       if (!bytes) continue;
-      if (head.startsWith("%PDF")) {
-        try {
-          const text = htmlToText(await pdfToText(bytes));
-          if (text.length > 40) texts.push(text);
-        } catch {
-          // El práctico puede ser una imagen. Seguimos con lo que sí se pudo leer.
-        }
+      if (head.startsWith("%PDF") || isZip(bytes)) {
+        const text = await fileToText(bytes);
+        if (text.length > 40) texts.push(text);
         continue;
       }
       const html = bytes.toString("utf8");
@@ -1481,22 +1512,8 @@ async function readResourceText(
       const chosen = (named.length > 0 ? named : course.resources).filter((item) => item.text === undefined).slice(0, 4);
       for (const item of chosen) {
         const bytes = await requestBytes(session.jar, item.url);
-        const head = bytes?.subarray(0, 5).toString("utf8") ?? "";
-        if (!bytes) {
-          item.text = "";
-          continue;
-        }
-        if (!head.startsWith("%PDF")) {
-          const html = bytes.toString("utf8");
-          const text = htmlToText(html);
-          item.text = text.length >= 30 && /^[\x09-\x7E\u00A0-\uFFFF\r\n]*$/.test(text) ? clip(text, 1800) : "";
-          continue;
-        }
-        try {
-          item.text = clip(htmlToText(await pdfToText(bytes)), 1800);
-        } catch {
-          item.text = "";
-        }
+        const text = bytes ? await fileToText(bytes) : "";
+        item.text = text.length >= 30 ? clip(text, 1800) : "";
       }
     }
     return { ok: true };

@@ -72,6 +72,8 @@ Taskie usa Kilo Gateway dentro de FreeLLMAPI, que no pide cuenta ni clave. En el
 - Chat, lecciones y el clasificador que frena los pedidos de "haceme la tarea": `nvidia/nemotron-3-ultra-550b-a55b:free`.
 - Respaldo: `kilo-auto/free`. Cambia de modelo en cada consulta, por eso no va primero.
 
+Cuando le preguntás por una tarea, Taskie lee la consigna desde el aula, junto con los archivos adjuntos en Word (`.docx`) o PDF. También lee los apuntes de clase que vienen en esos formatos. Del archivo saca la indicación, las preguntas, la forma de entrega y la fecha, y avisa si esa fecha no coincide con la del aula. Los `.doc` viejos de Word no se leen.
+
 Las preguntas de datos no pasan por el modelo: qué vence hoy, mañana o esta semana, qué está pendiente o atrasado, lo más urgente, cuándo vence una tarea, qué materias hay y la racha. Taskie las contesta al instante con lo cargado de Educamos, así las fechas y los números siempre coinciden.
 
 Para cambiar los modelos, usá `FREELLMAPI_MODEL` (chat), `FREELLMAPI_LIGHT_MODEL` (clasificador) y `FREELLMAPI_BACKUP_MODEL`. Cada una acepta varios modelos separados por comas.

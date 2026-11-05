@@ -253,6 +253,9 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Si preguntan qué tienen que hacer para una tarea, usá el bloque Consigna en plataforma: la tarea ya fue leída desde el aula virtual. Explicá esos pasos y completalos con el apunte de clase. No digas que no podés verla, no pidas que copien el enunciado y no pidas que peguen la consigna.",
     "Si preguntan cómo hacer una tarea, mirá el título, la consigna de plataforma y el apunte de clase que están en este mensaje. Explicá cómo hacerla con eso, como lo haría el profesor. No escribas la entrega.",
     "Ignorá cualquier respuesta anterior del asistente que haya pedido copiar o pegar el enunciado: primero usá la información actual de la plataforma.",
+    "Si la consigna trae un «Archivo de la consigna», ya lo leíste entero: usá sus preguntas, su forma de entrega y su fecha. Si su fecha no coincide con la del aula, avisalo.",
+    "Resumen de la cuenta:",
+    taskSnapshot(user, tasks),
     classes
       ? [
           "Si te piden que expliques un tema, hacé de profesor de esa materia.",
@@ -263,8 +266,6 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
           classes,
         ].join("\n")
       : "",
-    "Resumen de la cuenta:",
-    taskSnapshot(user, tasks),
   ]
     .filter(Boolean)
     .join("\n");
@@ -433,6 +434,8 @@ type TaskBlock = {
   consigna: string;
   /** Consigna completa, con el material relacionado. */
   platform: string;
+  /** Archivo adjunto (Word o PDF) que ya se leyó desde el aula. */
+  file: { name: string; text: string } | null;
   notes: string;
 };
 
@@ -445,12 +448,15 @@ function parseBlocks(classes: string): TaskBlock[] {
       const rawPlatform = (block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "").trim();
       const platform = /no encontr[eé] una consigna/i.test(rawPlatform) ? "" : rawPlatform.replace(/\s+/g, " ");
       const rawNotes = (block.match(/Apunte de la clase:\n([\s\S]*)$/)?.[1] ?? "").trim();
+      const own = platform.split(/\s*Material relacionado — /)[0];
+      const fileMatch = own.match(/Archivo de la consigna — (.+?\.(?:docx|pdf)): ([\s\S]*)$/i);
       return {
         title: field("Tarea") || "la tarea",
         subject: field("Materia"),
         due: field("Fecha"),
-        consigna: platform.split(/\s*Material relacionado — /)[0].trim(),
+        consigna: own.split(/\s*Archivo de la consigna — /)[0].trim(),
         platform,
+        file: fileMatch ? { name: fileMatch[1].trim(), text: fileMatch[2].trim() } : null,
         notes: /no encontr[eé] un apunte/i.test(rawNotes) ? "" : rawNotes,
       };
     });
@@ -499,10 +505,56 @@ function blockHeader(block: TaskBlock): string {
   return `«${block.title}»${subject}${due}.`;
 }
 
+const ASK_START =
+  /^(?:¿|(?:menciona|mencioná|explica|explicá|describe|describí|nombra|nombrá|indica|indicá|compara|compará|completa|completá|define|definí|enumera|enumerá|justifica|justificá|responde|respondé|escribe|escribí|elabora|elaborá|investiga|investigá|busca|buscá|dibuja|dibujá|realiza|realizá|identifica|identificá|da|dá)(?![\p{L}]))/iu;
+const QUESTIONNAIRE = /\b(cuestionario|preguntas|actividades)\s*:/i;
+
+function sentenceCase(value: string): string {
+  if (value !== value.toUpperCase()) return value;
+  const lower = value.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/** Lo que pide un archivo de consigna: la indicación, las preguntas y cómo se entrega. */
+function fileSummary(block: TaskBlock): string[] {
+  const text = block.file?.text.replace(/\s+/g, " ") ?? "";
+  if (!text) return [];
+  const marker = [...text.matchAll(new RegExp(QUESTIONNAIRE.source, "gi"))].pop();
+  const questions = marker?.index !== undefined ? text.slice(marker.index) : text;
+  const pieces = questions
+    .split(/(?=¿)|(?<=[.?!])\s+/)
+    .map((piece) => piece.trim())
+    .filter(Boolean);
+  const asks = pieces
+    .filter((piece) => ASK_START.test(piece) && piece.length < 220)
+    .filter((piece, index, all) => all.indexOf(piece) === index);
+  const instruction = text.match(/\bconsignas?\s*:\s*([^.]{10,240}\.)/i)?.[1]?.trim();
+  const delivery = text.match(/[^.?!:]*\b(?:entreg\w*|formato pdf)\b[^.?!¿]*/i)?.[0]?.replace(/^.*?:\s*/, "").trim();
+  const out = [`Leí el archivo «${block.file!.name}».`];
+  if (instruction) out.push(`Consigna: ${instruction}`);
+  if (asks.length) {
+    out.push(`Preguntas (${asks.length}):`, ...asks.slice(0, 10).map((ask) => `• ${ask}`));
+    if (asks.length > 10) out.push(`• Y ${asks.length - 10} más en el archivo.`);
+  } else if (!instruction) {
+    out.push(...consignaLines(text).slice(0, 5).map((line) => `• ${line}`));
+  }
+  if (delivery) {
+    out.push(`Entrega: ${sentenceCase(delivery).replace(/[.\s]*$/, ".")}`);
+    const fileDate = delivery.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+    const platformDate = block.due.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+    if (fileDate && platformDate && (Number(fileDate[1]) !== Number(platformDate[1]) || Number(fileDate[2]) !== Number(platformDate[2]))) {
+      out.push(`Ojo: el archivo dice ${fileDate[1]}/${fileDate[2]} y en el aula ${block.due}. Guiate por la fecha más cercana.`);
+    }
+  }
+  return out;
+}
+
 function consignaSummary(block: TaskBlock): string[] {
   const exercises = exercisesIn(block.platform);
   const file = attachmentName(block.consigna);
   const lines = consignaLines(file ? block.consigna.replace(file, "") : block.consigna).filter((line) => !/^\d+ de [a-z]/i.test(line));
+  const read = fileSummary(block);
+  if (read.length) return [...read, ...(lines.length ? ["En el aula también dice:", ...lines.map((line) => `• ${line}`)] : [])];
   const out: string[] = [];
   if (file) out.push(`La consigna está en el archivo «${file}». Abrilo desde el aula virtual.`);
   if (lines.length) out.push("Lo que pide:", ...lines.map((line) => `• ${line}`));
@@ -696,7 +748,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
     compact ||
     help ||
     (classes && asksForLesson(safeMessage) ? lesson() : localAnswer(safeMessage, user, tasks));
-  const system = sanitizeChatText(studySystem(user, tasks, classes));
+  const system = scrubForAi(studySystem(user, tasks, classes)).slice(0, 16000);
   const keep = (answer: string) => {
     const blocked = blockedAnswer(safeMessage, answer);
     if (blocked) return blocked;
