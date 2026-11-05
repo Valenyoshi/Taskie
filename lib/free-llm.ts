@@ -31,7 +31,7 @@ export function freeLlmConfigured(): boolean {
 
 export async function freeLlmReply(
   messages: Message[],
-  options: { timeoutMs: number; light?: boolean },
+  options: { timeoutMs: number; light?: boolean; perModelMs?: number },
 ): Promise<FreeLlmReply | null> {
   const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
   const key = process.env.FREELLMAPI_API_KEY;
@@ -43,7 +43,7 @@ export async function freeLlmReply(
     try {
       const res = await aiFetch(`${base}/chat/completions`, {
         headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-        timeoutMs: left,
+        timeoutMs: Math.min(left, options.perModelMs ?? left),
         body: { model, messages },
       });
       if (!res.ok) continue;

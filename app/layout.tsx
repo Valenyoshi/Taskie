@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Outfit } from "next/font/google";
+import { Fraunces, Outfit, Patrick_Hand } from "next/font/google";
 import { NavigationLoader } from "@/components/navigation-loader";
 import "./globals.css";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-app" });
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display" });
+const hand = Patrick_Hand({ subsets: ["latin"], weight: "400", variable: "--font-hand" });
 
 export const metadata: Metadata = {
   title: "Taskie",
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`${outfit.variable} ${fraunces.variable}`}>
+    <html lang="es" className={`${outfit.variable} ${fraunces.variable} ${hand.variable}`}>
       <body className="antialiased">
         {children}
         <NavigationLoader />

@@ -9,9 +9,9 @@ Web para ver las tareas de Educamos y entregarlas. Se usa en el navegador de la 
 - Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
 - Temas en Configuración: el aspecto de la app, sin tienda.
-- Logros, racha por entrar y la sección IA: chat y repasos cortos.
+- Logros, racha por entrar y la sección IA: chat y Paper Quiz.
 - Barras diarias y semanales.
-- Lecciones preparadas automáticamente con los temas recientes de cada materia.
+- Paper Quiz: un juego de preguntas al estilo Kahoot, dibujado a mano, con los temas de cada materia.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
 
 ## Cómo correrla
@@ -69,7 +69,7 @@ FREELLMAPI_API_KEY=freellmapi-tu-clave
 
 Taskie usa Kilo Gateway dentro de FreeLLMAPI, que no pide cuenta ni clave. En el tablero de FreeLLMAPI, Kilo se agrega en **Keys** sin clave.
 
-- Chat, lecciones y el clasificador que frena los pedidos de "haceme la tarea": `nvidia/nemotron-3-ultra-550b-a55b:free`.
+- Chat, Paper Quiz y el clasificador que frena los pedidos de "haceme la tarea": `nvidia/nemotron-3-ultra-550b-a55b:free`.
 - Respaldo: `kilo-auto/free`. Cambia de modelo en cada consulta, por eso no va primero.
 
 Cuando le preguntás por una tarea, Taskie lee la consigna desde el aula, junto con los archivos adjuntos en Word (`.docx`) o PDF. También lee los apuntes de clase que vienen en esos formatos. Del archivo saca la indicación, las preguntas, la forma de entrega y la fecha, y avisa si esa fecha no coincide con la del aula. Los `.doc` viejos de Word no se leen.
@@ -78,7 +78,15 @@ Las preguntas de datos no pasan por el modelo: qué vence hoy, mañana o esta se
 
 Para cambiar los modelos, usá `FREELLMAPI_MODEL` (chat), `FREELLMAPI_LIGHT_MODEL` (clasificador) y `FREELLMAPI_BACKUP_MODEL`. Cada una acepta varios modelos separados por comas.
 
-En Lecciones hay uno o dos repasos de menos de 3 minutos por materia, preparados automáticamente con los temas recientes y los apuntes de clase. Si le pedís cómo hacer una tarea, mira solo el título y busca el apunte de esa clase, igual que las lecciones. Si le pedís que te explique un tema, usa ese mismo material. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Las respuestas son breves, ordenadas y no inventan información. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
+Si le pedís cómo hacer una tarea, mira solo el título y busca el apunte de esa clase. Si le pedís que te explique un tema, usa ese mismo material. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Las respuestas son breves, ordenadas y no inventan información. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
+
+## Paper Quiz
+
+En IA, la pestaña **Paper Quiz** es un juego de preguntas al estilo Kahoot. Elegís una materia y Taskie arma 6 preguntas de 4 opciones con lo que haya en el aula: apuntes de clase, consignas (también las de Word y PDF), tus tareas y los títulos de los temas recientes. Si una materia no tiene apuntes escritos, las preguntas salen de los conceptos básicos de esos temas, al nivel de tu año.
+
+Cada pregunta dura 20 segundos. Cuanto antes contestás, más puntos ganás (hasta 1000), y las respuestas seguidas suman extra. Al final ves el puntaje, una medalla, tu récord en esa materia y la respuesta correcta de cada pregunta. Se juega tocando las opciones o con las teclas 1 a 4.
+
+El quiz no te hace la tarea: descarta las preguntas que repiten una consigna que todavía no entregaste. Si el modelo no responde, arma preguntas de completar con frases del material. Tutoría y las secciones administrativas (programas, rúbricas, autorizaciones) no entran.
 
 ## Avisos
 

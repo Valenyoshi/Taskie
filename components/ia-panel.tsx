@@ -2,20 +2,18 @@
 
 import { useState } from "react";
 import { ChatBox } from "@/components/chat-box";
-import { LessonDeck } from "@/components/lesson-deck";
+import { PaperQuiz } from "@/components/paper-quiz";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
 
 export function IaPanel({
   initial,
-  streak,
   activeConversationId,
 }: {
   initial: Message[];
-  streak: number;
   activeConversationId: string | null;
 }) {
-  const [mode, setMode] = useState<"chat" | "lecciones">("chat");
+  const [mode, setMode] = useState<"chat" | "quiz">("chat");
 
   return (
     <div className="flex flex-col gap-3">
@@ -26,17 +24,17 @@ export function IaPanel({
         <button
           type="button"
           role="tab"
-          aria-selected={mode === "lecciones"}
-          className={mode === "lecciones" ? "on" : ""}
-          onClick={() => setMode("lecciones")}
+          aria-selected={mode === "quiz"}
+          className={mode === "quiz" ? "on" : ""}
+          onClick={() => setMode("quiz")}
         >
-          Lecciones
+          Paper Quiz
         </button>
       </div>
       {mode === "chat" ? (
         <ChatBox initial={initial} activeConversationId={activeConversationId} />
       ) : (
-        <LessonDeck streak={streak} />
+        <PaperQuiz />
       )}
     </div>
   );

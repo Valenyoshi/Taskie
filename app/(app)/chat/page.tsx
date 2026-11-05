@@ -6,10 +6,6 @@ export default async function ChatPage() {
   const session = await getCurrentUser();
   if (!session) redirect("/entrar");
   return (
-    <IaPanel
-      initial={[]}
-      streak={session.streak}
-      activeConversationId={null}
-    />
+    <IaPanel initial={[]} activeConversationId={null} />
   );
 }
