@@ -8,7 +8,7 @@ import { HandExitIcon } from "@/components/hand-drawn-icons";
 const GOODBYES = [
   "¡Adiós! Nos vemos mañana.",
   "Tranquilo, yo cuido las tareas.",
-  "¡Hasta luego! Vuelve pronto.",
+  "¡Hasta luego! Volvé pronto.",
   "Buen descanso. Mañana seguimos.",
   "Adiós, que te vaya bien.",
 ];
