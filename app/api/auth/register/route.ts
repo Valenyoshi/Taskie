@@ -1,5 +1,6 @@
 import { hashSync } from "bcryptjs";
 import { createUser, findUserByUsername } from "@/lib/db";
+import { schoolBase } from "@/lib/educamos";
 import { json } from "@/lib/http";
 import { startSession } from "@/lib/session";
 import { syncUser } from "@/lib/sync";
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
   if (platform === "educamos" && (!educamosUrl || !educamosUsername || !educamosPassword)) {
     return json({ error: "Completá la URL del colegio, el usuario y la contraseña de Educamos." }, 400);
   }
+  const schoolUrl = platform === "educamos" ? schoolBase(educamosUrl) : null;
+  if (platform === "educamos" && !schoolUrl) {
+    return json({ error: "No reconocí ese enlace. Pegá cualquier página de Educamos de tu colegio, por ejemplo https://tucolegio.educamos.com." }, 400);
+  }
   if (platform === "teams" && (!teamsUsername || !teamsPassword)) {
     return json({ error: "Completá el usuario y la contraseña de Teams." }, 400);
   }
@@ -56,7 +61,7 @@ export async function POST(request: Request) {
     name,
     username,
     passwordHash: hashSync(password, 12),
-    educamosUrl: platform === "educamos" ? educamosUrl : null,
+    educamosUrl: schoolUrl,
     educamosLogin:
       platform === "teams"
         ? { username: teamsUsername, password: teamsPassword }

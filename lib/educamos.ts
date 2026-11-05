@@ -23,17 +23,54 @@ export type SyncResult = { ok: true; tasks: RemoteTask[]; courses?: SchoolCourse
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
-function normalizeBase(raw: string): string | null {
-  const trimmed = raw.trim();
+const SERVICE_HOST = /^(lms|www|api|cdn|static|login|auth|sso\d*)$/;
+const LMS_PATH = /^(my|login|course|mod|user|admin|calendar|grade|message|pluginfile\.php|theme|lib)$/i;
+
+function decodeDeep(value: string): string {
+  let current = value;
+  for (let round = 0; round < 4; round++) {
+    try {
+      const next = decodeURIComponent(current);
+      if (next === current) break;
+      current = next;
+    } catch {
+      break;
+    }
+  }
+  return current;
+}
+
+/**
+ * Dirección del colegio (https://colegio.educamos.com) a partir de cualquier link de Educamos:
+ * una página interna del colegio, la entrada de sso1.educamos.com o el aula en lms.educamos.com.
+ */
+export function schoolBase(raw: string): string | null {
+  const trimmed = raw.trim().replace(/^["'<\s]+|[>"'\s]+$/g, "");
   if (!trimmed) return null;
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let url: URL;
   try {
-    const url = new URL(withProtocol);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-    return `https://${url.host}`;
+    url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
   } catch {
     return null;
   }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (!host.endsWith(".educamos.com")) return host === "educamos.com" || !host.includes(".") ? null : `https://${url.host}`;
+  const sub = host.slice(0, -".educamos.com".length);
+  if (!sub.includes(".") && !SERVICE_HOST.test(sub)) return `https://${host}`;
+  const text = decodeDeep(url.href);
+  for (const match of text.matchAll(/([a-z0-9-]+)\.educamos\.com/gi)) {
+    const name = match[1].toLowerCase();
+    if (!SERVICE_HOST.test(name)) return `https://${name}.educamos.com`;
+  }
+  for (const match of text.matchAll(/lms\.educamos\.com\/([a-z0-9_-]+)/gi)) {
+    if (!LMS_PATH.test(match[1])) return `https://${match[1].toLowerCase().replace(/_/g, "-")}.educamos.com`;
+  }
+  return null;
+}
+
+function normalizeBase(raw: string): string | null {
+  return schoolBase(raw);
 }
 
 function decodeHtml(value: string): string {
