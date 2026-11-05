@@ -26,7 +26,7 @@ export function TaskieLoader() {
         )}
       </div>
       <span className="gradient-text font-display text-4xl">Taskie</span>
-      <span className="mt-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+      <span className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
         Cargando
         <span className="taskie-loader-dots" aria-label="Cargando">
           <i />

@@ -46,12 +46,13 @@ export function NavTemasIcon({ className = "size-5" }: { className?: string }) {
 export function NavIaIcon({ className = "size-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {/* Chispa / bombilla dibujada a mano */}
-      <path d="M12 2.8v3.2M12 18v3.2M2.8 12h3.2M18 12h3.2" strokeWidth="2" />
-      {/* Estrella central con curvaturas suaves */}
-      <path d="M12 6c1.2 3.2 2.8 4.8 6 6-3.2 1.2-4.8 2.8-6 6-1.2-3.2-2.8-4.8-6-6 3.2-1.2 4.8-2.8 6-6Z" strokeWidth="2" fill="currentColor" fillOpacity="0.15" />
-      {/* Pequeño destello de lápiz */}
-      <circle cx="18.5" cy="5.5" r="1.3" fill="currentColor" />
+      <path
+        d="M4.2 6.4c.1-1.6 1.3-2.6 2.9-2.7 3.4-.2 6.6-.2 9.9 0 1.6.1 2.8 1.2 2.9 2.8.2 2.4.2 4.6 0 6.9-.1 1.6-1.3 2.6-2.9 2.7-2 .1-3.9.1-5.8.1l-3.9 3.4c-.4.3-.9 0-.9-.4v-3.1c-1.3-.3-2.1-1.3-2.2-2.7-.2-2.4-.2-4.7 0-7Z"
+        strokeWidth="2"
+        fill="currentColor"
+        fillOpacity="0.15"
+      />
+      <path d="M8.3 8.7h7.2M8.3 12h4.6" strokeWidth="2" />
     </svg>
   );
 }

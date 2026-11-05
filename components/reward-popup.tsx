@@ -46,7 +46,7 @@ export function RewardPopup({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/35 p-5 backdrop-blur-sm" role="presentation">
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/40 p-5" role="presentation">
       <div
         className="reward-popup w-full max-w-sm rounded-[2rem] bg-card p-6 text-center shadow-2xl ring-1 ring-foreground/10"
         role="dialog"
@@ -59,14 +59,14 @@ export function RewardPopup({
             <circle cx="25" cy="7" r="1.5" fill="currentColor" />
           </svg>
         </div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Recompensa</p>
+        <p className="text-sm font-semibold text-muted-foreground">Recompensa</p>
         <h2 id="reward-popup-title" className="mt-1 font-display text-3xl">
           {title}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         {streak !== undefined ? (
           <p className="mt-4 rounded-2xl bg-secondary px-4 py-3 font-display text-xl">
-            🔥 Racha de {streak} {streak === 1 ? "día" : "días"}
+            Racha de {streak} {streak === 1 ? "día" : "días"}
           </p>
         ) : null}
         <button type="button" className="lesson-next mt-5 w-full" onClick={close} autoFocus>

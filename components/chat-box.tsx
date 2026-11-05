@@ -63,7 +63,7 @@ export function ChatBox({
         {messages.length === 0 ? (
           <div className="gemini-empty">
             <GeminiMark size={56} />
-            <p className="gradient-text font-display text-3xl">Hola, ¿cómo puedo ayudarte?</p>
+            <p className="font-display text-3xl text-[#3d4fd4]">¿Qué querés saber de tus tareas?</p>
             <div className="gemini-chips">
               {suggestions.map((item) => (
                 <button key={item} type="button" onClick={() => void send(item)}>
