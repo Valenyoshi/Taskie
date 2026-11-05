@@ -6,7 +6,7 @@ import { type Task, type User } from "./db";
 import { asksForLesson, fetchTaskInstructions, notesForSubject, previousClassNotes } from "./educamos";
 import { selectedCourseKeys } from "./courses";
 import { blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
-import { dueLabel, localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
+import { localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
   return visibleTasks(user).filter(
@@ -26,98 +26,188 @@ function safeHistory(history: { role: "user" | "assistant"; content: string }[])
   return history.slice(-10).map((item) => ({ ...item, content: sanitizeChatText(item.content) }));
 }
 
+/** "Lengua Extranjera: Inglés" → "Inglés", "Matemática 1º ES-F" → "Matemática". */
+export function subjectName(subject: string): string {
+  const piece = subject.includes(":") ? subject.split(":").pop()!.trim() : subject.trim();
+  return piece.replace(/\s+\d+\s*[º°].*$/u, "").trim() || piece;
+}
+
+function taskName(title: string): string {
+  return title
+    .replace(/^entregar en este espacio:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+function isLate(task: Task, now = new Date()): boolean {
+  return task.status === "pending" && new Date(task.dueAt).getTime() < now.getTime();
+}
+
+function byDue(a: Task, b: Task): number {
+  return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+}
+
+function dayText(iso: string, timeZone: string, now = new Date()): string {
+  const day = localDateString(new Date(iso), timeZone);
+  const today = localDateString(now, timeZone);
+  if (day === today) return "hoy";
+  if (day === addDays(today, 1)) return "mañana";
+  const parts = new Intl.DateTimeFormat("es-AR", { timeZone, weekday: "long", day: "numeric", month: "numeric" }).formatToParts(
+    new Date(iso),
+  );
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  const date = `${part("day")}/${part("month")}`;
+  return day < today ? `el ${date}` : `el ${part("weekday")} ${date}`;
+}
+
+function dueText(task: Task, timeZone: string, now = new Date()): string {
+  if (task.status === "done") return task.onTime ? "entregada a tiempo" : "entregada tarde";
+  const when = dayText(task.dueAt, timeZone, now);
+  return isLate(task, now) ? `venció ${when}` : `vence ${when}`;
+}
+
+function taskLine(task: Task, timeZone: string): string {
+  return `• ${taskName(task.title)} (${subjectName(task.subject)}), ${dueText(task, timeZone)}.`;
+}
+
+function listLines(tasks: Task[], timeZone: string, max = 6): string {
+  const lines = tasks.slice(0, max).map((task) => taskLine(task, timeZone));
+  if (tasks.length > max) lines.push(`• Y ${tasks.length - max} más.`);
+  return lines.join("\n");
+}
+
+function nextLine(upcoming: Task[], timeZone: string): string {
+  const next = upcoming[0];
+  return next
+    ? `Lo próximo es ${taskName(next.title)} (${subjectName(next.subject)}), que ${dueText(next, timeZone)}.`
+    : "No tenés nada por vencer.";
+}
+
 export function taskSnapshot(user: User, tasks: Task[]): string {
-  const today = localDateString(new Date(), user.timezone);
-  const start = weekStart(today);
-  const end = addDays(start, 6);
-  const lines = tasks.map((task) => {
-    const day = localDateString(new Date(task.dueAt), user.timezone);
-    const when = day >= start && day <= end ? "esta semana" : day < start ? "de antes" : "más adelante";
-    const state = task.status === "done" ? (task.onTime ? "entregada a tiempo" : "entregada tarde") : "pendiente";
-    return `- ${task.subject}: ${task.title}. ${state}. ${dueLabel(task.dueAt, user.timezone)}. (${when})`;
+  const lines = [...tasks].sort(byDue).map((task) => {
+    const state = task.status === "done" ? "hecha" : isLate(task) ? "atrasada" : "pendiente";
+    return `- ${subjectName(task.subject)}: ${taskName(task.title)}. ${state}, ${dueText(task, user.timezone)}.`;
   });
   return [
-    `La racha es de ${user.streak} días.`,
+    `Hoy es ${new Intl.DateTimeFormat("es-AR", { timeZone: user.timezone, weekday: "long", day: "numeric", month: "long" }).format(new Date())}.`,
+    `La racha es de ${plural(user.streak, "día", "días")}.`,
     lines.length ? lines.join("\n") : "No hay tareas cargadas.",
   ].join("\n");
 }
 
+function greetingReply(message: string): string {
+  const q = fold(message);
+  if (/gracias/.test(q)) return "De nada. Si necesitás algo más, preguntame.";
+  if (/chau|adios/.test(q)) return "Chau. Éxitos con las tareas.";
+  return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
+}
+
+function asksWhen(q: string): boolean {
+  return /\b(cuando|que dia|para cuando|fecha|vence|vencen|plazo|hasta cuando)\b/.test(q);
+}
+
+function asksUrgent(q: string): boolean {
+  return /urgente|prioridad|primero|que hago ahora|que sigue|lo proximo|proxima tarea|mas cerca/.test(q);
+}
+
 export function localAnswer(message: string, user: User, tasks: Task[] = currentTasks(user)): string {
   const q = fold(message);
-  const today = localDateString(new Date(), user.timezone);
-  const todayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), user.timezone) === today);
+  const zone = user.timezone;
+  const today = localDateString(new Date(), zone);
   const pending = tasks.filter((task) => task.status === "pending");
-  if (/\bhoy\b/.test(q) && !explainsHow(message)) {
-    if (todayTasks.length === 0) {
-      return `Hoy no vence ninguna tarea. Tenés ${pending.length} pendiente${pending.length === 1 ? "" : "s"}.`;
-    }
-    const list = todayTasks
-      .map((task) => `${task.subject}: ${task.title} (${task.status === "done" ? "lista" : "sin entregar"})`)
-      .join(" ");
-    return `Hoy vencen ${todayTasks.length}. ${list}`;
+  const upcoming = pending.filter((task) => !isLate(task)).sort(byDue);
+  const late = pending.filter((task) => isLate(task)).sort((a, b) => byDue(b, a));
+  const lateNote = late.length ? ` Además tenés ${plural(late.length, "atrasada", "atrasadas")}.` : "";
+
+  const tomorrow = /\bmanana\b/.test(q) && !/\bhoy\b/.test(q);
+  if ((/\bhoy\b/.test(q) || tomorrow) && !explainsHow(message)) {
+    const day = tomorrow ? addDays(today, 1) : today;
+    const label = tomorrow ? "Mañana" : "Hoy";
+    const dayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), zone) === day).sort(byDue);
+    if (dayTasks.length === 0) return `${label} no vence ninguna tarea. ${nextLine(upcoming.filter((task) => localDateString(new Date(task.dueAt), zone) > day), zone)}${lateNote}`;
+    return [`${label} ${dayTasks.length === 1 ? "vence una" : `vencen ${dayTasks.length}`}:`, listLines(dayTasks, zone)].join("\n");
   }
 
-  if (/pendient/.test(q) && !explainsHow(message)) {
+  if (/pendient|sin entregar|que tengo que entregar|que me falta|atrasad/.test(q) && !explainsHow(message)) {
     if (pending.length === 0) return "No tenés tareas pendientes.";
-    const list = pending.slice(0, 8).map((task) => `${task.subject}: ${task.title}`).join("; ");
-    const more = pending.length > 8 ? ` Y ${pending.length - 8} más.` : "";
-    return `Tenés ${pending.length} pendiente${pending.length === 1 ? "" : "s"}. ${list}.${more}`;
+    const parts = [`Tenés ${plural(pending.length, "tarea sin entregar", "tareas sin entregar")}.`];
+    if (upcoming.length) parts.push("", "Por entregar:", listLines(upcoming, zone));
+    if (late.length) parts.push("", "Atrasadas:", listLines(late, zone));
+    return parts.join("\n");
   }
 
-  if (/semana/.test(q)) {
+  if (/semana/.test(q) && !explainsHow(message)) {
     const start = weekStart(today);
     const end = addDays(start, 6);
-    const week = tasks.filter((task) => {
-      const day = localDateString(new Date(task.dueAt), user.timezone);
-      return day >= start && day <= end;
-    });
-    const list = week
-      .map((task) => `${task.subject}: ${task.title} (${task.status === "done" ? "hecha" : "pendiente"})`)
-      .join("; ");
-    return `Esta semana hay ${week.length} tareas. ${list || "Nada cargado en estos días."}`;
+    const week = tasks
+      .filter((task) => {
+        const day = localDateString(new Date(task.dueAt), zone);
+        return day >= start && day <= end;
+      })
+      .sort(byDue);
+    if (week.length === 0) return `Esta semana no vence ninguna tarea. ${nextLine(upcoming, zone)}${lateNote}`;
+    return [`Esta semana ${week.length === 1 ? "vence una" : `vencen ${week.length}`}:`, listLines(week, zone, 8)].join("\n");
+  }
+
+  if (asksUrgent(q) && !explainsHow(message)) {
+    if (pending.length === 0) return "No tenés tareas pendientes.";
+    const first = upcoming[0];
+    const lines = first ? [nextLine(upcoming, zone)] : ["No tenés nada por vencer."];
+    if (late.length) lines.push("", `Atrasadas (conviene ponerse al día):`, listLines(late, zone, 3));
+    return lines.join("\n");
+  }
+
+  if (asksWhen(q) && !explainsHow(message)) {
+    const named = tasksForQuestion(message, tasks, 5);
+    if (named.length === 0) {
+      return `No encontré esa tarea. ${nextLine(upcoming, zone)} Si me decís el nombre o la materia, te paso la fecha.`;
+    }
+    if (named.length === 1) {
+      const task = named[0];
+      return `${taskName(task.title)} (${subjectName(task.subject)}) ${dueText(task, zone)}.`;
+    }
+    return listLines(named, zone);
   }
 
   if (/materia|asignatura/.test(q) && !explainsHow(message)) {
-    const subjects = [...new Set(pending.map((task) => task.subject))];
-    return `Tus materias con tareas pendientes son: ${subjects.join(", ") || "ninguna todavía"}.`;
-  }
-
-  if (/sombrero|tirada|maquina|máquina/.test(q)) {
-    return `La racha es de ${user.streak} día${user.streak === 1 ? "" : "s"}. Las tareas pendientes están en Inicio.`;
+    const subjects = [...new Set(pending.map((task) => subjectName(task.subject)))];
+    if (subjects.length === 0) return "No tenés tareas pendientes en ninguna materia.";
+    return ["Materias con tareas pendientes:", ...subjects.map((name) => `• ${name}`)].join("\n");
   }
 
   if (/racha/.test(q)) {
     return user.streak > 0
-      ? `Tu racha es de ${user.streak} día${user.streak === 1 ? "" : "s"}. Se mantiene si entrás cada día.`
-      : "Todavía no tenés racha. Se empieza cuando entrás un día y seguís al día siguiente.";
+      ? `Tu racha es de ${plural(user.streak, "día", "días")}. Se mantiene si entrás cada día.`
+      : "Todavía no tenés racha. Empieza cuando entrás un día y seguís al día siguiente.";
   }
 
   if (/chatbot|para que serv|que podes hacer|que haces|como me ayud/.test(q)) {
-    return "Te digo qué tareas tenés, de qué materia son y te explico cómo hacerlas. No te escribo la entrega.";
+    return "Te digo qué tareas tenés, cuándo vencen y cómo hacerlas. No te escribo la entrega.";
   }
 
   if (/\bnivel\b|\bxp\b|\bexperiencia\b/.test(q)) {
-    return `Taskie ya no usa niveles ni XP. Tu progreso es la racha de ${user.streak} día${user.streak === 1 ? "" : "s"} y las tareas que vas entregando.`;
+    return `Taskie ya no usa niveles ni XP. Tu progreso es la racha de ${plural(user.streak, "día", "días")} y las tareas que vas entregando.`;
   }
 
-  if (isGreeting(message)) {
-    return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
-  }
+  if (isGreeting(message)) return greetingReply(message);
 
   if (explainsHow(message) || taskHowToRequest(message)) {
     const named = tasksForQuestion(message, tasks);
     if (named.length === 0) {
-      return "Decime qué tarea, por ejemplo la maqueta de la célula o los ejercicios de programación, y te explico cómo hacerla.";
+      return "Decime qué tarea o de qué materia, por ejemplo «el proyecto atlas» o «los ejercicios de programación», y te explico cómo hacerla.";
     }
     return named
-      .map((task) => `${task.title} es de ${task.subject}. No pude leer la consigna. Abrila en la plataforma y fijate qué pide, qué hay que entregar y para cuándo.`)
-      .join(" ");
+      .map((task) => `${taskName(task.title)} es de ${subjectName(task.subject)} y ${dueText(task, zone)}. No pude leer la consigna: abrila en el aula virtual y fijate qué pide y qué hay que entregar.`)
+      .join("\n");
   }
 
-  const next = pending[0];
-  return next
-    ? `Puedo decirte qué tenés pendiente y explicarte cómo hacer una tarea. Lo próximo es ${next.title}, de ${next.subject}.`
-    : "No tenés tareas pendientes. Si querés, preguntame cómo hacer alguna que ya hayas entregado.";
+  return pending.length
+    ? `No te entendí bien. Puedo decirte qué tenés pendiente, cuándo vence cada tarea y cómo hacerla. ${nextLine(upcoming, zone)}`
+    : "No te entendí bien. Ahora no tenés tareas pendientes; preguntame lo que quieras de tus materias.";
 }
 
 function studySystem(user: User, tasks: Task[], classes = ""): string {
@@ -126,6 +216,8 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Solo negá cuando pidan la entrega ya escrita, los ejercicios resueltos o las respuestas para copiar.",
     "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
     "Respondé con frases cortas. Si listás, usá un renglón por idea, sin markdown, sin asteriscos, sin numeral de título y sin código.",
+    "No pases de 8 renglones salvo que pidan más detalle. No copies la consigna entera: resumila en pasos de un renglón.",
+    "Usá los nombres de materia y las fechas tal como están en el resumen. Si una tarea está atrasada, decilo.",
     "Si no hay información suficiente, decilo claramente y no inventes.",
     "Ayudás a entender temas, a ver qué tiene pendiente, de qué materia es y cómo organizarse.",
     "No inventes notas, fechas ni tareas que no estén en el resumen. No pidas ni repitas contraseñas.",
@@ -167,16 +259,30 @@ function sameWord(left: string, right: string): boolean {
 }
 
 function mentions(value: string, words: Set<string>): boolean {
-  return titleWords(value).some((word) => [...words].some((asked) => sameWord(word, asked)));
+  return hits(value, words) > 0;
 }
 
-export function tasksForQuestion(message: string, tasks: Task[]): Task[] {
+function hits(value: string, words: Set<string>): number {
+  return titleWords(value).filter((word) => [...words].some((asked) => sameWord(word, asked))).length;
+}
+
+/** Las tareas que mejor coinciden con la pregunta: primero por título, después por materia. */
+export function tasksForQuestion(message: string, tasks: Task[], limit = 2): Task[] {
   const pending = tasks.filter((task) => task.status === "pending");
   const words = new Set(titleWords(message));
-  const byTitle = pending.filter((task) => mentions(task.title, words));
-  if (byTitle.length > 0) return byTitle.slice(0, 2);
-  const bySubject = pending.filter((task) => mentions(task.subject, words));
-  if (bySubject.length > 0) return bySubject.slice(0, 2);
+  const scored = pending.map((task) => ({ task, title: hits(task.title, words), subject: hits(task.subject, words) }));
+  const pick = (rows: typeof scored) => {
+    const best = Math.max(...rows.map((row) => row.title + row.subject));
+    return rows
+      .filter((row) => row.title + row.subject === best)
+      .map((row) => row.task)
+      .sort((a, b) => Number(isLate(a)) - Number(isLate(b)) || (isLate(a) ? byDue(b, a) : byDue(a, b)))
+      .slice(0, limit);
+  };
+  const byTitle = scored.filter((row) => row.title > 0);
+  if (byTitle.length > 0) return pick(byTitle);
+  const bySubject = scored.filter((row) => row.subject > 0);
+  if (bySubject.length > 0) return pick(bySubject);
   return [];
 }
 
@@ -189,17 +295,26 @@ function subjectForQuestion(message: string, tasks: Task[]): string {
   return ranked[0]?.subject ?? "";
 }
 
-function taskClassBlock(task: Task, instructions: string, notes: string): string {
+function taskClassBlock(task: Task, instructions: string, notes: string, timeZone: string): string {
   const platform = instructions.trim() || "No encontré una consigna escrita en la página de la plataforma.";
-  const apunte = notes.trim() || "No encontré un apunte de esa clase.";
+  const apunte = notes.trim() && !isOutline(notes) ? notes.trim() : "No encontré un apunte de esa clase.";
   return [
-    `Tarea: ${task.title}`,
-    `Materia: ${task.subject}`,
+    `Tarea: ${taskName(task.title)}`,
+    `Materia: ${subjectName(task.subject)}`,
+    `Fecha: ${dueText(task, timeZone)}`,
     "Consigna en plataforma:",
     platform,
     "Apunte de la clase:",
     apunte,
   ].join("\n");
+}
+
+/** Educamos devuelve la lista de secciones del aula cuando no hay un apunte escrito. */
+function isOutline(notes: string): boolean {
+  const pieces = notes.split(/\.\s+/).map((piece) => piece.trim()).filter(Boolean);
+  if (pieces.length < 3) return false;
+  const average = pieces.reduce((sum, piece) => sum + piece.length, 0) / pieces.length;
+  return average < 40;
 }
 
 function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
@@ -226,7 +341,8 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
   const login = classroomLogin(user);
   if (chosen.length === 0) {
     const notes = login ? await withDeadline(notesForSubject({ ...login, subject }), 16000, "") : "";
-    return [`Materia: ${subject}`, "Apunte de la clase:", notes.trim() || "No encontré un apunte de esa clase."].join("\n");
+    const written = notes.trim() && !isOutline(notes) ? notes.trim() : "No encontré un apunte de esa clase.";
+    return [`Materia: ${subjectName(subject)}`, "Apunte de la clase:", written].join("\n");
   }
   const blocks = await withDeadline(
     (async () => {
@@ -243,12 +359,12 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
               }),
             ])
           : ["", ""];
-        rows.push(taskClassBlock(task, instructions, notes));
+        rows.push(taskClassBlock(task, instructions, notes, user.timezone));
       }
       return rows.join("\n\n");
     })(),
     16000,
-    chosen.map((task) => taskClassBlock(task, "", "")).join("\n\n"),
+    chosen.map((task) => taskClassBlock(task, "", "", user.timezone)).join("\n\n"),
   );
   return blocks;
 }
@@ -280,80 +396,192 @@ function compactTaskRequest(message: string): boolean {
   return /que es lo que tengo que hacer|que tengo que hacer|que hay que hacer|que pide|resum|resumido|breve|corto/.test(fold(message));
 }
 
+type TaskBlock = {
+  title: string;
+  subject: string;
+  due: string;
+  /** Texto propio de la consigna, sin el material relacionado. */
+  consigna: string;
+  /** Consigna completa, con el material relacionado. */
+  platform: string;
+  notes: string;
+};
+
+function parseBlocks(classes: string): TaskBlock[] {
+  return classes
+    .split(/\n(?=Tarea: )/)
+    .filter((block) => block.includes("Tarea: "))
+    .map((block) => {
+      const field = (name: string) => block.match(new RegExp(`^${name}:\\s*(.+)$`, "m"))?.[1]?.trim() ?? "";
+      const rawPlatform = (block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "").trim();
+      const platform = /no encontr[eé] una consigna/i.test(rawPlatform) ? "" : rawPlatform.replace(/\s+/g, " ");
+      const rawNotes = (block.match(/Apunte de la clase:\n([\s\S]*)$/)?.[1] ?? "").trim();
+      return {
+        title: field("Tarea") || "la tarea",
+        subject: field("Materia"),
+        due: field("Fecha"),
+        consigna: platform.split(/\s*Material relacionado — /)[0].trim(),
+        platform,
+        notes: /no encontr[eé] un apunte/i.test(rawNotes) ? "" : rawNotes,
+      };
+    });
+}
+
+function attachmentName(consigna: string): string {
+  const whole = consigna.match(/^(.{1,140}?\.(?:docx?|pdf|pptx?|xlsx?|odt))(?=\s|$)/i)?.[1];
+  if (whole) return whole.trim();
+  return consigna.match(/([^.]*?\S\.(?:docx?|pdf|pptx?|xlsx?|odt))(?=\s|$)/i)?.[1]?.trim() ?? "";
+}
+
+/** Separa la consigna en renglones cortos y saca fechas que ya mostramos aparte. */
+function consignaLines(consigna: string): string[] {
+  return consigna
+    .replace(/fecha l[ií]mite:?\s*[\d/.-]+/gi, "")
+    .split(/(?<=[.!?])\s+|\s+·\s+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line.length > 3)
+    .filter((line) => !/^entrega:?\s*(hoy|\d)/i.test(line) && !/^\d{1,2} de [a-záéíóú]+\.?$/i.test(line))
+    .filter((line) => !(line === line.toUpperCase() && line.length < 40))
+    .map((line) => line.replace(/^(?:[A-ZÁÉÍÓÚÑ]{2,}\s+)+(?=[A-ZÁÉÍÓÚÑ][a-záéíóúñ])/u, ""))
+    .map((line) => (/[.!?:]$/.test(line) ? line : `${line}.`))
+    .slice(0, 6);
+}
+
+const EXERCISE_START =
+  "Crear|Solicitar|Pedir|Mostrar|Calcular|Un|Una|Luego|El|La|Los|Las|Si|En|Hacer|Escribir|Leer|Ingresar|Realizar|Indicar|Determinar|Dado|Dados|Diseñar|Simular|Programar|Armar|Elegir";
+
+function exercisesIn(platform: string): string[] {
+  const named = [
+    ...platform.matchAll(
+      new RegExp(`Ejercicio\\s+(\\d+)\\s*[—–-]\\s*(.{2,60}?)(?=\\s+(?:${EXERCISE_START})\\b|\\s+Ejercicio\\s+\\d|\\s+\\d+\\.\\s|$)`, "g"),
+    ),
+  ].map((match) => `Ejercicio ${match[1]}: ${match[2].replace(/\s+/g, " ").trim()}`);
+  const found = named.length
+    ? named
+    : [...platform.matchAll(new RegExp(`\\b\\d+\\.\\s+(.{2,60}?)(?=\\s+(?:${EXERCISE_START})\\b)`, "g"))].map((match) =>
+        match[1].replace(/\s+/g, " ").trim(),
+      );
+  return found.filter((value, index, all) => all.indexOf(value) === index);
+}
+
+function blockHeader(block: TaskBlock): string {
+  const subject = block.subject ? ` es de ${block.subject}` : "";
+  const due = block.due ? `${subject ? " y" : ""} ${block.due}` : "";
+  return `«${block.title}»${subject}${due}.`;
+}
+
+function consignaSummary(block: TaskBlock): string[] {
+  const exercises = exercisesIn(block.platform);
+  const file = attachmentName(block.consigna);
+  const lines = consignaLines(file ? block.consigna.replace(file, "") : block.consigna).filter((line) => !/^\d+ de [a-z]/i.test(line));
+  const out: string[] = [];
+  if (file) out.push(`La consigna está en el archivo «${file}». Abrilo desde el aula virtual.`);
+  if (lines.length) out.push("Lo que pide:", ...lines.map((line) => `• ${line}`));
+  if (exercises.length) {
+    out.push(`Ejercicios (${exercises.length}):`, ...exercises.slice(0, 10).map((item) => `• ${item}`));
+    if (exercises.length > 10) out.push(`• Y ${exercises.length - 10} más en la consigna.`);
+  }
+  if (!out.length) out.push("La consigna no tiene texto en la plataforma. Abrila en el aula virtual: puede venir en un archivo adjunto o la explicó el profe en clase.");
+  return out;
+}
+
 function compactTaskAnswer(classes: string): string {
-  const blocks = classes.split(/\n(?=Tarea: )/).filter((block) => block.includes("Tarea: "));
-  const summaries = blocks.map((block) => {
-    const title = block.match(/^Tarea:\s*(.+)$/m)?.[1]?.trim() ?? "la tarea";
-    const subject = block.match(/^Materia:\s*(.+)$/m)?.[1]?.trim() ?? "";
-    const platform = block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "";
-    const related = [...platform.matchAll(/Material relacionado — ([^:]+):([\s\S]*?)(?=Material relacionado — |$)/g)];
-    const main = related.find((match) => /pseint|ejercicios para resolver/i.test(match[1]))?.[2] ?? platform;
-    const exercises = [...main.matchAll(/\b\d+\.\s+(.{2,80}?)(?=\s+(?:Crear|Solicitar|Un jugador|Luego|El programa|Si|En un)\b)/g)]
-      .map((match) => match[1].replace(/\s+/g, " ").trim())
-      .filter((value, index, all) => all.indexOf(value) === index)
-      .slice(0, 8);
-    if (exercises.length === 0 && (!platform.trim() || /no encontr[eé] una consigna/i.test(platform))) return "";
-    const delivery = /formato\s*\.pdf/i.test(platform) ? "Entregarlo en PDF." : "";
-    const details = exercises.length > 0 ? `Resolver: ${exercises.join("; ")}.` : platform.replace(/\s+/g, " ").trim().slice(0, 280);
-    return `- ${title}${subject ? ` (${subject})` : ""}. ${details} ${delivery}`.trim();
-  }).filter(Boolean);
-  return summaries.length ? `En resumen, tenés que:\n${summaries.join("\n")}` : "";
+  const blocks = parseBlocks(classes);
+  if (!blocks.length) return "";
+  return blocks.map((block) => [blockHeader(block), ...consignaSummary(block)].join("\n")).join("\n\n");
 }
 
 function taskHowToRequest(message: string): boolean {
-  return /como puedo hacer|como hacer|como se hace|como la hago|como lo hago|por donde empiezo|no entiendo como/.test(fold(message));
+  return /como (puedo hacer|hacer|se hace|la hago|lo hago|las hago|los hago|hago|empiezo|arranco|resuelvo|armo|preparo)|por donde empiezo|no entiendo como|ayudame con/.test(
+    fold(message),
+  );
 }
 
-function isProgrammingBlock(block: string): boolean {
-  return /pseint|algoritmo|program/.test(fold(block));
+function isProgrammingBlock(block: TaskBlock): boolean {
+  return /program|pseint|algoritm|scratch/.test(fold(`${block.subject} ${block.consigna}`));
 }
 
 function plainTaskHelp(classes: string): string {
-  const blocks = classes.split(/\n(?=Tarea: )/).filter((block) => block.includes("Tarea: "));
-  const lines = blocks.map((block) => {
-    const title = block.match(/^Tarea:\s*(.+)$/m)?.[1]?.trim() ?? "la tarea";
-    const subject = block.match(/^Materia:\s*(.+)$/m)?.[1]?.trim() ?? "";
-    const platform = (block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "")
-      .replace(/\s+/g, " ")
-      .trim();
-    const useful = platform && !/no encontr[eé] una consigna/i.test(platform) ? platform.slice(0, 360) : "";
-    return useful
-      ? `${title}${subject ? ` (${subject})` : ""}. ${useful}`
-      : `${title}${subject ? ` es de ${subject}` : ""}. No encontré la consigna escrita en la plataforma.`;
-  });
-  return lines.join("\n");
+  const blocks = parseBlocks(classes);
+  return blocks
+    .map((block) => {
+      const summary = consignaSummary(block);
+      const hasText = !/^La consigna no tiene texto/.test(summary[0]);
+      const steps = hasText
+        ? [
+            "Para hacerla:",
+            "• Leé la consigna completa y marcá qué hay que entregar y en qué formato.",
+            block.notes ? "• Repasá el apunte de esa clase en el aula virtual." : "• Repasá lo que vieron en clase sobre ese tema.",
+            "• Hacé un borrador, revisalo con la consigna al lado y subilo antes de la fecha.",
+          ]
+        : [];
+      return [blockHeader(block), ...summary, ...steps].join("\n");
+    })
+    .join("\n\n");
+}
+
+function exerciseHint(title: string): string {
+  const name = fold(title);
+  if (/datos personales/.test(name)) return "pedí nombre, edad y curso, y mostralos";
+  if (/area|rectangulo/.test(name)) return "pedí base y altura, multiplicalas y mostrá el área";
+  if (/minutos|conversor/.test(name)) return "dividí por 60; el cociente son las horas y el resto, los minutos";
+  if (/compra|vuelto/.test(name)) return "sumá los precios y restá el total del dinero recibido";
+  if (/mayor de edad/.test(name)) return "pedí la edad y usá Si edad >= 18";
+  if (/positivo|negativo/.test(name)) return "usá Si para comparar el número con 0";
+  if (/mayor/.test(name)) return "compará los dos números y contemplá si son iguales";
+  if (/vidas|continuar/.test(name)) return "usá una condición según la cantidad de vidas";
+  if (/puntos|acumul|suma/.test(name)) return "usá una variable acumuladora que empiece en 0";
+  if (/contar|del 1 al/.test(name)) return "usá un bucle Para que vaya de 1 a 10";
+  if (/tabla/.test(name)) return "usá un bucle Para que multiplique de 1 a 10";
+  if (/bienvenida|subprograma|funcion/.test(name)) return "armá un subproceso y llamalo desde el principal";
+  if (/arreglo|lista|cinco numeros/.test(name)) return "guardá los valores en un arreglo y recorrelo con un bucle";
+  return "";
 }
 
 function taskGuideAnswer(classes: string): string {
-  const block = classes.split(/\n(?=Tarea: )/).find((item) => item.includes("Tarea: "));
+  const block = parseBlocks(classes)[0];
   if (!block || !isProgrammingBlock(block)) return "";
-  const platform = block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "";
-  const related = [...platform.matchAll(/Material relacionado — ([^:]+):([\s\S]*?)(?=Material relacionado — |$)/g)];
-  const main = related.find((match) => /pseint|ejercicios para resolver/i.test(match[1]))?.[2] ?? platform;
-  const exercises = [...main.matchAll(/\b\d+\.\s+(.{2,80}?)(?=\s+(?:Crear|Solicitar|Un jugador|Luego|El programa|Si|En un)\b)/g)]
-    .map((match) => match[1].replace(/\s+/g, " ").trim())
-    .filter((value, index, all) => all.indexOf(value) === index)
-    .slice(0, 8);
-  const steps = exercises.map((title, index) => {
-    const name = fold(title);
-    const number = index + 3;
-    if (/saludar|nombre/.test(name)) return `${number}. Pedí el nombre, guardalo y mostrá un saludo.`;
-    if (/edad/.test(name)) return `${number}. Pedí la edad, guardala y mostrá el valor.`;
-    if (/sumar|suma/.test(name)) return `${number}. Pedí dos números, sumalos y mostrá el resultado.`;
-    if (/mayor/.test(name)) return `${number}. Pedí dos números, comparalos e indicá cuál es mayor o si son iguales.`;
-    if (/continuar|vidas/.test(name)) return `${number}. Pedí la cantidad de vidas y usá una condición para mostrar el mensaje correspondiente.`;
-    if (/daño|dano/.test(name)) return `${number}. Empezá con 3 vidas, preguntá si recibió daño y actualizá el valor.`;
-    if (/contador|puntos/.test(name)) return `${number}. Repetí la carga 5 veces, acumulá los puntos y mostrá el total.`;
-    return `${number}. Leé la consigna, separá los datos de entrada, el cálculo y el resultado.`;
+  const exercises = exercisesIn(block.platform);
+  const shown = exercises.slice(0, 10).map((item) => {
+    const hint = exerciseHint(item);
+    const label = item.replace(/^Ejercicio (\d+): (.+)$/, "Ejercicio $1 ($2)");
+    return `• ${label}${hint ? `: ${hint}.` : "."}`;
   });
+  const delivery = consignaLines(block.consigna).find((line) => /pdf|subi|entreg/i.test(line));
   return [
+    blockHeader(block),
     "Para hacerla:",
-    "1. Abrí PSeInt y creá un algoritmo separado para cada ejercicio.",
-    "2. En cada uno pensá: qué datos entran, qué cálculo o condición necesitás y qué tenés que mostrar.",
-    ...steps,
-    `${steps.length + 3}. Probá cada algoritmo con los ejemplos de la consigna y corregí los errores.`,
-    `${steps.length + 4}. Guardá los ejercicios juntos en un PDF y subilo a la entrega.`,
+    "• Abrí PSeInt y hacé un algoritmo aparte para cada ejercicio.",
+    "• En cada uno pensá qué datos pedís, qué cálculo o condición usás y qué mostrás.",
+    ...(shown.length ? [`Ejercicios (${exercises.length}):`, ...shown] : []),
+    ...(exercises.length > 10 ? [`• Y ${exercises.length - 10} más en la consigna.`] : []),
+    "• Probá cada algoritmo con los ejemplos de la consigna antes de entregarlo.",
+    delivery ? `• Entrega: ${delivery}` : "• Juntá los ejercicios en un PDF y subilo a la entrega.",
   ].join("\n");
+}
+
+function explainsTopic(message: string): boolean {
+  const q = fold(message);
+  return (
+    /explic|ensen|que es |que son |que significa|no entiendo|como se usa|como funciona/.test(q) &&
+    !taskHowToRequest(message) &&
+    !/tarea|trabajo|entrega|consigna|ejercicio|practico|proyecto|examen|prueba|actividad/.test(q)
+  );
+}
+
+function topicAnswer(classes: string, message: string): string {
+  const block = parseBlocks(classes)[0];
+  const subject = block?.subject || classes.match(/^Materia:\s*(.+)$/m)?.[1]?.trim() || "";
+  const notes = block?.notes || (classes.match(/Apunte de la clase:\n([\s\S]*)$/)?.[1] ?? "").trim();
+  if (notes && !/no encontr[eé] un apunte/i.test(notes)) {
+    return [`Esto dice el apunte de clase${subject ? ` de ${subject}` : ""}:`, notes.replace(/\s+/g, " ").slice(0, 900)].join("\n");
+  }
+  const topic = message
+    .replace(/^.*?(explic\w*|ense[nñ]\w*|qu[eé] (?:es|son|significa)|no entiendo)\s+(?:(?:el|la|los|las|lo de|qu[eé] es)\s+)?/i, "")
+    .replace(/[?¿!.]+/g, "")
+    .trim();
+  const related = block?.due ? ` Ese tema entra en «${block.title}», que ${block.due}.` : "";
+  return `No encontré un apunte${topic ? ` sobre ${topic}` : " de ese tema"} en el aula${subject ? ` de ${subject}` : ""}, y sin el servicio de IA conectado no puedo explicarlo con mis palabras.${related}`;
 }
 
 async function answerWithFreeLlm(
@@ -421,28 +649,32 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
         mentions(task.subject, new Set(titleWords(safeMessage))),
     );
     const reminder = pending.length
-      ? `\n\nTambién tenés pendiente: ${pending.slice(0, 2).map((task) => `${task.title} (${task.subject})`).join("; ")}.`
+      ? `\n\nTambién tenés pendiente:\n${pending
+          .slice(0, 2)
+          .map((task) => taskLine(task, user.timezone))
+          .join("\n")}`
       : "";
     if (!notes.trim()) {
-      return `No encontré el apunte de la clase anterior${subject ? ` de ${subject}` : ""}.${reminder}`;
+      return `No encontré el apunte de la clase anterior${subject ? ` de ${subjectName(subject)}` : ""}.${reminder}`;
     }
-    return `${notes}${reminder}`;
+    return `${notes.split(subject).join(subjectName(subject))}${reminder}`;
   }
   const lookupMessage = conversationQuestion(safeMessage, safePrevious);
-  const classes = await classNotes(user, lookupMessage, tasks);
+  const dateOnly = asksWhen(fold(safeMessage)) && !explainsHow(safeMessage) && !taskHowToRequest(safeMessage);
+  const classes = dateOnly ? "" : await classNotes(user, lookupMessage, tasks);
+  const topic = explainsTopic(safeMessage);
   const guide = classes && taskHowToRequest(safeMessage) ? taskGuideAnswer(classes) : "";
-  const compact = classes && compactTaskRequest(safeMessage) ? compactTaskAnswer(classes) : "";
+  const compact = classes && !guide && compactTaskRequest(safeMessage) ? compactTaskAnswer(classes) : "";
   const help =
-    !guide && !compact && classes && (taskHowToRequest(safeMessage) || explainsHow(safeMessage))
+    !guide && !compact && !topic && classes && (taskHowToRequest(safeMessage) || explainsHow(safeMessage))
       ? plainTaskHelp(classes)
       : "";
+  const lesson = () => (topic ? topicAnswer(classes, safeMessage) : plainTaskHelp(classes) || topicAnswer(classes, safeMessage));
   const fallback = () =>
     guide ||
     compact ||
     help ||
-    (classes && asksForLesson(safeMessage)
-      ? `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`
-      : localAnswer(safeMessage, user, tasks));
+    (classes && asksForLesson(safeMessage) ? lesson() : localAnswer(safeMessage, user, tasks));
   const system = sanitizeChatText(studySystem(user, tasks, classes));
   const keep = (answer: string) => {
     const blocked = blockedAnswer(safeMessage, answer);
@@ -455,7 +687,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
         fold(answer),
       )
     ) {
-      return `Esto es lo que encontré en la plataforma y en las clases:\n\n${classes}`;
+      return lesson();
     }
     return plainChatText(answer);
   };
@@ -471,7 +703,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
   const triedFree = Boolean(process.env.FREELLMAPI_API_KEY && process.env.FREELLMAPI_BASE_URL);
   if (!triedFree && !key) return fallback();
   if (!key) {
-    if (isGreeting(safeMessage)) return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
+    if (isGreeting(safeMessage)) return greetingReply(safeMessage);
     return fallback();
   }
 
@@ -503,6 +735,6 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
       // Probamos el otro modelo y, si tampoco responde, usamos los datos locales.
     }
   }
-    if (isGreeting(safeMessage)) return "Hola. Preguntame qué tenés pendiente o pedime que te explique cómo hacer una tarea.";
+  if (isGreeting(safeMessage)) return greetingReply(safeMessage);
   return fallback();
 }

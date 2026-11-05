@@ -776,7 +776,7 @@ function lessonWords(value: string): string[] {
 
 export function asksForLesson(message: string): boolean {
   const q = message.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  return /explic|ensen|que es |que son |como se |como hacer|como puedo hacer|como la hago|como lo hago|que tengo que hacer|que hay que hacer|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema|entrega|trabajo/.test(q);
+  return /explic|ensen|que es |que son |como se |como hacer|como puedo hacer|como la hago|como lo hago|como hago|como empiezo|como armo|como preparo|de que se trata|que pide|que tengo que hacer|que hay que hacer|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema|entrega|trabajo/.test(q);
 }
 
 type LessonPiece = { title: string; text: string };

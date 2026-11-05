@@ -147,7 +147,7 @@ function wantsTheWorkDone(text: string): boolean {
 
 export function explainsHow(message: string): boolean {
   const text = plainAsk(message);
-  const how = /\b(como hacer|como se hace|como la hago|como lo hago|que tengo que hacer|que hay que hacer|que es lo que tengo que hacer|que pide|de que se trata|que significa|explic\w*|no entiendo|como en clase|resumen del tema)\b/.test(text);
+  const how = /\b(como hacer|como se hace|como la hago|como lo hago|como hago|como empiezo|como arranco|como armo|como preparo|que tengo que hacer|que hay que hacer|que es lo que tengo que hacer|que pide|de que se trata|que significa|explic\w*|no entiendo|como en clase|resumen del tema)\b/.test(text);
   return how && !wantsTheWorkDone(text);
 }
 
