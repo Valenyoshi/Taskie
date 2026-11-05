@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Paperclip, RefreshCw, TriangleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { SchoolNews } from "@/lib/educamos";
 
 export type NewsState =
@@ -11,6 +9,8 @@ export type NewsState =
   | { status: "ready"; news: SchoolNews[]; note?: string; sample?: boolean };
 
 const URL_PATTERN = /(https:\/\/[^\s<>()]+[^\s<>().,;:!?])/g;
+const PAPERS = ["#fff4c2", "#fde4ea", "#e5f3ff", "#e7f6df"];
+const PINS = ["#e23b3b", "#2f6fdb", "#e2b01a", "#3d9a4a"];
 
 export function LinkedText({ text }: { text: string }) {
   const parts = text.split(URL_PATTERN);
@@ -18,7 +18,7 @@ export function LinkedText({ text }: { text: string }) {
     <>
       {parts.map((part, index) =>
         index % 2 === 1 ? (
-          <a key={index} href={part} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-primary underline">
+          <a key={index} href={part} target="_blank" rel="noopener noreferrer nofollow" className="break-all underline">
             {part}
           </a>
         ) : (
@@ -35,106 +35,95 @@ export function newsDate(day: string): string {
   return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
-function NewsCard({ item }: { item: SchoolNews }) {
+function tilt(id: string): number {
+  let hash = 0;
+  for (const char of id) hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
+  return ((hash % 5) - 2) * 0.8;
+}
+
+function Note({ item, index }: { item: SchoolNews; index: number }) {
   const [open, setOpen] = useState(false);
-  const long = item.text.length > 360;
-  const shown = open || !long ? item.text : `${item.text.slice(0, 340).replace(/\s+\S*$/, "")}…`;
   const sample = item.id.startsWith("00000000-");
+  const preview = item.text.replace(/\s+/g, " ").trim();
   return (
-    <article className="news-card rounded-2xl bg-card px-4 py-4 ring-1 ring-foreground/10">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display text-xl leading-tight">{item.title}</h3>
-        {item.urgent ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
-            <TriangleAlert className="size-3.5" /> Importante
-          </span>
-        ) : null}
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">Publicada el {newsDate(item.start)}</p>
-      {shown ? (
-        <div className="mt-3 flex flex-col gap-2 text-sm leading-relaxed">
-          {shown.split("\n").map((line, index) => (
-            <p key={index}>
+    <article className={open ? "board-note open" : "board-note"} style={{ background: PAPERS[index % PAPERS.length], ["--tilt" as string]: `${tilt(item.id)}deg` }}>
+      <span className="board-pin" style={{ background: item.urgent ? "#e23b3b" : PINS[index % PINS.length] }} aria-hidden />
+      <button type="button" className="board-note-hit" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <h3>{item.title}</h3>
+        {item.urgent ? <p className="board-note-flag">Importante</p> : null}
+        {!open && preview ? <p className="board-note-preview">{preview}</p> : null}
+        {!open && !preview && item.images > 0 ? <p className="board-note-preview">Tiene una imagen.</p> : null}
+        {open ? <p className="board-close">Cerrar</p> : null}
+      </button>
+      {open && preview ? (
+        <div className="board-note-body">
+          {item.text.split("\n").map((line, lineIndex) => (
+            <p key={lineIndex}>
               <LinkedText text={line} />
             </p>
           ))}
         </div>
       ) : null}
-      {long ? (
-        <button type="button" className="mt-1 text-sm font-semibold text-primary" onClick={() => setOpen((value) => !value)}>
-          {open ? "Ver menos" : "Ver todo"}
-        </button>
-      ) : null}
-      {item.images > 0 && !sample ? (
-        <div className="mt-3 flex flex-col gap-2">
-          {Array.from({ length: item.images }, (_, index) => (
+      {open && !sample
+        ? item.links.map((link) => (
+            <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer nofollow" className="board-note-link">
+              {link.label}
+            </a>
+          ))
+        : null}
+      {open && item.images > 0 && !sample
+        ? Array.from({ length: open ? item.images : 1 }, (_, image) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={index}
-              src={`/api/events/news/${item.id}/image/${index}`}
-              alt={`Imagen de «${item.title}»`}
-              loading="lazy"
-              className="w-full rounded-xl ring-1 ring-foreground/10"
-            />
-          ))}
-        </div>
-      ) : null}
-      {item.links.length > 0 || (item.hasAttachment && !sample) ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {item.links.map((link) => (
-            <Button key={link.url} asChild variant="outline" size="sm" className="max-w-full">
-              <a href={link.url} target="_blank" rel="noopener noreferrer nofollow">
-                <span className="truncate">{link.label}</span>
-              </a>
-            </Button>
-          ))}
-          {item.hasAttachment && !sample ? (
-            <Button asChild variant="secondary" size="sm">
-              <a href={`/api/events/news/${item.id}/attachment`} target="_blank" rel="noopener">
-                <Paperclip /> Ver adjunto
-              </a>
-            </Button>
-          ) : null}
-        </div>
+            <img key={image} src={`/api/events/news/${item.id}/image/${image}`} alt="" className="board-note-img" />
+          ))
+        : null}
+      <p className="board-note-date">{newsDate(item.start)}</p>
+      {open && item.hasAttachment && !sample ? (
+        <a href={`/api/events/news/${item.id}/attachment`} target="_blank" rel="noopener" className="board-note-link">
+          Ver adjunto
+        </a>
       ) : null}
     </article>
   );
 }
 
 export function NewsBoard({ state, onRetry }: { state: NewsState; onRetry: () => void }) {
-  if (state.status === "loading") {
-    return (
-      <div className="flex flex-col gap-3" aria-busy>
-        <p className="text-center text-sm text-muted-foreground">Leyendo el tablón de Educamos…</p>
-        {[0, 1, 2].map((key) => (
-          <div key={key} className="h-28 animate-pulse rounded-2xl bg-card/70 ring-1 ring-foreground/10" />
-        ))}
-      </div>
-    );
-  }
-  if (state.status === "error") {
-    return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl bg-card px-4 py-6 text-center ring-1 ring-foreground/10">
-        <p className="text-sm text-destructive">{state.error}</p>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          <RefreshCw /> Probar de nuevo
-        </Button>
-      </div>
-    );
-  }
-  if (state.news.length === 0) {
-    return (
-      <p className="rounded-2xl bg-card px-4 py-6 text-center text-sm ring-1 ring-foreground/10">
-        {state.note ?? "No hay noticias en el tablón de este ciclo lectivo."}
-      </p>
-    );
-  }
   return (
-    <div className="flex flex-col gap-3">
-      {state.sample ? <p className="text-center text-xs text-muted-foreground">Noticias de ejemplo de la cuenta de prueba.</p> : null}
-      {state.news.map((item) => (
-        <NewsCard key={item.id} item={item} />
-      ))}
-    </div>
+    <section>
+      <h2 className="board-title">Tablón</h2>
+      <div className="board-frame">
+        <div className="board-cork">
+          {state.status === "loading" ? (
+            <>
+              <p className="board-status">Buscando las noticias del colegio…</p>
+              {[0, 1, 2, 3].map((key) => (
+                <div key={key} className="board-note board-note-ghost" style={{ ["--tilt" as string]: `${(key - 1.5) * 0.8}deg` }} />
+              ))}
+            </>
+          ) : null}
+          {state.status === "error" ? (
+            <article className="board-note open" style={{ background: "#fff4c2" }}>
+              <span className="board-pin" style={{ background: "#e23b3b" }} aria-hidden />
+              <h3>No pude leer el tablón</h3>
+              <p className="board-note-body">{state.error}</p>
+              <button type="button" className="board-note-link" onClick={onRetry}>
+                Probar de nuevo
+              </button>
+            </article>
+          ) : null}
+          {state.status === "ready" && state.news.length === 0 ? (
+            <article className="board-note open" style={{ background: "#fff4c2" }}>
+              <span className="board-pin" style={{ background: "#e2b01a" }} aria-hidden />
+              <h3>Tablón vacío</h3>
+              <p className="board-note-body">{state.note ?? "Este ciclo lectivo no tiene noticias."}</p>
+            </article>
+          ) : null}
+          {state.status === "ready"
+            ? state.news.map((item, index) => <Note key={item.id} item={item} index={index} />)
+            : null}
+        </div>
+      </div>
+      {state.status === "ready" && state.sample ? <p className="mt-2 text-center text-xs text-muted-foreground">Noticias de ejemplo.</p> : null}
+    </section>
   );
 }

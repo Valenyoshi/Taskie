@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Megaphone } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import type { SchoolNews } from "@/lib/educamos";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CalendarTask } from "@/lib/view";
 import { cn } from "cn";
 
@@ -23,54 +21,16 @@ function monthTitle(y: number, m: number): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function dayTitle(day: string, today: string): string {
+function dayName(day: string): string {
   const [y, m, d] = parts(day);
-  const text = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
-  const label = text.charAt(0).toUpperCase() + text.slice(1);
-  return day === today ? `Hoy, ${text}` : label;
+  return new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
-function status(task: CalendarTask): { label: string; tone: string } {
-  if (task.status === "done") return { label: "Hecha", tone: "bg-emerald-100 text-emerald-800" };
-  if (task.late) return { label: "Atrasada", tone: "bg-destructive/10 text-destructive" };
-  return { label: `Vence ${task.time} h`, tone: "bg-amber-100 text-amber-900" };
+function hour(task: CalendarTask): string {
+  return task.time && task.time !== "23:59" ? ` · ${task.time}` : "";
 }
 
-function TaskRow({ task, showDay, today }: { task: CalendarTask; showDay?: boolean; today: string }) {
-  const chip = status(task);
-  const body = (
-    <>
-      <span className="mt-1 size-3 shrink-0 rounded-full" style={{ background: task.color }} aria-hidden />
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold text-muted-foreground">
-          {task.subjectLabel}
-          {showDay ? ` · ${dayTitle(task.day, today)}` : ""}
-        </span>
-        <span className={cn("block text-sm font-medium", task.status === "done" && "text-muted-foreground line-through")}>{task.title}</span>
-      </span>
-      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", chip.tone)}>{chip.label}</span>
-    </>
-  );
-  return task.url ? (
-    <a href={task.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 rounded-xl px-2 py-2 hover:bg-muted">
-      {body}
-    </a>
-  ) : (
-    <div className="flex items-start gap-3 rounded-xl px-2 py-2">{body}</div>
-  );
-}
-
-export function TaskCalendar({
-  tasks,
-  today,
-  news,
-  onOpenNews,
-}: {
-  tasks: CalendarTask[];
-  today: string;
-  news: SchoolNews[];
-  onOpenNews: () => void;
-}) {
+export function TaskCalendar({ tasks, today }: { tasks: CalendarTask[]; today: string }) {
   const [ty, tm] = parts(today);
   const [month, setMonth] = useState<[number, number]>([ty, tm]);
   const [selected, setSelected] = useState(today);
@@ -81,11 +41,6 @@ export function TaskCalendar({
     for (const task of tasks) map.set(task.day, [...(map.get(task.day) ?? []), task]);
     return map;
   }, [tasks]);
-  const newsByDay = useMemo(() => {
-    const map = new Map<string, SchoolNews[]>();
-    for (const item of news) if (item.start) map.set(item.start, [...(map.get(item.start) ?? []), item]);
-    return map;
-  }, [news]);
 
   const first = new Date(Date.UTC(y, m - 1, 1));
   const offset = (first.getUTCDay() + 6) % 7;
@@ -97,122 +52,109 @@ export function TaskCalendar({
     const date = new Date(Date.UTC(y, m - 1 + delta, 1));
     setMonth([date.getUTCFullYear(), date.getUTCMonth() + 1]);
   };
-  const monthKey = iso(y, m, 1).slice(0, 7);
-  const inMonth = tasks.filter((task) => task.day.startsWith(monthKey));
-  const pendingInMonth = inMonth.filter((task) => task.status === "pending").length;
-  const upcoming = tasks.filter((task) => task.status === "pending" && task.day >= today).slice(0, 6);
+
+  const next = tasks.find((task) => task.status === "pending" && task.day >= today);
   const dayTasks = byDay.get(selected) ?? [];
-  const dayNews = newsByDay.get(selected) ?? [];
+  const pending = dayTasks.filter((task) => task.status === "pending");
+  const done = dayTasks.filter((task) => task.status === "done");
+  const heading = selected === today ? "Hoy" : dayName(selected);
 
   return (
-    <div className="flex flex-col gap-3">
-      <section className="rounded-2xl bg-card p-3 ring-1 ring-foreground/10 sm:p-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <Button variant="ghost" size="icon" onClick={() => move(-1)} aria-label="Mes anterior">
-            <ChevronLeft />
-          </Button>
-          <div className="text-center">
-            <p className="font-display text-2xl leading-none">{monthTitle(y, m)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {inMonth.length === 0 ? "Sin entregas" : `${inMonth.length} ${inMonth.length === 1 ? "entrega" : "entregas"} · ${pendingInMonth} sin hacer`}
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => move(1)} aria-label="Mes siguiente">
-            <ChevronRight />
-          </Button>
+    <section className="rounded-2xl bg-card px-3 py-3 ring-1 ring-foreground/10 sm:px-4">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-muted" onClick={() => move(-1)} aria-label="Mes anterior">
+          <ChevronLeft className="size-5" />
+        </button>
+        <div className="text-center">
+          <h2 className="font-display text-2xl leading-none">{monthTitle(y, m)}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {next ? `Próxima entrega: ${next.day === today ? "hoy" : dayName(next.day)}, ${next.subjectLabel}` : "No hay entregas pendientes"}
+          </p>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-muted-foreground">
-          {WEEKDAYS.map((day, index) => (
-            <span key={index} className="py-1">
-              {day}
-            </span>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {cells.map((day, index) => {
-            if (!day) return <span key={index} />;
-            const list = byDay.get(day) ?? [];
-            const hasNews = newsByDay.has(day);
-            const late = list.some((task) => task.late);
-            return (
-              <button
-                key={day}
-                type="button"
-                onClick={() => setSelected(day)}
-                aria-pressed={selected === day}
-                aria-label={`${dayTitle(day, today)}: ${list.length} ${list.length === 1 ? "entrega" : "entregas"}${hasNews ? ", con noticia" : ""}`}
-                className={cn(
-                  "calendar-day relative flex aspect-square flex-col items-center justify-start rounded-xl pt-1 text-sm transition-colors sm:aspect-auto sm:h-14 sm:pt-1.5",
-                  selected === day ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-                  day === today && selected !== day && "ring-2 ring-primary/60",
-                )}
-              >
-                <span className={cn("font-semibold leading-none", late && selected !== day && "text-destructive")}>{Number(day.slice(8))}</span>
-                <span className="mt-auto mb-1 flex items-center gap-0.5">
-                  {list.slice(0, 3).map((task) => (
-                    <span
-                      key={task.id}
-                      className={cn("size-1.5 rounded-full sm:size-2", task.status === "done" && "opacity-40")}
-                      style={{ background: selected === day ? "currentColor" : task.color }}
-                    />
-                  ))}
-                  {list.length > 3 ? <span className="text-[9px] leading-none">+{list.length - 3}</span> : null}
-                </span>
-                {hasNews ? <Megaphone className="absolute top-0.5 right-0.5 size-2.5 sm:size-3" aria-hidden /> : null}
-              </button>
-            );
-          })}
-        </div>
-        {y !== ty || m !== tm ? (
-          <div className="mt-2 text-center">
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => {
-                setMonth([ty, tm]);
-                setSelected(today);
-              }}
+        <button type="button" className="grid size-9 place-items-center rounded-full hover:bg-muted" onClick={() => move(1)} aria-label="Mes siguiente">
+          <ChevronRight className="size-5" />
+        </button>
+      </div>
+
+      <div className="mt-3 grid grid-cols-7 text-center text-[11px] font-semibold text-muted-foreground">
+        {WEEKDAYS.map((day, index) => (
+          <span key={index} className="py-1">
+            {day}
+          </span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells.map((day, index) => {
+          if (!day) return <span key={index} />;
+          const list = (byDay.get(day) ?? []).filter((task) => task.status === "pending");
+          const late = list.some((task) => task.late);
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => setSelected(day)}
+              aria-pressed={selected === day}
+              aria-label={`${dayName(day)}: ${list.length === 0 ? "sin entregas" : `${list.length} ${list.length === 1 ? "entrega" : "entregas"}`}`}
+              className={cn(
+                "calendar-day flex h-11 flex-col items-center justify-center rounded-lg text-sm sm:h-12",
+                selected === day && "bg-primary text-primary-foreground",
+                day === today && selected !== day && "font-bold underline decoration-2 underline-offset-4",
+              )}
             >
-              Volver a hoy
-            </Button>
-          </div>
-        ) : null}
-      </section>
+              <span className={cn("leading-none", late && selected !== day && "text-destructive")}>{Number(day.slice(8))}</span>
+              <span className="mt-1 flex h-1.5 items-center gap-0.5">
+                {list.slice(0, 3).map((task) => (
+                  <span key={task.id} className="size-1.5 rounded-full" style={{ background: selected === day ? "currentColor" : task.color }} />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {y !== ty || m !== tm ? (
+        <button
+          type="button"
+          className="mx-auto mt-1 block text-sm font-semibold text-primary"
+          onClick={() => {
+            setMonth([ty, tm]);
+            setSelected(today);
+          }}
+        >
+          Volver a hoy
+        </button>
+      ) : null}
 
-      <section className="rounded-2xl bg-card px-3 py-3 ring-1 ring-foreground/10 sm:px-4">
-        <h3 className="px-2 font-display text-xl">{dayTitle(selected, today)}</h3>
-        {dayTasks.length === 0 && dayNews.length === 0 ? (
-          <p className="px-2 py-2 text-sm text-muted-foreground">No hay entregas para este día.</p>
-        ) : (
-          <div className="mt-1 flex flex-col">
-            {dayTasks.map((task) => (
-              <TaskRow key={task.id} task={task} today={today} />
-            ))}
-            {dayNews.map((item) => (
-              <button key={item.id} type="button" onClick={onOpenNews} className="flex items-start gap-3 rounded-xl px-2 py-2 text-left hover:bg-muted">
-                <Megaphone className="mt-0.5 size-4 shrink-0 text-primary" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-muted-foreground">Noticia del colegio</span>
-                  <span className="block text-sm font-medium">{item.title}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      <div className="mt-2 border-t border-border pt-2">
+        <p className="px-1 text-sm font-semibold">{heading}</p>
+        {pending.length === 0 && done.length === 0 ? <p className="px-1 py-1 text-sm text-muted-foreground">Nada para entregar.</p> : null}
+        {pending.map((task) => (
+          <TaskLine key={task.id} task={task} />
+        ))}
+        {done.map((task) => (
+          <TaskLine key={task.id} task={task} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
-      <section className="rounded-2xl bg-card px-3 py-3 ring-1 ring-foreground/10 sm:px-4">
-        <h3 className="px-2 font-display text-xl">Lo que viene</h3>
-        {upcoming.length === 0 ? (
-          <p className="px-2 py-2 text-sm text-muted-foreground">No tenés entregas pendientes por delante.</p>
-        ) : (
-          <div className="mt-1 flex flex-col">
-            {upcoming.map((task) => (
-              <TaskRow key={task.id} task={task} showDay today={today} />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+function TaskLine({ task }: { task: CalendarTask }) {
+  const text = (
+    <>
+      <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: task.color }} aria-hidden />
+      <span className={cn("min-w-0 text-sm", task.status === "done" && "text-muted-foreground line-through")}>
+        <b className="font-semibold">{task.subjectLabel}.</b> {task.title}
+        {task.status === "pending" ? hour(task) : ""}
+        {task.late ? <span className="font-semibold text-destructive"> · atrasada</span> : null}
+      </span>
+    </>
+  );
+  const className = "flex items-start gap-2 rounded-lg px-1 py-1.5";
+  return task.url && task.status === "pending" ? (
+    <a href={task.url} target="_blank" rel="noopener noreferrer" className={cn(className, "hover:bg-muted")}>
+      {text}
+    </a>
+  ) : (
+    <div className={className}>{text}</div>
   );
 }
