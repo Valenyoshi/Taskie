@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import type { SchoolNews } from "@/lib/educamos";
 
 export type NewsState =
@@ -41,20 +42,29 @@ function tilt(id: string): number {
   return ((hash % 5) - 2) * 0.8;
 }
 
+function MoreButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" className="board-more" aria-expanded={open} onClick={onToggle}>
+      <ChevronDown className={`size-4 ${open ? "rotate-180" : ""}`} />
+      {open ? "Leer menos" : "Leer más"}
+    </button>
+  );
+}
+
 function Note({ item, index }: { item: SchoolNews; index: number }) {
   const [open, setOpen] = useState(false);
   const sample = item.id.startsWith("00000000-");
   const preview = item.text.replace(/\s+/g, " ").trim();
+  const more = preview.length > 140 || item.text.includes("\n") || item.images > 0 || item.links.length > 0 || (item.hasAttachment && !sample);
   return (
-    <article className={open ? "board-note open" : "board-note"} style={{ background: PAPERS[index % PAPERS.length], ["--tilt" as string]: `${tilt(item.id)}deg` }}>
+    <article className="board-note" style={{ background: PAPERS[index % PAPERS.length], ["--tilt" as string]: `${tilt(item.id)}deg` }}>
       <span className="board-pin" style={{ background: item.urgent ? "#e23b3b" : PINS[index % PINS.length] }} aria-hidden />
-      <button type="button" className="board-note-hit" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <h3>{item.title}</h3>
-        {item.urgent ? <p className="board-note-flag">Importante</p> : null}
-        {!open && preview ? <p className="board-note-preview">{preview}</p> : null}
-        {!open && !preview && item.images > 0 ? <p className="board-note-preview">Tiene una imagen.</p> : null}
-        {open ? <p className="board-close">Cerrar</p> : null}
-      </button>
+      <h3>{item.title}</h3>
+      {item.urgent ? <p className="board-note-flag">Importante</p> : null}
+      {open && more ? <MoreButton open={open} onToggle={() => setOpen((value) => !value)} /> : null}
+      {!open && preview ? <p className="board-note-preview">{preview}</p> : null}
+      {!open && !preview && item.images > 0 ? <p className="board-note-preview">Tiene una imagen.</p> : null}
+      {!open && more ? <MoreButton open={open} onToggle={() => setOpen((value) => !value)} /> : null}
       {open && preview ? (
         <div className="board-note-body">
           {item.text.split("\n").map((line, lineIndex) => (
@@ -72,17 +82,17 @@ function Note({ item, index }: { item: SchoolNews; index: number }) {
           ))
         : null}
       {open && item.images > 0 && !sample
-        ? Array.from({ length: open ? item.images : 1 }, (_, image) => (
+        ? Array.from({ length: item.images }, (_, image) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img key={image} src={`/api/events/news/${item.id}/image/${image}`} alt="" className="board-note-img" />
           ))
         : null}
-      <p className="board-note-date">{newsDate(item.start)}</p>
       {open && item.hasAttachment && !sample ? (
         <a href={`/api/events/news/${item.id}/attachment`} target="_blank" rel="noopener" className="board-note-link">
           Ver adjunto
         </a>
       ) : null}
+      <p className="board-note-date">{newsDate(item.start)}</p>
     </article>
   );
 }
@@ -90,7 +100,7 @@ function Note({ item, index }: { item: SchoolNews; index: number }) {
 export function NewsBoard({ state, onRetry }: { state: NewsState; onRetry: () => void }) {
   return (
     <section>
-      <h2 className="board-title">Tablón</h2>
+      <h2 className="board-title">Tablón de eventos</h2>
       <div className="board-frame">
         <div className="board-cork">
           {state.status === "loading" ? (

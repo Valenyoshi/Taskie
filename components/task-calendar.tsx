@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { CalendarTask } from "@/lib/view";
 import { cn } from "cn";
 
@@ -21,6 +22,13 @@ function monthTitle(y: number, m: number): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function dayTitle(day: string, today: string): string {
+  if (day === today) return "Hoy";
+  const [y, m, d] = parts(day);
+  const text = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function dayName(day: string): string {
   const [y, m, d] = parts(day);
   return new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
@@ -30,10 +38,58 @@ function hour(task: CalendarTask): string {
   return task.time && task.time !== "23:59" ? ` · ${task.time}` : "";
 }
 
+function DayTasks({ day, today, tasks }: { day: string; today: string; tasks: CalendarTask[] }) {
+  const pending = tasks.filter((task) => task.status === "pending");
+  const done = tasks.filter((task) => task.status === "done");
+  return (
+    <>
+      <h3 id={`day-${day}`} className="font-display text-2xl leading-none">
+        {dayTitle(day, today)}
+      </h3>
+      <p className="mt-1 text-xs text-muted-foreground">{pending.length === 1 ? "Hay 1 entrega" : `Hay ${pending.length} entregas`}</p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {pending.map((task) => (
+          <li key={task.id}>
+            <TaskLine task={task} />
+          </li>
+        ))}
+        {done.map((task) => (
+          <li key={task.id}>
+            <TaskLine task={task} />
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function TaskLine({ task }: { task: CalendarTask }) {
+  const text = (
+    <>
+      <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: task.color }} aria-hidden />
+      <span className={cn("min-w-0 text-sm", task.status === "done" && "text-muted-foreground line-through")}>
+        <b className="font-semibold">{task.subjectLabel}.</b> {task.title}
+        {task.status === "pending" ? hour(task) : ""}
+        {task.late ? <span className="font-semibold text-destructive"> · atrasada</span> : null}
+      </span>
+    </>
+  );
+  const className = "flex items-start gap-2 rounded-lg";
+  return task.url && task.status === "pending" ? (
+    <a href={task.url} target="_blank" rel="noopener noreferrer" className={cn(className, "hover:underline")}>
+      {text}
+    </a>
+  ) : (
+    <div className={className}>{text}</div>
+  );
+}
+
 export function TaskCalendar({ tasks, today }: { tasks: CalendarTask[]; today: string }) {
   const [ty, tm] = parts(today);
   const [month, setMonth] = useState<[number, number]>([ty, tm]);
-  const [selected, setSelected] = useState(today);
+  const [openDay, setOpenDay] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ day: string; top: number; left: number; above: boolean } | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [y, m] = month;
 
   const byDay = useMemo(() => {
@@ -51,13 +107,46 @@ export function TaskCalendar({ tasks, today }: { tasks: CalendarTask[]; today: s
   const move = (delta: number) => {
     const date = new Date(Date.UTC(y, m - 1 + delta, 1));
     setMonth([date.getUTCFullYear(), date.getUTCMonth() + 1]);
+    setOpenDay(null);
+    setHover(null);
   };
 
   const next = tasks.find((task) => task.status === "pending" && task.day >= today);
-  const dayTasks = byDay.get(selected) ?? [];
-  const pending = dayTasks.filter((task) => task.status === "pending");
-  const done = dayTasks.filter((task) => task.status === "done");
-  const heading = selected === today ? "Hoy" : dayName(selected);
+  const openTasks = openDay ? (byDay.get(openDay) ?? []) : [];
+  const hoverTasks = hover ? (byDay.get(hover.day) ?? []) : [];
+
+  const cancelHide = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+  const scheduleHide = () => {
+    cancelHide();
+    hideTimer.current = setTimeout(() => setHover(null), 140);
+  };
+  const showHover = (day: string, target: HTMLElement) => {
+    if (openDay) return;
+    cancelHide();
+    const rect = target.getBoundingClientRect();
+    const width = 250;
+    const left = Math.min(Math.max(12, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 12);
+    const above = rect.bottom + 170 > window.innerHeight;
+    setHover({ day, top: above ? rect.top - 8 : rect.bottom + 8, left, above });
+  };
+
+  useEffect(() => {
+    if (!openDay) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenDay(null);
+    };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [openDay]);
+
+  useEffect(() => () => cancelHide(), []);
 
   return (
     <section className="rounded-2xl bg-card px-3 py-3 ring-1 ring-foreground/10 sm:px-4">
@@ -86,25 +175,43 @@ export function TaskCalendar({ tasks, today }: { tasks: CalendarTask[]; today: s
       <div className="grid grid-cols-7">
         {cells.map((day, index) => {
           if (!day) return <span key={index} />;
-          const list = (byDay.get(day) ?? []).filter((task) => task.status === "pending");
-          const late = list.some((task) => task.late);
+          const list = byDay.get(day) ?? [];
+          const pending = list.filter((task) => task.status === "pending");
+          const late = pending.some((task) => task.late);
+          const busy = pending.length > 0;
           return (
             <button
               key={day}
               type="button"
-              onClick={() => setSelected(day)}
-              aria-pressed={selected === day}
-              aria-label={`${dayName(day)}: ${list.length === 0 ? "sin entregas" : `${list.length} ${list.length === 1 ? "entrega" : "entregas"}`}`}
+              onClick={() => {
+                if (!busy) return;
+                setHover(null);
+                setOpenDay(day);
+              }}
+              onPointerEnter={(event) => {
+                if (event.pointerType === "mouse" && busy) showHover(day, event.currentTarget);
+              }}
+              onPointerLeave={(event) => {
+                if (event.pointerType === "mouse") scheduleHide();
+              }}
+              onFocus={(event) => {
+                if (busy && window.matchMedia("(hover: hover)").matches) showHover(day, event.currentTarget);
+              }}
+              onBlur={() => scheduleHide()}
+              aria-pressed={openDay === day}
+              aria-haspopup={busy ? "dialog" : undefined}
+              aria-label={`${dayName(day)}: ${busy ? `${pending.length} ${pending.length === 1 ? "entrega" : "entregas"}` : "sin entregas"}`}
               className={cn(
                 "calendar-day flex h-11 flex-col items-center justify-center rounded-lg text-sm sm:h-12",
-                selected === day && "bg-primary text-primary-foreground",
-                day === today && selected !== day && "font-bold underline decoration-2 underline-offset-4",
+                !busy && "cursor-default",
+                openDay === day && "bg-primary text-primary-foreground",
+                day === today && openDay !== day && "font-bold underline decoration-2 underline-offset-4",
               )}
             >
-              <span className={cn("leading-none", late && selected !== day && "text-destructive")}>{Number(day.slice(8))}</span>
+              <span className={cn("leading-none", late && openDay !== day && "text-destructive")}>{Number(day.slice(8))}</span>
               <span className="mt-1 flex h-1.5 items-center gap-0.5">
-                {list.slice(0, 3).map((task) => (
-                  <span key={task.id} className="size-1.5 rounded-full" style={{ background: selected === day ? "currentColor" : task.color }} />
+                {pending.slice(0, 3).map((task) => (
+                  <span key={task.id} className="size-1.5 rounded-full" style={{ background: openDay === day ? "currentColor" : task.color }} />
                 ))}
               </span>
             </button>
@@ -117,44 +224,46 @@ export function TaskCalendar({ tasks, today }: { tasks: CalendarTask[]; today: s
           className="mx-auto mt-1 block text-sm font-semibold text-primary"
           onClick={() => {
             setMonth([ty, tm]);
-            setSelected(today);
+            setOpenDay(null);
           }}
         >
           Volver a hoy
         </button>
       ) : null}
 
-      <div className="mt-2 border-t border-border pt-2">
-        <p className="px-1 text-sm font-semibold">{heading}</p>
-        {pending.length === 0 && done.length === 0 ? <p className="px-1 py-1 text-sm text-muted-foreground">Nada para entregar.</p> : null}
-        {pending.map((task) => (
-          <TaskLine key={task.id} task={task} />
-        ))}
-        {done.map((task) => (
-          <TaskLine key={task.id} task={task} />
-        ))}
-      </div>
-    </section>
-  );
-}
+      {hover && hoverTasks.length > 0
+        ? createPortal(
+            <div
+              className="fixed z-40 w-[250px] rounded-2xl bg-card p-3 shadow-xl ring-1 ring-foreground/10"
+              style={{ top: hover.top, left: hover.left, transform: hover.above ? "translateY(-100%)" : undefined }}
+              onMouseEnter={cancelHide}
+              onMouseLeave={scheduleHide}
+            >
+              <DayTasks day={hover.day} today={today} tasks={hoverTasks} />
+            </div>,
+            document.body,
+          )
+        : null}
 
-function TaskLine({ task }: { task: CalendarTask }) {
-  const text = (
-    <>
-      <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: task.color }} aria-hidden />
-      <span className={cn("min-w-0 text-sm", task.status === "done" && "text-muted-foreground line-through")}>
-        <b className="font-semibold">{task.subjectLabel}.</b> {task.title}
-        {task.status === "pending" ? hour(task) : ""}
-        {task.late ? <span className="font-semibold text-destructive"> · atrasada</span> : null}
-      </span>
-    </>
-  );
-  const className = "flex items-start gap-2 rounded-lg px-1 py-1.5";
-  return task.url && task.status === "pending" ? (
-    <a href={task.url} target="_blank" rel="noopener noreferrer" className={cn(className, "hover:bg-muted")}>
-      {text}
-    </a>
-  ) : (
-    <div className={className}>{text}</div>
+      {openDay
+        ? createPortal(
+            <div className="fixed inset-0 z-[80] grid place-items-center bg-foreground/40 p-5" onClick={() => setOpenDay(null)}>
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={`day-${openDay}`}
+                className="w-full max-w-sm rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-foreground/10"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button type="button" className="float-right grid size-8 place-items-center rounded-full hover:bg-muted" onClick={() => setOpenDay(null)} aria-label="Cerrar" autoFocus>
+                  <X className="size-4" />
+                </button>
+                <DayTasks day={openDay} today={today} tasks={openTasks} />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </section>
   );
 }

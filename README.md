@@ -101,8 +101,8 @@ Taskie avisa lo que vence hoy (desde las 8), lo que vence mañana (desde las 18)
 
 **Eventos** es una sola pantalla, de arriba hacia abajo:
 
-- **Calendario:** el mes, con un punto del color de la materia en cada día que hay que entregar. Arriba dice cuál es la próxima. Tocás un día y, debajo del mes, ves qué vence. El número del día atrasado va en rojo.
-- **Tablón:** las noticias de Educamos de este ciclo lectivo, prendidas como notas en un corcho. Tocá una nota para leerla entera, con sus enlaces, imágenes y adjunto (imagen o PDF). Taskie las lee sin marcarlas como leídas en Educamos y las guarda 15 minutos en memoria.
+- **Calendario:** el mes, con un punto del color de la materia en cada día que hay que entregar. Arriba dice cuál es la próxima. Si pasás el mouse por un día con entregas, o lo tocás, se abre una ventana con lo que hay que hacer. El número del día atrasado va en rojo.
+- **Tablón de eventos:** las noticias de Educamos de este ciclo lectivo, prendidas como notas en un corcho. La flecha **Leer más** abre el texto, los enlaces, las imágenes y el adjunto (imagen o PDF). Taskie las lee sin marcarlas como leídas en Educamos y las guarda 15 minutos en memoria.
 - **Correo:** vinculás un correo y ves la bandeja de entrada, abrís cada mail y lo respondés. La respuesta sale desde tu correo, con el mensaje original citado.
 
 Cómo se vincula el correo:

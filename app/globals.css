@@ -3542,6 +3542,7 @@ button:disabled {
     radial-gradient(rgba(255, 236, 196, 0.35) 0.7px, transparent 0.8px);
   background-size: 8px 8px, 13px 13px;
   background-position: 0 0, 4px 5px;
+  align-items: start;
 }
 
 .board-status {
@@ -3565,22 +3566,6 @@ button:disabled {
   transform: rotate(var(--tilt, 0deg));
 }
 
-.board-note.open {
-  grid-column: 1 / -1;
-  transform: none;
-}
-
-.board-note.open .board-note-hit {
-  flex: 0;
-}
-
-.board-close {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #6d5c49;
-  text-decoration: underline;
-}
-
 .board-note-ghost {
   min-height: 7.5rem;
   background: rgba(255, 246, 214, 0.55);
@@ -3597,17 +3582,18 @@ button:disabled {
   transform: translateX(-50%);
 }
 
-.board-note-hit {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
+.board-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  align-self: flex-start;
   border: 0;
   background: transparent;
   padding: 0;
-  text-align: left;
-  color: inherit;
-  font: inherit;
+  color: #6b3a16;
+  font-family: var(--font-hand), var(--font-app), sans-serif;
+  font-size: 1rem;
 }
 
 .board-note h3 {
@@ -3647,7 +3633,7 @@ button:disabled {
 }
 
 .board-note-date {
-  margin: auto 0 0;
+  margin: 4px 0 0;
   font-size: 0.75rem;
   color: #6d5c49;
 }
