@@ -1,13 +1,14 @@
 const palette = ["#e25b45", "#1c7c6e", "#2f6fdb", "#e8a317", "#7c3aed", "#db3e8a", "#0e7490", "#c2410c", "#0369a1", "#65a30d"];
 
 const named: { test: RegExp; color: string }[] = [
+  { test: /ingl/, color: "#db3e8a" },
+  { test: /fisica|deporte/, color: "#e25b45" },
   { test: /lengua|literatura/, color: "#7c3aed" },
   { test: /matem/, color: "#e8a317" },
   { test: /biolog/, color: "#65a30d" },
   { test: /natural/, color: "#1c7c6e" },
   { test: /histor/, color: "#c2410c" },
   { test: /geograf/, color: "#0369a1" },
-  { test: /ingl/, color: "#db3e8a" },
   { test: /ciudadan/, color: "#0e7490" },
   { test: /program|taller/, color: "#2f6fdb" },
 ];

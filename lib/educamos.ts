@@ -74,10 +74,17 @@ function normalizeBase(raw: string): string | null {
   return schoolBase(raw);
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  aacute: "á", eacute: "é", iacute: "í", oacute: "ó", uacute: "ú", Aacute: "Á", Eacute: "É", Iacute: "Í", Oacute: "Ó", Uacute: "Ú",
+  ntilde: "ñ", Ntilde: "Ñ", uuml: "ü", Uuml: "Ü", iexcl: "¡", iquest: "¿", ordm: "º", ordf: "ª", deg: "°", laquo: "«", raquo: "»",
+  ldquo: "“", rdquo: "”", lsquo: "‘", rsquo: "’", hellip: "…", ndash: "–", mdash: "—", euro: "€", bull: "•", middot: "·", copy: "©",
+};
+
 function decodeHtml(value: string): string {
   return value
     .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&([A-Za-z]+);/g, (whole, name: string) => NAMED_ENTITIES[name] ?? whole)
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
@@ -1930,12 +1937,14 @@ async function educamosTasks(
   return tasks;
 }
 
-export async function fetchEducamosTasks(input: {
+export type EducamosSession = { jar: Jar; base: string; home: string };
+
+/** Entra al portal de Educamos y deja la sesión lista en la página de inicio del alumno. */
+export async function openEducamos(input: {
   url: string;
   username: string;
   password: string;
-  timeZone: string;
-}): Promise<SyncResult> {
+}): Promise<{ ok: true; session: EducamosSession } | { ok: false; error: string }> {
   const base = normalizeBase(input.url);
   if (!base) return { ok: false, error: "La dirección del colegio no es válida." };
 
@@ -1974,11 +1983,26 @@ export async function fetchEducamosTasks(input: {
     if (!/cerrar sesi|perfil:\s*alumno|mis deberes/i.test(page.text) && !page.text.includes("AlumnoId")) {
       return { ok: false, error: "Entré a Educamos, pero no llegué a tu agenda." };
     }
+    return { ok: true, session: { jar, base, home: page.text } };
+  } catch {
+    return { ok: false, error: "No se pudo abrir Educamos. Revisá la dirección del colegio." };
+  }
+}
 
-    const alumno = page.text.match(/name="AlumnoId"[^>]*value="([^"]+)"/i)?.[1];
-    const selected = parseCourseSelect(page.text);
+export async function fetchEducamosTasks(input: {
+  url: string;
+  username: string;
+  password: string;
+  timeZone: string;
+}): Promise<SyncResult> {
+  const login = await openEducamos(input);
+  if (!login.ok) return login;
+  const { jar, base, home } = login.session;
+  try {
+    const alumno = home.match(/name="AlumnoId"[^>]*value="([^"]+)"/i)?.[1];
+    const selected = parseCourseSelect(home);
     const picked = selected ? coursesFromSelect(selected) : null;
-    const tasks = await educamosTasks(jar, page.text, base, input.timeZone, alumno, selected, picked);
+    const tasks = await educamosTasks(jar, home, base, input.timeZone, alumno, selected, picked);
     const today = localDateString(new Date(), input.timeZone);
     const start = zonedTimeToUtc(today, "00:00:00", input.timeZone).toISOString();
     return {
@@ -1989,4 +2013,200 @@ export async function fetchEducamosTasks(input: {
   } catch {
     return { ok: false, error: "No se pudo abrir Educamos. Revisá la dirección del colegio." };
   }
+}
+
+export type SchoolNews = {
+  id: string;
+  title: string;
+  /** Día en que se publicó, en formato AAAA-MM-DD. */
+  start: string;
+  end: string;
+  text: string;
+  links: { label: string; url: string }[];
+  urgent: boolean;
+  hasAttachment: boolean;
+  /** Cantidad de imágenes de la noticia; se sirven aparte para no inflar la lista. */
+  images: number;
+};
+
+type NewsRow = {
+  Id?: string;
+  Anuncio?: string;
+  FechaInicioPublicacion?: string;
+  FechaFinPublicacion?: string;
+  TieneAdjunto?: boolean;
+};
+
+const newsCache = new Map<string, { at: number; news: SchoolNews[]; images: Map<string, { type: string; bytes: Buffer }[]> }>();
+const NEWS_IMAGE = /<img\b[^>]*src="data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=\s]+)"/gi;
+
+function newsLinks(html: string, base: string): { label: string; url: string }[] {
+  const links: { label: string; url: string }[] = [];
+  for (const match of html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
+    let url: string;
+    try {
+      url = new URL(decodeHtml(match[1]), `${base}/`).href;
+    } catch {
+      continue;
+    }
+    if (!/^https:\/\//i.test(url)) continue;
+    const label = htmlToText(match[2]).replace(/\s+/g, " ").trim() || new URL(url).hostname;
+    if (!links.some((link) => link.url === url)) links.push({ label: label.slice(0, 120), url });
+  }
+  return links.slice(0, 8);
+}
+
+/** Lee el tablón de noticias de Educamos de este ciclo lectivo, de la más nueva a la más vieja. */
+export async function fetchEducamosNews(input: {
+  url: string;
+  username: string;
+  password: string;
+  timeZone: string;
+  cacheKey?: string;
+}): Promise<{ ok: true; news: SchoolNews[] } | { ok: false; error: string }> {
+  const cached = input.cacheKey ? newsCache.get(input.cacheKey) : undefined;
+  if (cached && Date.now() - cached.at < 15 * 60 * 1000) return { ok: true, news: cached.news };
+  const login = await openEducamos(input);
+  if (!login.ok) return login;
+  const { jar, base, home } = login.session;
+  try {
+    const persona =
+      home.match(/"personaId","value":"([0-9a-f-]{36})"/i)?.[1] ?? home.match(/data-hijoId="([0-9a-f-]{36})"/i)?.[1] ?? "";
+    const today = localDateString(new Date(), input.timeZone);
+    const year = Number(today.slice(0, 4));
+    const month = Number(today.slice(5, 7));
+    const months: number[] = [];
+    for (let m = Math.min(month + 1, 12); m >= 2; m--) months.push(m);
+    const lists = await mapLimit(months, 3, async (mes) => {
+      const res = await request(
+        jar,
+        `${base}/Apis/Comunicacion/Avisos/ObtenerAvisosPorMes`,
+        "POST",
+        JSON.stringify({ Mes: mes, Year: year, AlumnoIdCuandoRolBaseEsTutor: persona || null }),
+        "application/json;charset=utf-8",
+      );
+      if (res.status < 200 || res.status >= 300) return [] as NewsRow[];
+      try {
+        const parsed = JSON.parse(res.text) as unknown;
+        return Array.isArray(parsed) ? (parsed as NewsRow[]) : [];
+      } catch {
+        return [] as NewsRow[];
+      }
+    });
+    const byId = new Map<string, { title: string; start: string; end: string; attachment: boolean }>();
+    for (const row of lists.flat()) {
+      if (!row.Id || !/^[0-9a-f-]{36}$/i.test(row.Id)) continue;
+      const start = (row.FechaInicioPublicacion ?? "").slice(0, 10);
+      const end = (row.FechaFinPublicacion ?? row.FechaInicioPublicacion ?? "").slice(0, 10);
+      const seen = byId.get(row.Id);
+      if (!seen) {
+        byId.set(row.Id, { title: htmlToText(row.Anuncio ?? "").trim() || "Noticia", start, end, attachment: Boolean(row.TieneAdjunto) });
+        continue;
+      }
+      if (start && start < seen.start) seen.start = start;
+      if (end && end > seen.end) seen.end = end;
+    }
+    const rows = [...byId.entries()].sort((a, b) => b[1].start.localeCompare(a[1].start)).slice(0, 30);
+    const images = new Map<string, { type: string; bytes: Buffer }[]>();
+    const news = await mapLimit(rows, 3, async ([id, row]): Promise<SchoolNews> => {
+      const detail = await request(
+        jar,
+        `${base}/Comunicacion/Avisos/AvisoHome?nocache=${Date.now()}`,
+        "POST",
+        new URLSearchParams({ idSeleccion: id, marcarLeido: "false", personaHijoId: persona }).toString(),
+      ).catch(() => null);
+      const html = detail && detail.status >= 200 && detail.status < 300 ? detail.text : "";
+      const at = html.indexOf('id="AvisoDetalleHome"');
+      const body = at >= 0 ? html.slice(html.indexOf(">", at) + 1, html.indexOf("</body>", at) > 0 ? html.indexOf("</body>", at) : undefined) : "";
+      const content = body.split(/<script\b/i)[0];
+      const urgent = /img-avisos-emergencia|Aviso de emergencia/i.test(content);
+      const text = htmlToText(content.replace(/<img\b[^>]*>/gi, "").replace(/<div class="adjunto-aviso-detalle">[\s\S]*$/i, "").replace(/<h3>\s*Aviso de emergencia\s*<\/h3>/i, ""))
+        .split("\n")
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n");
+      const pictures = [...content.matchAll(NEWS_IMAGE)]
+        .map((match) => ({ type: match[1].toLowerCase(), bytes: Buffer.from(match[2].replace(/\s+/g, ""), "base64") }))
+        .filter((image) => image.bytes.length > 0 && image.bytes.length <= 4 * 1024 * 1024)
+        .slice(0, 4);
+      images.set(id, pictures);
+      return {
+        id,
+        title: row.title,
+        start: row.start,
+        end: row.end,
+        text: text.length > 4000 ? `${text.slice(0, 4000)}…` : text,
+        links: newsLinks(content, base),
+        urgent,
+        hasAttachment: row.attachment || /DescargarAdjunto/i.test(content),
+        images: pictures.length,
+      };
+    });
+    if (input.cacheKey) newsCache.set(input.cacheKey, { at: Date.now(), news, images });
+    return { ok: true, news };
+  } catch {
+    return { ok: false, error: "No pude leer las noticias de Educamos." };
+  }
+}
+
+/** Imagen incrustada en una noticia que ya se leyó. */
+export function cachedNewsImage(cacheKey: string, id: string, index: number): { type: string; bytes: Buffer } | null {
+  return newsCache.get(cacheKey)?.images.get(id)?.[index] ?? null;
+}
+
+const attachmentCache = new Map<string, { at: number; type: string; name: string; bytes: Buffer }>();
+const ATTACHMENT_TYPES = /^(image\/(?:png|jpeg|gif|webp)|application\/pdf)$/i;
+
+/** Descarga el adjunto de una noticia desde Educamos. Solo imágenes y PDF. */
+export async function fetchNewsAttachment(input: {
+  url: string;
+  username: string;
+  password: string;
+  id: string;
+  cacheKey: string;
+}): Promise<{ ok: true; type: string; name: string; bytes: Buffer } | { ok: false; error: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(input.id)) return { ok: false, error: "Noticia desconocida." };
+  const key = `${input.cacheKey}|${input.id}`;
+  const cached = attachmentCache.get(key);
+  if (cached && Date.now() - cached.at < 60 * 60 * 1000) return { ok: true, ...cached };
+  const login = await openEducamos(input);
+  if (!login.ok) return login;
+  const { jar, base } = login.session;
+  let res = await fetch(`${base}/Avisos/DescargarAdjuntos?avisoId=${input.id}`, {
+    headers: { cookie: jar.header(), "user-agent": "Mozilla/5.0 Taskie" },
+    redirect: "manual",
+    signal: AbortSignal.timeout(20000),
+  }).catch(() => null);
+  const moved = res && res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+  if (moved) {
+    const next = new URL(moved, `${base}/`);
+    res =
+      next.protocol === "https:"
+        ? await fetch(next.href, {
+            headers: next.origin === new URL(base).origin ? { cookie: jar.header() } : {},
+            redirect: "manual",
+            signal: AbortSignal.timeout(20000),
+          }).catch(() => null)
+        : null;
+  }
+  if (!res || res.status !== 200) return { ok: false, error: "Educamos no devolvió el adjunto." };
+  const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  const bytes = Buffer.from(await res.arrayBuffer());
+  if (bytes.length === 0 || bytes.length > 15 * 1024 * 1024) return { ok: false, error: "El adjunto es demasiado grande." };
+  const sniffed = bytes.subarray(0, 4).toString("latin1");
+  const real = sniffed.startsWith("%PDF")
+    ? "application/pdf"
+    : bytes[0] === 0xff && bytes[1] === 0xd8
+      ? "image/jpeg"
+      : sniffed.slice(1, 4) === "PNG"
+        ? "image/png"
+        : ATTACHMENT_TYPES.test(type)
+          ? type
+          : "";
+  if (!real) return { ok: false, error: "Ese adjunto no es una imagen ni un PDF. Abrilo desde Educamos." };
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const name = decodeURIComponent(disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)?.[1] ?? "adjunto").replace(/[^\p{L}\p{N} ._-]/gu, "_").slice(0, 100);
+  attachmentCache.set(key, { at: Date.now(), type: real, name, bytes });
+  if (attachmentCache.size > 40) attachmentCache.delete(attachmentCache.keys().next().value!);
+  return { ok: true, type: real, name, bytes };
 }

@@ -8,6 +8,7 @@ import {
   subjectDayProgress,
   tasksInWeek,
 } from "./goals";
+import { shortSubject, subjectColor } from "./subject-color";
 import { addDays, dueLabel, localDateString, pendingIsCurrent, weekStart } from "./time";
 
 export type PublicUser = {
@@ -261,4 +262,41 @@ function progressLabel(id: string, user: User, tasks: Task[], weekTotal: number,
     default:
       return "";
   }
+}
+
+export type CalendarTask = {
+  id: string;
+  subject: string;
+  subjectLabel: string;
+  color: string;
+  title: string;
+  day: string;
+  time: string;
+  status: "pending" | "done";
+  late: boolean;
+  url: string | null;
+};
+
+/** Todas las entregas, también las atrasadas, ubicadas en el día en que vencen según tu zona horaria. */
+export function calendarData(userId: string) {
+  const user = findUserById(userId);
+  if (!user) return null;
+  const now = new Date();
+  const today = localDateString(now, user.timezone);
+  const time = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: user.timezone });
+  const tasks: CalendarTask[] = visibleTasks(user, listTasks(userId))
+    .map((task) => ({
+      id: task.id,
+      subject: task.subject,
+      subjectLabel: shortSubject(task.subject.replace(/\s+\d+\s*[º°].*$/i, "").trim() || task.subject),
+      color: subjectColor(task.subject),
+      title: task.title,
+      day: localDateString(new Date(task.dueAt), user.timezone),
+      time: time.format(new Date(task.dueAt)),
+      status: task.status,
+      late: task.status === "pending" && new Date(task.dueAt).getTime() < now.getTime(),
+      url: task.educamosUrl && /^https:\/\//i.test(task.educamosUrl) ? task.educamosUrl : null,
+    }))
+    .sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time));
+  return { user: toPublic(user), today, tasks, platform: user.platform };
 }

@@ -146,6 +146,7 @@ const globalForDb = globalThis as unknown as {
 export const EDUCAMOS_USER_FIELD = "educamos.username";
 export const EDUCAMOS_PASSWORD_FIELD = "educamos.password";
 export const TEAMS_REFRESH_FIELD = "teams.refresh";
+export const MAIL_SECRET_FIELD = "mail.secret";
 const messageField = (id: string) => `chat.message|${id}`;
 const titleField = (id: string) => `chat.title|${id}`;
 
@@ -336,6 +337,17 @@ export function getDb(): Database.Database {
         endpoint TEXT NOT NULL UNIQUE,
         p256dh TEXT NOT NULL,
         auth TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS mail_accounts (
+        user_id TEXT PRIMARY KEY,
+        address TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        imap_host TEXT,
+        imap_port INTEGER,
+        smtp_host TEXT,
+        smtp_port INTEGER,
+        secret_enc TEXT NOT NULL,
         created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS notification_log (
@@ -1026,4 +1038,74 @@ export function logNotification(userId: string, kind: string, refKey: string, se
   getDb()
     .prepare("INSERT OR IGNORE INTO notification_log (user_id, kind, ref_key, sent_on) VALUES (?, ?, ?, ?)")
     .run(userId, kind, refKey, sentOn);
+}
+
+export type MailServers = { imapHost: string; imapPort: number; smtpHost: string; smtpPort: number };
+
+export type MailAccount = {
+  address: string;
+  kind: "password" | "microsoft";
+  servers: MailServers | null;
+};
+
+type MailRow = {
+  address: string;
+  kind: string;
+  imap_host: string | null;
+  imap_port: number | null;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  secret_enc: string;
+};
+
+/** Guarda el correo vinculado. La contraseña o el permiso de Microsoft quedan cifrados con la clave del usuario. */
+export function saveMailAccount(userId: string, account: MailAccount, secret: string): void {
+  const key = userKey(userId);
+  const sealed = withUserKey(userId, key, (box) => box.seal(MAIL_SECRET_FIELD, secret));
+  getDb()
+    .prepare(
+      `INSERT INTO mail_accounts (user_id, address, kind, imap_host, imap_port, smtp_host, smtp_port, secret_enc, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET address = excluded.address, kind = excluded.kind, imap_host = excluded.imap_host,
+         imap_port = excluded.imap_port, smtp_host = excluded.smtp_host, smtp_port = excluded.smtp_port, secret_enc = excluded.secret_enc`,
+    )
+    .run(
+      userId,
+      account.address,
+      account.kind,
+      account.servers?.imapHost ?? null,
+      account.servers?.imapPort ?? null,
+      account.servers?.smtpHost ?? null,
+      account.servers?.smtpPort ?? null,
+      sealed,
+      new Date().toISOString(),
+    );
+}
+
+export function findMailAccount(userId: string): MailAccount | null {
+  const row = getDb().prepare("SELECT * FROM mail_accounts WHERE user_id = ?").get(userId) as MailRow | undefined;
+  if (!row) return null;
+  return {
+    address: row.address,
+    kind: row.kind === "microsoft" ? "microsoft" : "password",
+    servers:
+      row.imap_host && row.imap_port && row.smtp_host && row.smtp_port
+        ? { imapHost: row.imap_host, imapPort: row.imap_port, smtpHost: row.smtp_host, smtpPort: row.smtp_port }
+        : null,
+  };
+}
+
+/** Descifra la contraseña del correo solo en memoria, en el momento de usarla. */
+export function openMailSecret(user: User): string | null {
+  const row = getDb().prepare("SELECT secret_enc FROM mail_accounts WHERE user_id = ?").get(user.id) as { secret_enc: string } | undefined;
+  if (!row || !user.dataKeyEnc || !isSealed(row.secret_enc)) return null;
+  try {
+    return withUserKey(user.id, user.dataKeyEnc, (box) => box.open(MAIL_SECRET_FIELD, row.secret_enc));
+  } catch {
+    return null;
+  }
+}
+
+export function deleteMailAccount(userId: string): void {
+  getDb().prepare("DELETE FROM mail_accounts WHERE user_id = ?").run(userId);
 }

@@ -13,6 +13,7 @@ Web para ver las tareas de Educamos y entregarlas. Se usa en el navegador de la 
 - Barras diarias y semanales.
 - Paper Quiz: un juego de preguntas al estilo Kahoot, dibujado a mano, con los temas de cada materia.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
+- Eventos: las noticias del tablón de Educamos, un calendario con las fechas de entrega y tu correo para leer y responder mails.
 
 ## Cómo correrla
 
@@ -95,6 +96,22 @@ El quiz no te hace la tarea: descarta las preguntas que repiten una consigna que
 En Configuración, el interruptor de **Notificaciones** activa los avisos en ese dispositivo: pide permiso al navegador, lo suscribe y manda un aviso de prueba desde el servidor. El interruptor solo aparece encendido si ese dispositivo está suscripto de verdad. Cada vez que abrís la app, la suscripción se renueva sola.
 
 Taskie avisa lo que vence hoy (desde las 8), lo que vence mañana (desde las 18) y cada tarea en sus últimas 3 horas. Nunca avisa entre las 22 y las 8. Antes de avisar, trae las tareas nuevas de Educamos cada 3 horas, aunque no abras la app. En Android Chrome funcionan en la web y en la app instalada. En iPhone hay que agregar Taskie a la pantalla de inicio y activarlos desde ahí.
+
+## Eventos
+
+La sección **Eventos** tiene tres pestañas:
+
+- **Anuncios:** las noticias del tablón de Educamos de este ciclo lectivo, de la más nueva a la más vieja, con su texto, enlaces, imágenes y adjunto (imagen o PDF). Taskie las lee sin marcarlas como leídas en Educamos y las guarda 15 minutos en memoria.
+- **Calendario:** el mes con un punto de color por cada entrega (el color es el de la materia) y un megáfono en los días con noticias. Tocás un día y ves qué vence; abajo está **Lo que viene**. Las atrasadas aparecen en rojo.
+- **Correo:** vinculás un correo y ves la bandeja de entrada, abrís cada mail y lo respondés. La respuesta sale desde tu correo, con el mensaje original citado.
+
+Cómo se vincula el correo:
+
+- **Gmail, Google Workspace, Yahoo e iCloud:** con una contraseña de aplicación (Google, por ejemplo, la da en `myaccount.google.com/apppasswords` cuando tenés la verificación en 2 pasos). Taskie reconoce el proveedor solo, también por el registro MX de dominios propios.
+- **Otros proveedores:** completás los servidores IMAP (puerto 993) y SMTP (465 o 587). Solo se aceptan servidores públicos y conexiones cifradas.
+- **Microsoft 365 y Outlook** (como el correo del colegio): Microsoft no deja entrar con contraseña. Taskie usa el inicio de sesión por código de Microsoft, que necesita una app registrada en Microsoft Entra: poné su id en `MICROSOFT_CLIENT_ID` (app pública con permisos delegados `Mail.ReadWrite`, `Mail.Send` y `User.Read`, y «Allow public client flows» activado). Algunos colegios no permiten apps externas en el correo; en ese caso lo tiene que aprobar el administrador.
+
+La contraseña o el permiso de Microsoft se guardan cifrados con la clave de tu cuenta y se borran al desvincular el correo.
 
 ## Entregas del aula
 

@@ -10,7 +10,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "imapflow", "nodemailer", "mailparser"],
   allowedDevOrigins: ["127.0.0.1:43123", "localhost:43123"],
   poweredByHeader: false,
   experimental: {

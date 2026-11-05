@@ -43,6 +43,21 @@ export function NavTemasIcon({ className = "size-5" }: { className?: string }) {
   );
 }
 
+export function NavEventosIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path
+        d="M4.3 7.2c.1-1.5 1.1-2.4 2.6-2.5 3.4-.2 6.8-.2 10.2 0 1.5.1 2.5 1 2.6 2.5.2 3.9.2 7.9 0 11.8-.1 1.4-1.1 2.3-2.5 2.4-3.5.2-7 .2-10.5 0-1.4-.1-2.4-1-2.5-2.4-.2-3.9-.2-7.9.1-11.8Z"
+        strokeWidth="2"
+        fill="currentColor"
+        fillOpacity="0.15"
+      />
+      <path d="M8.2 2.8v3.6M15.8 2.8v3.6M4.6 9.8c4.9-.2 9.9-.2 14.8 0" strokeWidth="2" />
+      <path d="M8 13.4h.1M12 13.4h.1M16 13.4h.1M8 17h.1M12 17h.1" strokeWidth="2.6" />
+    </svg>
+  );
+}
+
 export function NavIaIcon({ className = "size-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
