@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import path from "path";
 import { courseGroup, courseNameAllowed, coursesFromNames, coursesFromSelect, parseCourseSelect, type SchoolCourse } from "./courses";
 import { docxToText, isZip } from "./documents";
+import { subjectKey } from "./subject-color";
 import { addDays, endOfLocalDay, localDateString, pendingIsCurrent, zonedTimeToUtc } from "./time";
 
 export type RemoteTask = {
@@ -900,6 +901,164 @@ function relatedActivityText(html: string): string {
   return clip(htmlToText(raw), 4500);
 }
 
+type SectionState = {
+  section?: { id?: string | number; number?: number; title?: string; hassummary?: boolean; sectionurl?: string; visible?: boolean }[];
+  cm?: { id?: string | number; name?: string; module?: string; url?: string; sectionid?: string | number; uservisible?: boolean }[];
+};
+
+const sectionStateCache = new Map<string, { at: number; state: SectionState }>();
+
+function innerHtmlAll(html: string, marker: RegExp, limit: number): string[] {
+  const out: string[] = [];
+  const global = new RegExp(marker.source, "gi");
+  let match: RegExpExecArray | null;
+  while ((match = global.exec(html)) && out.length < limit) {
+    const inner = elementInnerHtml(html.slice(match.index), new RegExp(marker.source, "i"));
+    if (inner) out.push(inner);
+  }
+  return out;
+}
+
+async function sectionSummary(jar: Jar, root: string, url: string | undefined): Promise<{ summary: string; images: number; labels: string[] }> {
+  const empty = { summary: "", images: 0, labels: [] as string[] };
+  if (!url || new URL(url, root).origin !== new URL(root).origin) return empty;
+  const page = await request(jar, new URL(url, root).href);
+  if (page.status < 200 || page.status >= 300) return empty;
+  const raw = innerHtmlAll(page.text, /<div\b[^>]*class=["'][^"']*\bsummarytext\b[^"']*["'][^>]*>/, 1)[0] ?? "";
+  const labels = innerHtmlAll(page.text, /<div\b[^>]*class=["'][^"']*\bactivity-altcontent\b[^"']*["'][^>]*>/, 6)
+    .map((item) => clip(htmlToText(item), 1500))
+    .filter((text) => text.length > 20);
+  return { summary: clip(htmlToText(raw), 4500), images: (raw.match(/<img\b/gi) ?? []).length, labels };
+}
+
+/**
+ * Lo que hay alrededor de la tarea en el aula: el resumen de la clase (sección) donde está,
+ * sus etiquetas y el otro material de esa clase, y el resumen de la clase anterior.
+ */
+async function taskSectionContext(
+  session: { jar: Jar; root: string; sesskey: string },
+  assignmentPage: string,
+  taskUrl: string,
+  skip: Set<string>,
+): Promise<string[]> {
+  const cmid = new URL(taskUrl).searchParams.get("id");
+  const courseId = /course\/view\.php\?id=(\d+)/.exec(assignmentPage)?.[1];
+  if (!cmid || !courseId) return [];
+  const cacheKey = `${session.root}|${courseId}`;
+  let state = sectionStateCache.get(cacheKey);
+  if (!state || Date.now() - state.at > 10 * 60 * 1000) {
+    const result = await moodleCall(session.jar, session.root, session.sesskey, [
+      { methodname: "core_courseformat_get_state", args: { courseid: Number(courseId) } },
+    ]);
+    state = { at: Date.now(), state: parseState(result[0]?.data) as SectionState };
+    sectionStateCache.set(cacheKey, state);
+  }
+  const sections = state.state.section ?? [];
+  const modules = state.state.cm ?? [];
+  const self = modules.find((item) => String(item.id) === cmid);
+  const section = sections.find((item) => String(item.id) === String(self?.sectionid));
+  if (!self || !section) return [];
+  const previous = sections.find((item) => item.number === (section.number ?? 0) - 1 && item.visible !== false && item.hassummary);
+
+  const siblings = modules
+    .filter((item) => String(item.sectionid) === String(section.id) && String(item.id) !== cmid && item.uservisible !== false)
+    .filter((item) => item.url && !/forum/i.test(item.module ?? "") && !skip.has(item.url))
+    .slice(0, 4);
+  const [here, before, ...material] = await Promise.all([
+    section.hassummary ? sectionSummary(session.jar, session.root, section.sectionurl) : Promise.resolve(null),
+    previous ? sectionSummary(session.jar, session.root, previous.sectionurl) : Promise.resolve(null),
+    ...siblings.map(async (item) => {
+      const name = htmlToText(item.name ?? "") || "Material";
+      try {
+        if (item.module === "resource") {
+          const bytes = await requestBytes(session.jar, item.url!);
+          const text = bytes ? clip(await fileToText(bytes), 2500) : "";
+          return text.length > 40 ? `${name}: ${text}` : `${name} (archivo que Taskie no pudo leer)`;
+        }
+        if (item.module === "page" || item.module === "assign") {
+          const page = await request(session.jar, item.url!);
+          const text = item.module === "assign" ? assignmentInstructions(page.text) : relatedActivityText(page.text);
+          return text ? `${name}: ${clip(text, 2500)}` : name;
+        }
+        return `${name} (${item.module === "url" ? "enlace" : item.module === "quiz" ? "cuestionario" : "actividad"} del aula)`;
+      } catch {
+        return name;
+      }
+    }),
+  ]);
+
+  const lines: string[] = [];
+  const title = htmlToText(section.title ?? "") || "esa clase";
+  if (here?.summary) {
+    const images = here.images ? ` (además tiene ${here.images === 1 ? "una imagen" : `${here.images} imágenes`} que Taskie no puede leer)` : "";
+    lines.push(`Clase del aula donde está la tarea — ${title}: ${here.summary}${images}`);
+  }
+  const own = htmlToText(assignmentInstructions(assignmentPage)).slice(0, 60);
+  for (const label of here?.labels ?? []) {
+    if (own && label.startsWith(own)) continue;
+    if (!lines.some((line) => line.includes(label.slice(0, 60)))) lines.push(`En esa clase también dice — ${label}`);
+  }
+  for (const item of material) lines.push(`Material de esa clase — ${item}`);
+  if (before?.summary) lines.push(`Clase anterior — ${htmlToText(previous?.title ?? "") || "anterior"}: ${before.summary}`);
+  return lines;
+}
+
+/**
+ * Para tareas que vienen de Educamos sin enlace al aula: busca en el curso de esa materia la
+ * actividad con el nombre más parecido y lee su consigna y su clase.
+ */
+export async function findTaskInClassroom(input: {
+  lmsUrl: string;
+  username: string;
+  password: string;
+  subject: string;
+  title: string;
+}): Promise<string> {
+  try {
+    const session = await loginLms(input.lmsUrl, input.username, input.password);
+    if (!session.ok) return "";
+    const listed = await moodleCall(session.jar, session.root, session.sesskey, [
+      {
+        methodname: "core_course_get_enrolled_courses_by_timeline_classification",
+        args: { offset: 0, limit: 48, classification: "inprogress", sort: "fullname" },
+      },
+    ]);
+    const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
+      .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
+      .filter((course) => course.id);
+    const course = bestCourse(enrolled, input.subject);
+    if (!course) return "";
+    const result = await moodleCall(session.jar, session.root, session.sesskey, [
+      { methodname: "core_courseformat_get_state", args: { courseid: course.id } },
+    ]);
+    const state = parseState(result[0]?.data) as SectionState;
+    const wanted = new Set(lessonWords(input.title).filter((word) => !/^(entrega|final|tarea|trabajo|cierre)$/.test(word)));
+    if (wanted.size === 0) return "";
+    const sectionTitle = new Map((state.section ?? []).map((section) => [String(section.id), htmlToText(section.title ?? "")]));
+    const ranked = (state.cm ?? [])
+      .filter((item) => item.url && item.uservisible !== false && !/forum/i.test(item.module ?? ""))
+      .map((item) => {
+        const words = new Set(lessonWords(`${item.name ?? ""} ${sectionTitle.get(String(item.sectionid)) ?? ""}`));
+        let score = 0;
+        for (const word of wanted) if ([...words].some((other) => other.startsWith(word.slice(0, 6)) || word.startsWith(other.slice(0, 6)))) score += 1;
+        return { item, score };
+      })
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score);
+    const best = ranked[0]?.item;
+    if (!best?.url) return "";
+    const name = htmlToText(best.name ?? "") || "Actividad";
+    const page = await request(session.jar, best.url);
+    if (page.status < 200 || page.status >= 300) return "";
+    const text = best.module === "assign" ? assignmentInstructions(page.text) : best.module === "page" ? relatedActivityText(page.text) : "";
+    const context = best.module === "assign" ? await taskSectionContext(session, page.text, best.url, new Set()).catch(() => []) : [];
+    const parts = [`Actividad del aula que coincide — ${name}${text ? `: ${text}` : ""}`, ...context];
+    return clip(parts.join("\n\n"), 9500);
+  } catch {
+    return "";
+  }
+}
+
 export async function fetchTaskInstructions(input: {
   lmsUrl: string;
   username: string;
@@ -919,6 +1078,7 @@ export async function fetchTaskInstructions(input: {
       const text = bytes ? clip(await fileToText(bytes), 6000) : "";
       if (text.length > 40) parts.push(`Archivo de la consigna — ${file.name}: ${text}`);
     }
+    const seen = new Set<string>();
     if (input.taskTitle) {
       for (const link of relatedActivityLinks(page.text, input.taskTitle)) {
         const relatedUrl = /^https?:\/\//i.test(link.url)
@@ -928,9 +1088,12 @@ export async function fetchTaskInstructions(input: {
         if (related.status < 200 || related.status >= 300) continue;
         const text = relatedActivityText(related.text);
         if (text) parts.push(`Material relacionado — ${link.title}: ${text}`);
+        seen.add(relatedUrl);
       }
     }
-    return clip(parts.join("\n\n"), 8500);
+    const context = await taskSectionContext(session, page.text, input.taskUrl, seen).catch(() => [] as string[]);
+    parts.push(...context);
+    return clip(parts.join("\n\n"), 9500);
   } catch {
     return "";
   }
@@ -959,7 +1122,7 @@ function lessonWords(value: string): string[] {
 
 export function asksForLesson(message: string): boolean {
   const q = message.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  return /explic|ensen|que es |que son |como se |como hacer|como puedo hacer|como la hago|como lo hago|como hago|como empiezo|como armo|como preparo|de que se trata|que pide|que tengo que hacer|que hay que hacer|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema|entrega|trabajo/.test(q);
+  return /explic|ensen|que es |que son |como se |como hacer|como puedo hacer|como la hago|como lo hago|como hago|como empiezo|como armo|como preparo|de que (?:se )?trata|de que va|en que consiste|sobre que|que dice|que piden?|consigna|informacion|\binfo\b|detalle|requisito|material|que tengo que hacer|que hay que hacer|no entiendo|repas|resum|diferencia|por que |profesor|profe|aprend|tema|entrega|trabajo/.test(q);
 }
 
 type LessonPiece = { title: string; text: string };
@@ -1049,17 +1212,7 @@ export async function topicsForSubject(input: {
     .replace(/[^a-z\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const ranked = courses.courses
-    .map((course) => {
-      const name = course.name
-        .normalize("NFD")
-        .replace(/\p{M}/gu, "")
-        .toLowerCase();
-      const score = wanted && (name.includes(wanted) || wanted.includes(name)) ? 5 : name.split(/\s+/).filter((word) => word.length > 3 && wanted.includes(word)).length;
-      return { course, score };
-    })
-    .sort((a, b) => b.score - a.score);
-  const course = ranked[0]?.score ? ranked[0].course : null;
+  const course = wanted ? bestCourse(courses.courses, input.subject) : null;
   if (!course) return [];
   const titles = course.pieces
     .map((piece) => piece.title.trim())
@@ -1081,11 +1234,7 @@ export async function recentClassTopics(input: {
     cached = { at: Date.now(), courses: loaded.courses };
     lessonCache.set(cacheKey, cached);
   }
-  const wanted = input.subject.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  const course = cached.courses.find((item) => {
-    const name = item.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-    return name.includes(wanted) || wanted.includes(name);
-  });
+  const course = bestCourse(cached.courses, input.subject);
   if (!course) return [];
   const source = course.resources.length > 0 ? course.resources.map((item) => item.title) : course.pieces.map((item) => item.title);
   return [...new Set(source.map((title) => title.trim()).filter(Boolean))].slice(-12);
@@ -1112,15 +1261,7 @@ export async function notesForSubject(input: {
   const cacheKey = `${input.lmsUrl}|${input.username.toLowerCase()}`;
   const cached = lessonCache.get(cacheKey);
   if (!cached) return input.requireText ? "" : titles.join(". ");
-  const wanted = input.subject
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase();
-  const course = cached.courses.find((item) => {
-    const name = item.name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-    const named = name.includes(wanted) || wanted.includes(name) || subjectMatches(item.name, input.subject);
-    return named && courseNameAllowed(item.name, input.courseKeys ?? null);
-  });
+  const course = bestCourse(cached.courses, input.subject, (item) => courseNameAllowed(item.name, input.courseKeys ?? null));
   if (!course || course.resources.length === 0) return input.requireText ? "" : titles.join(". ");
   const words = new Set(lessonWords(input.query ?? ""));
   const ranked = course.resources
@@ -1168,11 +1309,37 @@ export async function listEnrolledSubjectNames(input: {
   }
 }
 
-function subjectMatches(courseName: string, subject: string): boolean {
-  const name = courseName.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  const wanted = subject.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  const words = wanted.split(/[^a-z0-9]+/).filter((word) => word.length > 3);
-  return words.some((word) => name.split(/[^a-z0-9]+/).some((token) => token.startsWith(word.slice(0, 6)) || word.startsWith(token.slice(0, 6))));
+/** Qué tan bien coincide un curso del aula con una materia. "Lengua" no es "Lengua Extranjera: Inglés". */
+function courseScore(courseName: string, subject: string): number {
+  const name = subjectKey(courseName);
+  const wanted = subjectKey(subject);
+  if (!name || !wanted) return 0;
+  if (name === wanted) return 100;
+  const nameWords = name.split(" ");
+  const wantedWords = wanted.split(" ");
+  const shared = wantedWords.filter((word) => word.length > 3 && nameWords.some((token) => token.startsWith(word.slice(0, 6)) || word.startsWith(token.slice(0, 6)))).length;
+  if (shared === 0) return 0;
+  return shared * 10 - Math.abs(nameWords.length - wantedWords.length);
+}
+
+function bestCourse<T extends { name: string }>(courses: T[], subject: string, allowed: (course: T) => boolean = () => true): T | null {
+  let best: T | null = null;
+  let bestScore = 0;
+  for (const course of courses) {
+    if (!allowed(course)) continue;
+    const score = courseScore(course.name, subject);
+    if (score > bestScore) {
+      best = course;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function bestCourses<T extends { name: string }>(courses: T[], subject: string): T[] {
+  const scored = courses.map((course) => ({ course, score: courseScore(course.name, subject) }));
+  const top = Math.max(0, ...scored.map((row) => row.score));
+  return top > 0 ? scored.filter((row) => row.score === top).map((row) => row.course) : [];
 }
 
 export async function latestClassOutline(input: {
@@ -1191,7 +1358,9 @@ export async function latestClassOutline(input: {
   ]);
   const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
     .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
-    .filter((course) => course.id && subjectMatches(course.name, input.subject));
+    .filter((course) => course.id);
+  const matching = bestCourses(enrolled, input.subject);
+  enrolled.splice(0, enrolled.length, ...matching);
   const states = await moodleCall(
     session.jar,
     session.root,
@@ -1246,8 +1415,8 @@ export async function previousClassNotes(input: {
     ]);
     const enrolled = ((listed[0]?.data as { courses?: { id?: number; fullname?: string }[] } | undefined)?.courses ?? [])
       .map((course) => ({ id: Number(course.id), name: htmlToText(course.fullname ?? "") }))
-      .filter((course) => course.id && subjectMatches(course.name, input.subject) && courseNameAllowed(course.name, input.courseKeys))
-      .slice(0, 3);
+      .filter((course) => course.id && courseNameAllowed(course.name, input.courseKeys));
+    enrolled.splice(0, enrolled.length, ...bestCourses(enrolled, input.subject).slice(0, 3));
     if (enrolled.length === 0) return "";
     const states = await moodleCall(
       session.jar,

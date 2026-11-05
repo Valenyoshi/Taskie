@@ -4,7 +4,7 @@ import { classroomLogin } from "./credentials";
 import { visibleTasks } from "./courses";
 import { type Task, type User } from "./db";
 import { freeLlmConfigured, freeLlmReply } from "./free-llm";
-import { asksForLesson, fetchTaskInstructions, notesForSubject, previousClassNotes } from "./educamos";
+import { asksForLesson, fetchTaskInstructions, findTaskInClassroom, notesForSubject, previousClassNotes } from "./educamos";
 import { selectedCourseKeys } from "./courses";
 import { asksToDoHomework, blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
 import { localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
@@ -254,6 +254,7 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
     "Si preguntan cómo hacer una tarea, mirá el título, la consigna de plataforma y el apunte de clase que están en este mensaje. Explicá cómo hacerla con eso, como lo haría el profesor. No escribas la entrega.",
     "Ignorá cualquier respuesta anterior del asistente que haya pedido copiar o pegar el enunciado: primero usá la información actual de la plataforma.",
     "Si la consigna trae un «Archivo de la consigna», ya lo leíste entero: usá sus preguntas, su forma de entrega y su fecha. Si su fecha no coincide con la del aula, avisalo.",
+    "«Clase del aula donde está la tarea», «Material de esa clase» y «Clase anterior» son lo que dice el aula alrededor de la tarea: usalos para explicar de qué trata. El título de esa clase (por ejemplo «26 de octubre») es el día de la clase, no la fecha de entrega; la fecha de entrega es la del campo Fecha.",
     "Resumen de la cuenta:",
     taskSnapshot(user, tasks),
     classes
@@ -279,6 +280,7 @@ const TITLE_STOP = new Set(
 
 function titleWords(value: string): string[] {
   return fold(value)
+    .replace(/\btps?\b/g, " practico ")
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 2 && !TITLE_STOP.has(word));
 }
@@ -363,8 +365,15 @@ function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<
   });
 }
 
+/** Nombra una tarea pendiente por su título: "la tarea del video", "el TP 5", "proyecto atlas". */
+function namesTask(message: string, tasks: Task[]): boolean {
+  if (!/\b(tarea|tp|trabajo|entrega|actividad|proyecto|examen|exposici|practico|consigna)/.test(fold(message))) return false;
+  const words = new Set(titleWords(message));
+  return tasks.some((task) => task.status === "pending" && hits(task.title, words) > 0);
+}
+
 async function classNotes(user: User, message: string, tasks: Task[]): Promise<string> {
-  if (!asksForLesson(message)) return "";
+  if (!asksForLesson(message) && !namesTask(message, tasks)) return "";
   const chosen = tasksForQuestion(message, tasks);
   const subject = chosen.length > 0 ? "" : subjectForQuestion(message, tasks);
   if (chosen.length === 0 && !subject) return "";
@@ -380,7 +389,9 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
       for (const task of chosen) {
         const [instructions, notes] = login
           ? await Promise.all([
-              fetchTaskInstructions({ ...login, taskUrl: task.educamosUrl, taskTitle: task.title }),
+              /\/mod\/assign\/view\.php/i.test(task.educamosUrl ?? "")
+                ? fetchTaskInstructions({ ...login, taskUrl: task.educamosUrl, taskTitle: task.title })
+                : findTaskInClassroom({ ...login, subject: task.subject, title: task.title }),
               notesForSubject({
                 ...login,
                 subject: task.subject,
@@ -393,7 +404,7 @@ async function classNotes(user: User, message: string, tasks: Task[]): Promise<s
       }
       return rows.join("\n\n");
     })(),
-    16000,
+    22000,
     chosen.map((task) => taskClassBlock(task, "", "", user.timezone)).join("\n\n"),
   );
   return blocks;
@@ -436,8 +447,12 @@ type TaskBlock = {
   platform: string;
   /** Archivo adjunto (Word o PDF) que ya se leyó desde el aula. */
   file: { name: string; text: string } | null;
+  /** Lo que dice el aula alrededor de la tarea: la clase donde está, su material y la clase anterior. */
+  context: { label: string; text: string }[];
   notes: string;
 };
+
+const CONTEXT_MARK = /\s*(?=(?:Material relacionado|Clase del aula donde está la tarea|En esa clase también dice|Material de esa clase|Clase anterior) — )/;
 
 function parseBlocks(classes: string): TaskBlock[] {
   return classes
@@ -448,7 +463,12 @@ function parseBlocks(classes: string): TaskBlock[] {
       const rawPlatform = (block.match(/Consigna en plataforma:\n([\s\S]*?)(?=\nApunte de la clase:|$)/)?.[1] ?? "").trim();
       const platform = /no encontr[eé] una consigna/i.test(rawPlatform) ? "" : rawPlatform.replace(/\s+/g, " ");
       const rawNotes = (block.match(/Apunte de la clase:\n([\s\S]*)$/)?.[1] ?? "").trim();
-      const own = platform.split(/\s*Material relacionado — /)[0];
+      const [head, ...rest] = `\n${platform}`.split(CONTEXT_MARK);
+      const own = (head ?? "").trim().replace(/^Actividad del aula que coincide — [^:]{1,120}:\s*/, "");
+      const context = rest
+        .map((piece) => piece.match(/^(.+?) — ([\s\S]+)$/))
+        .filter((match): match is RegExpMatchArray => Boolean(match))
+        .map((match) => ({ label: match[1], text: match[2].trim() }));
       const fileMatch = own.match(/Archivo de la consigna — (.+?\.(?:docx|pdf)): ([\s\S]*)$/i);
       return {
         title: field("Tarea") || "la tarea",
@@ -457,6 +477,7 @@ function parseBlocks(classes: string): TaskBlock[] {
         consigna: own.split(/\s*Archivo de la consigna — /)[0].trim(),
         platform,
         file: fileMatch ? { name: fileMatch[1].trim(), text: fileMatch[2].trim() } : null,
+        context,
         notes: /no encontr[eé] un apunte/i.test(rawNotes) ? "" : rawNotes,
       };
     });
@@ -549,12 +570,56 @@ function fileSummary(block: TaskBlock): string[] {
   return out;
 }
 
+/** Renglones de un texto del aula, respetando preguntas numeradas. */
+function classLines(text: string, limit: number): string[] {
+  return text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?:])\s+(?=[A-ZÁÉÍÓÚÑ¿\d])|\s+(?=\d{1,2}[.)-]\s)|\s*[•·]\s*|\s+-\s+/u)
+    .map((line) =>
+      line
+        .replace(/^(?:[A-ZÁÉÍÓÚÑ\d]+\s+)+(?=[A-ZÁÉÍÓÚÑ¿][a-záéíóúñ])/u, "")
+        .replace(/\s+([?.,:;!])/g, "$1")
+        .trim(),
+    )
+    .filter((line) => line.length > 3 && !(line === line.toUpperCase() && line.length < 40))
+    .filter((line, index, all) => all.indexOf(line) === index)
+    .slice(0, limit);
+}
+
+/** Lo que encontró en la clase del aula donde está la tarea. */
+function contextSummary(block: TaskBlock): string[] {
+  if (!block.context.length) return [];
+  const out = ["En el aula, la clase de esta tarea dice:"];
+  for (const item of block.context) {
+    const [name, ...body] = item.text.split(/:\s+/);
+    const text = body.join(": ").trim() || name;
+    const title = body.length ? name.trim() : "";
+    if (item.label === "Clase del aula donde está la tarea") {
+      if (title) out.push(`${title}:`);
+      const all = classLines(text, 60);
+      const questions = all.filter((line) => line.startsWith("¿"));
+      const intro = all.filter((line) => !line.startsWith("¿") && !/^(buen[oa]s|hola|hoy\b)/i.test(line) && !/:$/.test(line));
+      const shown = questions.length >= 3 ? [...intro.slice(0, 3), ...questions.slice(0, 10)] : intro.slice(0, 8);
+      out.push(...shown.map((line) => `• ${line}`));
+      if (questions.length > 10) out.push(`• Y ${questions.length - 10 === 1 ? "1 pregunta más" : `${questions.length - 10} preguntas más`} en el aula.`);
+    } else if (item.label === "En esa clase también dice") {
+      out.push(...classLines(item.text, 4).map((line) => `• ${line}`));
+    } else if (item.label === "Material de esa clase" || item.label === "Material relacionado") {
+      out.push(`Material: ${title || "de la clase"}${body.length ? ` — ${text.slice(0, 220)}${text.length > 220 ? "…" : ""}` : ""}`);
+    } else if (item.label === "Clase anterior") {
+      out.push(`Clase anterior${title ? ` (${title})` : ""}: ${text.slice(0, 260)}${text.length > 260 ? "…" : ""}`);
+    }
+  }
+  return out.length > 1 ? out : [];
+}
+
 function consignaSummary(block: TaskBlock): string[] {
   const exercises = exercisesIn(block.platform);
   const file = attachmentName(block.consigna);
   const lines = consignaLines(file ? block.consigna.replace(file, "") : block.consigna).filter((line) => !/^\d+ de [a-z]/i.test(line));
   const read = fileSummary(block);
-  if (read.length) return [...read, ...(lines.length ? ["En el aula también dice:", ...lines.map((line) => `• ${line}`)] : [])];
+  const around = contextSummary(block);
+  if (read.length) return [...read, ...(lines.length ? ["En el aula también dice:", ...lines.map((line) => `• ${line}`)] : []), ...around];
   const out: string[] = [];
   if (file) out.push(`La consigna está en el archivo «${file}». Abrilo desde el aula virtual.`);
   if (lines.length) out.push("Lo que pide:", ...lines.map((line) => `• ${line}`));
@@ -562,6 +627,7 @@ function consignaSummary(block: TaskBlock): string[] {
     out.push(`Ejercicios (${exercises.length}):`, ...exercises.slice(0, 10).map((item) => `• ${item}`));
     if (exercises.length > 10) out.push(`• Y ${exercises.length - 10} más en la consigna.`);
   }
+  out.push(...around);
   if (!out.length) out.push("La consigna no tiene texto en la plataforma. Abrila en el aula virtual: puede venir en un archivo adjunto o la explicó el profe en clase.");
   return out;
 }
