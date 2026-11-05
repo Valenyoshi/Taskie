@@ -11,6 +11,8 @@ export function plainChatText(value: string): string {
     .replace(/^[\t ]*[-*•]\s+/gm, "• ")
     .replace(/^[\t ]*\d+\.\s+/gm, "• ")
     .replace(/\*{1,3}/g, "")
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "")
+    .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

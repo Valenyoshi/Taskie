@@ -3,11 +3,10 @@ import { aiFetch } from "./ai-shield";
 type Message = { role: "system" | "user" | "assistant"; content: string };
 export type FreeLlmReply = { model: string; content: string; reasoning: string };
 
-// Gemini en FreeLLMAPI sale del plan gratis de Google AI Studio: cada modelo
-// tiene su propia cuota diaria (unas 20 consultas), así que se prueban varios
-// antes de pasar a Kilo, que no pide clave.
-const CHAT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash"];
-const LIGHT_MODELS = ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite"];
+// Modelos de Kilo Gateway, que no piden cuenta ni clave. kilo-auto/free cambia
+// de modelo en cada consulta, así que queda solo como respaldo.
+const CHAT_MODELS = ["nvidia/nemotron-3-ultra-550b-a55b:free"];
+const LIGHT_MODELS = CHAT_MODELS;
 const BACKUP_MODEL = "kilo-auto/free";
 
 function modelList(value: string | undefined, defaults: string[]): string[] {

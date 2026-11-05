@@ -6,7 +6,7 @@ import { type Task, type User } from "./db";
 import { freeLlmConfigured, freeLlmReply } from "./free-llm";
 import { asksForLesson, fetchTaskInstructions, notesForSubject, previousClassNotes } from "./educamos";
 import { selectedCourseKeys } from "./courses";
-import { blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
+import { asksToDoHomework, blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
 import { localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
@@ -115,8 +115,11 @@ function asksUrgent(q: string): boolean {
   return /urgente|prioridad|primero|que hago ahora|que sigue|lo proximo|proxima tarea|mas cerca/.test(q);
 }
 
-export function localAnswer(message: string, user: User, tasks: Task[] = currentTasks(user)): string {
+/** Preguntas de datos (fechas, pendientes, materias, racha) que se contestan con lo cargado de Educamos, sin modelo. */
+export function factAnswer(message: string, user: User, tasks: Task[] = currentTasks(user)): string | null {
   const q = fold(message);
+  if (explainsHow(message) || taskHowToRequest(message) || (explainsTopic(message) && !asksUrgent(q))) return null;
+  if (isGreeting(message)) return greetingReply(message);
   const zone = user.timezone;
   const today = localDateString(new Date(), zone);
   const pending = tasks.filter((task) => task.status === "pending");
@@ -124,8 +127,9 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
   const late = pending.filter((task) => isLate(task)).sort((a, b) => byDue(b, a));
   const lateNote = late.length ? ` Además tenés ${plural(late.length, "atrasada", "atrasadas")}.` : "";
 
+  const aboutTasks = /\b(tengo|tenes|hay|vence|vencen|entrega\w*|tareas?|trabajos?|pendientes?|falta|atrasad\w*|examen\w*|prueba\w*)\b/.test(q);
   const tomorrow = /\bmanana\b/.test(q) && !/\bhoy\b/.test(q);
-  if ((/\bhoy\b/.test(q) || tomorrow) && !explainsHow(message)) {
+  if ((/\bhoy\b/.test(q) || tomorrow) && aboutTasks) {
     const day = tomorrow ? addDays(today, 1) : today;
     const label = tomorrow ? "Mañana" : "Hoy";
     const dayTasks = tasks.filter((task) => localDateString(new Date(task.dueAt), zone) === day).sort(byDue);
@@ -133,7 +137,17 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
     return [`${label} ${dayTasks.length === 1 ? "vence una" : `vencen ${dayTasks.length}`}:`, listLines(dayTasks, zone)].join("\n");
   }
 
-  if (/pendient|sin entregar|que tengo que entregar|que me falta|atrasad/.test(q) && !explainsHow(message)) {
+  if (/atrasad|vencid/.test(q) && !/pendient|falta/.test(q)) {
+    if (late.length === 0) return `No tenés tareas atrasadas. ${nextLine(upcoming, zone)}`;
+    const oldest = /mas (vieja|antigua)|primera/.test(q);
+    if (oldest || /mas (reciente|nueva)|ultima/.test(q)) {
+      const task = oldest ? late[late.length - 1] : late[0];
+      return `La atrasada ${oldest ? "más vieja" : "más reciente"} es ${taskName(task.title)} (${subjectName(task.subject)}), que ${dueText(task, zone)}. En total tenés ${plural(late.length, "atrasada", "atrasadas")}.`;
+    }
+    return [`Tenés ${plural(late.length, "tarea atrasada", "tareas atrasadas")}:`, listLines(late, zone, 8)].join("\n");
+  }
+
+  if (/pendient|sin entregar|que tengo que entregar|que me falta/.test(q)) {
     if (pending.length === 0) return "No tenés tareas pendientes.";
     const parts = [`Tenés ${plural(pending.length, "tarea sin entregar", "tareas sin entregar")}.`];
     if (upcoming.length) parts.push("", "Por entregar:", listLines(upcoming, zone));
@@ -141,7 +155,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
     return parts.join("\n");
   }
 
-  if (/semana/.test(q) && !explainsHow(message)) {
+  if (/semana/.test(q) && aboutTasks) {
     const start = weekStart(today);
     const end = addDays(start, 6);
     const week = tasks
@@ -154,7 +168,7 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
     return [`Esta semana ${week.length === 1 ? "vence una" : `vencen ${week.length}`}:`, listLines(week, zone, 8)].join("\n");
   }
 
-  if (asksUrgent(q) && !explainsHow(message)) {
+  if (asksUrgent(q)) {
     if (pending.length === 0) return "No tenés tareas pendientes.";
     const first = upcoming[0];
     const lines = first ? [nextLine(upcoming, zone)] : ["No tenés nada por vencer."];
@@ -162,22 +176,23 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
     return lines.join("\n");
   }
 
-  if (asksWhen(q) && !explainsHow(message)) {
+  if (asksWhen(q)) {
     const named = tasksForQuestion(message, tasks, 5);
-    if (named.length === 0) {
-      return `No encontré esa tarea. ${nextLine(upcoming, zone)} Si me decís el nombre o la materia, te paso la fecha.`;
-    }
     if (named.length === 1) {
       const task = named[0];
       return `${taskName(task.title)} (${subjectName(task.subject)}) ${dueText(task, zone)}.`;
     }
-    return listLines(named, zone);
+    if (named.length > 1) return listLines(named, zone);
   }
 
-  if (/materia|asignatura/.test(q) && !explainsHow(message)) {
-    const subjects = [...new Set(pending.map((task) => subjectName(task.subject)))];
-    if (subjects.length === 0) return "No tenés tareas pendientes en ninguna materia.";
-    return ["Materias con tareas pendientes:", ...subjects.map((name) => `• ${name}`)].join("\n");
+  if (/\b(que|cuales|cuantas|mis) (materias|asignaturas)\b|\bmaterias tengo\b/.test(q)) {
+    const subjects = [...new Set([...tasks].sort(byDue).map((task) => subjectName(task.subject)))];
+    if (subjects.length === 0) return "Todavía no hay tareas cargadas de ninguna materia.";
+    const withPending = new Set(pending.map((task) => subjectName(task.subject)));
+    return [
+      `Tenés tareas de ${plural(subjects.length, "materia", "materias")}:`,
+      ...subjects.map((name) => `• ${name}${withPending.has(name) ? "" : " (sin pendientes)"}`),
+    ].join("\n");
   }
 
   if (/racha/.test(q)) {
@@ -194,7 +209,20 @@ export function localAnswer(message: string, user: User, tasks: Task[] = current
     return `Taskie ya no usa niveles ni XP. Tu progreso es la racha de ${plural(user.streak, "día", "días")} y las tareas que vas entregando.`;
   }
 
+  return null;
+}
+
+export function localAnswer(message: string, user: User, tasks: Task[] = currentTasks(user)): string {
+  const fact = factAnswer(message, user, tasks);
+  if (fact) return fact;
   if (isGreeting(message)) return greetingReply(message);
+  const zone = user.timezone;
+  const pending = tasks.filter((task) => task.status === "pending");
+  const upcoming = pending.filter((task) => !isLate(task)).sort(byDue);
+
+  if (asksWhen(fold(message))) {
+    return `No encontré esa tarea. ${nextLine(upcoming, zone)} Si me decís el nombre o la materia, te paso la fecha.`;
+  }
 
   if (explainsHow(message) || taskHowToRequest(message)) {
     const named = tasksForQuestion(message, tasks);
@@ -612,9 +640,13 @@ export function answerWithModel(
 async function shieldedAnswer(message: string, history: { role: "user" | "assistant"; content: string }[], user: User): Promise<string> {
   const safeMessage = sanitizeChatText(message);
   const safePrevious = safeHistory(history);
+  const tasks = currentTasks(user);
+  if (!asksToDoHomework(safeMessage) && !wantsClassRecap(safeMessage)) {
+    const fact = factAnswer(safeMessage, user, tasks);
+    if (fact) return fact;
+  }
   const refused = await homeworkBlock(safeMessage, safePrevious);
   if (refused) return refused;
-  const tasks = currentTasks(user);
   if (wantsClassRecap(safeMessage)) {
     const subject = subjectForQuestion(safeMessage, tasks);
     const login = classroomLogin(user);

@@ -65,21 +65,16 @@ FREELLMAPI_BASE_URL=http://127.0.0.1:43124/v1
 FREELLMAPI_API_KEY=freellmapi-tu-clave
 ```
 
-### Gemini
+### Modelos
 
-Taskie le pide a FreeLLMAPI modelos Gemini, en este orden:
+Taskie usa Kilo Gateway dentro de FreeLLMAPI, que no pide cuenta ni clave. En el tablero de FreeLLMAPI, Kilo se agrega en **Keys** sin clave.
 
-- Chat y lecciones: `gemini-3.8-flash`, `gemini-3.5-flash` y `gemini-2.5-flash`.
-- Clasificador que frena los pedidos de "haceme la tarea": `gemini-3.5-flash-lite` y `gemini-2.5-flash-lite`.
+- Chat, lecciones y el clasificador que frena los pedidos de "haceme la tarea": `nvidia/nemotron-3-ultra-550b-a55b:free`.
+- Respaldo: `kilo-auto/free`. Cambia de modelo en cada consulta, por eso no va primero.
 
-Si ningún Gemini responde, Taskie pasa a `kilo-auto/free` (Kilo Gateway), que no pide clave.
+Las preguntas de datos no pasan por el modelo: qué vence hoy, mañana o esta semana, qué está pendiente o atrasado, lo más urgente, cuándo vence una tarea, qué materias hay y la racha. Taskie las contesta al instante con lo cargado de Educamos, así las fechas y los números siempre coinciden.
 
-FreeLLMAPI sirve Gemini con el plan gratis de Google AI Studio. Para activarlo:
-
-1. Sacá una clave gratis (sin tarjeta) en [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
-2. Pegala en la página **Keys** del tablero de FreeLLMAPI, en el proveedor Google AI Studio.
-
-Cada modelo Gemini tiene su propia cuota diaria, de unas 20 consultas. Por eso Taskie prueba varios antes de usar Kilo. Para cambiar la lista, usá `FREELLMAPI_MODEL` (chat), `FREELLMAPI_LIGHT_MODEL` (clasificador) y `FREELLMAPI_BACKUP_MODEL`. Cada una acepta varios modelos separados por comas.
+Para cambiar los modelos, usá `FREELLMAPI_MODEL` (chat), `FREELLMAPI_LIGHT_MODEL` (clasificador) y `FREELLMAPI_BACKUP_MODEL`. Cada una acepta varios modelos separados por comas.
 
 En Lecciones hay uno o dos repasos de menos de 3 minutos por materia, preparados automáticamente con los temas recientes y los apuntes de clase. Si le pedís cómo hacer una tarea, mira solo el título y busca el apunte de esa clase, igual que las lecciones. Si le pedís que te explique un tema, usa ese mismo material. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Las respuestas son breves, ordenadas y no inventan información. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
 
