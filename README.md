@@ -90,7 +90,19 @@ El quiz no te hace la tarea: descarta las preguntas que repiten una consigna que
 
 ## Avisos
 
-Al entrar, Taskie busca de nuevo las tareas del colegio. En Configuración hay un interruptor y un botón **Probar aviso**. Hace falta dar permiso en el navegador. En Android Chrome funcionan en la web y en la app instalada. En iPhone, el aviso push llega cuando el sitio está agregado a la pantalla de inicio. Los recordatorios usan las mismas tareas pendientes que Inicio.
+En Configuración, el interruptor de **Notificaciones** activa los avisos en ese dispositivo: pide permiso al navegador, lo suscribe y manda un aviso de prueba desde el servidor. El interruptor solo aparece encendido si ese dispositivo está suscripto de verdad. Cada vez que abrís la app, la suscripción se renueva sola.
+
+Taskie avisa lo que vence hoy (desde las 8), lo que vence mañana (desde las 18) y cada tarea en sus últimas 3 horas. Nunca avisa entre las 22 y las 8. Antes de avisar, trae las tareas nuevas de Educamos cada 3 horas, aunque no abras la app. En Android Chrome funcionan en la web y en la app instalada. En iPhone hay que agregar Taskie a la pantalla de inicio y activarlos desde ahí.
+
+## Entregas del aula
+
+En **Para subir** están los puntos de entrega del aula. Cada tarjeta lee en el aula qué pide la entrega:
+
+- **Archivo:** elegís el archivo (con los formatos y el tamaño que acepta el aula) y tocás el círculo. Taskie lo sube, guarda la entrega y, si el aula pide confirmar, toca **Enviar tarea**. Solo la marca como hecha cuando el aula la muestra como enviada.
+- **Texto o enlace:** escribís el texto o pegás el enlace (por ejemplo, de un video) y tocás el círculo.
+- **Cerrada:** si el aula ya no deja entregar, lo avisa y podés marcarla como hecha.
+
+Las tareas de **Por hacer** no llevan archivo: se marcan como hechas.
 
 ## Racha
 

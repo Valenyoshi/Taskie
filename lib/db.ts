@@ -1011,6 +1011,10 @@ export function deletePush(endpoint: string): void {
   getDb().prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(endpoint);
 }
 
+export function deleteUserPush(userId: string, endpoint: string): void {
+  getDb().prepare("DELETE FROM push_subscriptions WHERE endpoint = ? AND user_id = ?").run(endpoint, userId);
+}
+
 export function hasNotification(userId: string, kind: string, refKey: string): boolean {
   const row = getDb()
     .prepare("SELECT 1 AS ok FROM notification_log WHERE user_id = ? AND kind = ? AND ref_key = ?")

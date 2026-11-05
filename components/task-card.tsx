@@ -8,6 +8,8 @@ import { SubjectMark } from "@/components/subject-mark";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
 
+type SubmissionRules = { mode: "file" | "text" | "closed" | "unknown"; acceptedTypes: string[]; maxBytes: number | null };
+
 function titleLineTop(title: HTMLElement, card: HTMLElement): number {
   const cardTop = card.getBoundingClientRect().top;
   const node = title.firstChild;
@@ -32,7 +34,8 @@ export function TaskCard({ task }: { task: TaskView }) {
     task.pending ? "idle" : "settled",
   );
   const [fileName, setFileName] = useState(task.fileName);
-  const [acceptedTypes, setAcceptedTypes] = useState<string[] | null>(null);
+  const [rules, setRules] = useState<SubmissionRules | null>(null);
+  const [answer, setAnswer] = useState("");
   const [open, setOpen] = useState(task.kind === "archivo");
   const [refused, setRefused] = useState(false);
   const needsUpload = task.kind === "archivo";
@@ -47,11 +50,11 @@ export function TaskCard({ task }: { task: TaskView }) {
     let alive = true;
     void fetch(`/api/tasks/${task.id}/file/rules`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { acceptedTypes?: string[] } | null) => {
-        if (alive) setAcceptedTypes(data?.acceptedTypes ?? []);
+      .then((data: Partial<SubmissionRules> | null) => {
+        if (alive) setRules({ mode: data?.mode ?? "unknown", acceptedTypes: data?.acceptedTypes ?? [], maxBytes: data?.maxBytes ?? null });
       })
       .catch(() => {
-        if (alive) setAcceptedTypes([]);
+        if (alive) setRules({ mode: "unknown", acceptedTypes: [], maxBytes: null });
       });
     return () => {
       alive = false;
@@ -111,9 +114,13 @@ export function TaskCard({ task }: { task: TaskView }) {
     window.setTimeout(() => setRefused(false), 700);
   }
 
+  const mode = rules?.mode ?? "unknown";
+  const missing = needsUpload && (mode === "text" ? !answer.trim() : mode !== "closed" && !fileName);
+
   async function complete() {
-    if (needsUpload && !fileName) {
+    if (missing) {
       refuse();
+      setError(mode === "text" ? "Primero escribí la entrega o pegá el enlace." : "Primero elegí el archivo para entregar.");
       return;
     }
     setPhase("loading");
@@ -123,7 +130,11 @@ export function TaskCard({ task }: { task: TaskView }) {
     let res: Response;
     let data: { error?: string };
     try {
-      res = await fetch(`/api/tasks/${task.id}/complete`, { method: "POST" });
+      res = await fetch(`/api/tasks/${task.id}/complete`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(mode === "text" ? { text: answer } : {}),
+      });
       data = (await res.json()) as { error?: string };
     } catch {
       setBusy(false);
@@ -134,8 +145,8 @@ export function TaskCard({ task }: { task: TaskView }) {
     setBusy(false);
     if (!res.ok) {
       setPhase("idle");
-      if (needsUpload && !fileName) refuse();
-      else setError(data.error ?? "No se pudo marcar.");
+      if (missing) refuse();
+      setError(data.error ?? "No se pudo marcar.");
       return;
     }
     const remaining = 1400 - (Date.now() - started);
@@ -168,6 +179,10 @@ export function TaskCard({ task }: { task: TaskView }) {
     }
     setFileName(data.fileName ?? file.name);
   }
+
+  const typeLabel = rules?.acceptedTypes.length
+    ? rules.acceptedTypes.map((type) => type.replace(/^\./, "").toUpperCase()).join(", ")
+    : "";
 
   if (phase === "gone") return null;
 
@@ -247,29 +262,52 @@ export function TaskCard({ task }: { task: TaskView }) {
       {open || task.kind === "archivo" ? (
         <div className="space-y-2 px-3 pb-3 text-sm">
           {task.description ? <p>{task.description}</p> : null}
-          {needsUpload ? (
+          {needsUpload && task.pending ? (
             <p className="rounded-xl bg-gold/15 px-3 py-2 text-xs font-semibold text-foreground/80">
-              {acceptedTypes && acceptedTypes.length > 0
-                ? `La plataforma solo acepta: ${acceptedTypes.map((type) => type.replace(/^\./, "").toUpperCase()).join(", ")}.`
-                : "La plataforma pide un archivo para esta entrega."}
+              {rules === null
+                ? "Revisando la entrega en el aula…"
+                : mode === "closed"
+                  ? "El aula ya cerró esta entrega. Si la entregaste de otra forma, marcala como hecha."
+                  : mode === "text"
+                    ? "Esta entrega no lleva archivo: escribí el texto o pegá el enlace (por ejemplo, del video)."
+                    : `${typeLabel ? `El aula solo acepta: ${typeLabel}.` : "El aula pide un archivo para esta entrega."}${rules.maxBytes ? ` Hasta ${Math.floor(rules.maxBytes / 1024 / 1024)} MB.` : ""}`}
             </p>
           ) : null}
           <p className="text-xs text-muted-foreground">{task.dueLabel}</p>
-          {task.pending ? (
-            <label className="inline-flex h-9 cursor-pointer items-center rounded-full bg-secondary px-3 text-sm font-medium">
-              {fileName ?? "Archivo"}
-              <input
-                type="file"
-                disabled={busy}
-                accept={acceptedTypes?.length ? acceptedTypes.join(",") : undefined}
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
-          ) : fileName ? (
+          {needsUpload && task.pending && rules && mode === "text" ? (
+            <textarea
+              value={answer}
+              disabled={busy}
+              maxLength={5000}
+              rows={3}
+              onChange={(event) => setAnswer(event.target.value)}
+              placeholder="Pegá el enlace o escribí tu entrega"
+              aria-label="Texto de la entrega"
+              className="w-full rounded-xl bg-secondary px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          ) : needsUpload && task.pending && rules && (mode === "file" || mode === "unknown") ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex h-9 cursor-pointer items-center rounded-full bg-secondary px-3 text-sm font-medium">
+                {busy && !fileName ? "Subiendo…" : fileName ? "Cambiar archivo" : "Elegir archivo"}
+                <input
+                  type="file"
+                  disabled={busy}
+                  accept={rules.acceptedTypes.length ? rules.acceptedTypes.join(",") : undefined}
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (file) void upload(file);
+                  }}
+                />
+              </label>
+              {fileName ? <span className="min-w-0 truncate text-xs font-semibold">{fileName}</span> : null}
+            </div>
+          ) : null}
+          {needsUpload && task.pending && rules && mode !== "closed" && (fileName || answer.trim()) ? (
+            <p className="text-xs text-muted-foreground">Tocá el círculo para enviarla al aula.</p>
+          ) : null}
+          {!task.pending && fileName ? (
             <a className="text-sm text-primary underline" href={`/api/tasks/${task.id}/file`}>
               {fileName}
             </a>

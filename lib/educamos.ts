@@ -432,6 +432,19 @@ function hiddenFormFields(html: string): URLSearchParams {
   return fields;
 }
 
+/** El formulario de Moodle que contiene un campo `action` con ese valor, con su destino. */
+function formWithAction(html: string, action: string, pageUrl: string): { url: string; html: string } | null {
+  for (const match of html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)) {
+    const form = match[0];
+    if (!new RegExp(`name=["']action["'][^>]*value=["']${action}["']|value=["']${action}["'][^>]*name=["']action["']`, "i").test(form)) continue;
+    const target = tagAttribute(form.match(/<form\b[^>]*>/i)?.[0] ?? "", "action");
+    const url = new URL(target || pageUrl, pageUrl);
+    if (url.origin !== new URL(pageUrl).origin) return null;
+    return { url: url.href, html: form };
+  }
+  return null;
+}
+
 function fileManagerConfig(html: string): { itemId: string; clientId: string; contextId: string } | null {
   const itemId = hiddenFormFields(html).get("files_filemanager") ?? "";
   const initAt = html.indexOf("M.form_filemanager.init");
@@ -441,10 +454,13 @@ function fileManagerConfig(html: string): { itemId: string; clientId: string; co
   return itemId && clientId && contextId ? { itemId, clientId, contextId } : null;
 }
 
-function acceptedTypesFromPage(html: string): string[] {
+function fileManagerSlice(html: string): string {
   const initAt = html.indexOf("M.form_filemanager.init");
-  const config = initAt >= 0 ? html.slice(initAt, initAt + 12000) : html;
-  const raw = /"accepted_types":\[([^\]]*)\]/.exec(config)?.[1];
+  return initAt >= 0 ? html.slice(initAt, initAt + 12000) : "";
+}
+
+function acceptedTypesFromPage(html: string): string[] {
+  const raw = /"accepted_types":\[([^\]]*)\]/.exec(fileManagerSlice(html))?.[1];
   if (!raw) return [];
   try {
     const types = JSON.parse(`[${raw}]`) as unknown;
@@ -454,29 +470,88 @@ function acceptedTypesFromPage(html: string): string[] {
   }
 }
 
-const acceptedTypesCache = new Map<string, { at: number; types: string[] }>();
+export type SubmissionRules = {
+  /** file: hay que subir un archivo; text: se escribe un texto o un enlace; closed: el aula ya no deja entregar. */
+  mode: "file" | "text" | "closed" | "unknown";
+  acceptedTypes: string[];
+  maxBytes: number | null;
+};
 
-export async function fetchTaskAcceptedTypes(input: {
+function rulesFromEditPage(status: number, html: string): SubmissionRules {
+  if (status === 403 || status === 404 || /error\/nopermission|nopermissions|no tiene permiso/i.test(html)) {
+    return { mode: "closed", acceptedTypes: [], maxBytes: null };
+  }
+  if (status < 200 || status >= 300) return { mode: "unknown", acceptedTypes: [], maxBytes: null };
+  if (fileManagerConfig(html)) {
+    const max = Number(/"maxbytes":"?(\d+)/.exec(fileManagerSlice(html))?.[1] ?? 0);
+    return { mode: "file", acceptedTypes: acceptedTypesFromPage(html), maxBytes: max > 0 ? max : null };
+  }
+  if (/name=["']onlinetext_editor\[text\]["']/i.test(html)) return { mode: "text", acceptedTypes: [], maxBytes: null };
+  return { mode: "unknown", acceptedTypes: [], maxBytes: null };
+}
+
+function editUrlFor(taskUrl: string): string {
+  return `${taskUrl}${taskUrl.includes("?") ? "&" : "?"}action=editsubmission`;
+}
+
+const rulesCache = new Map<string, { at: number; rules: SubmissionRules }>();
+
+export async function fetchSubmissionRules(input: {
   lmsUrl: string;
   username: string;
   password: string;
   taskUrl: string | null;
-}): Promise<string[]> {
-  if (!input.taskUrl || !/\/mod\/assign\/view\.php(?:\?|$)/i.test(input.taskUrl)) return [];
+}): Promise<SubmissionRules> {
+  const unknown: SubmissionRules = { mode: "unknown", acceptedTypes: [], maxBytes: null };
+  if (!input.taskUrl || !/\/mod\/assign\/view\.php(?:\?|$)/i.test(input.taskUrl)) return unknown;
   const cacheKey = `${input.lmsUrl}|${input.username}|${input.taskUrl}`;
-  const cached = acceptedTypesCache.get(cacheKey);
-  if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.types;
+  const cached = rulesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.rules;
   try {
     const session = await loginLms(input.lmsUrl, input.username, input.password);
-    if (!session.ok) return [];
-    const editUrl = `${input.taskUrl}${input.taskUrl.includes("?") ? "&" : "?"}action=editsubmission`;
-    const page = await request(session.jar, editUrl);
-    const types = page.status >= 200 && page.status < 300 ? acceptedTypesFromPage(page.text) : [];
-    acceptedTypesCache.set(cacheKey, { at: Date.now(), types });
-    return types;
+    if (!session.ok) return unknown;
+    const page = await request(session.jar, editUrlFor(input.taskUrl));
+    const rules = rulesFromEditPage(page.status, page.text);
+    rulesCache.set(cacheKey, { at: Date.now(), rules });
+    return rules;
   } catch {
-    return [];
+    return unknown;
   }
+}
+
+function submissionState(html: string): "submitted" | "draft" | "empty" | "unknown" {
+  if (/submissionstatussubmitted|enviado para calificar/i.test(html)) return "submitted";
+  if (/submissionstatusdraft|borrador \(no enviado\)/i.test(html)) return "draft";
+  if (/todav[ií]a no se han realizado env[ií]os|no se ha enviado nada/i.test(html)) return "empty";
+  return "unknown";
+}
+
+/**
+ * Si el aula pide confirmar con "Enviar tarea", lo hace. Sin ese paso la entrega queda
+ * como borrador y el profesor no la ve.
+ */
+async function sendForGrading(jar: Jar, taskUrl: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  let view = await request(jar, taskUrl);
+  const state = submissionState(view.text);
+  if (state === "submitted") return { ok: true };
+  const submitForm = formWithAction(view.text, "submit", view.finalUrl);
+  if (!submitForm) {
+    return state === "draft" || state === "empty"
+      ? { ok: false, error: "El aula guardó el archivo, pero la entrega no figura como enviada. Revisala en el aula." }
+      : { ok: true };
+  }
+  const confirm = await request(jar, submitForm.url, "POST", hiddenFormFields(submitForm.html).toString());
+  const confirmForm = formWithAction(confirm.text, "confirmsubmit", confirm.finalUrl);
+  if (confirmForm) {
+    const fields = hiddenFormFields(confirmForm.html);
+    if (/name=["']submissionstatement["']/i.test(confirmForm.html)) fields.set("submissionstatement", "1");
+    fields.set("submitbutton", "Continuar");
+    await request(jar, confirmForm.url, "POST", fields.toString());
+  }
+  view = await request(jar, taskUrl);
+  return submissionState(view.text) === "submitted"
+    ? { ok: true }
+    : { ok: false, error: "La entrega quedó como borrador. Entrá al aula y tocá Enviar tarea." };
 }
 
 export async function submitLmsAssignment(input: {
@@ -484,64 +559,100 @@ export async function submitLmsAssignment(input: {
   username: string;
   password: string;
   taskUrl: string | null;
-  filePath: string;
-  fileName: string;
+  filePath?: string;
+  fileName?: string;
+  text?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!input.taskUrl || !/\/mod\/assign\/view\.php(?:\?|$)/i.test(input.taskUrl)) {
     return { ok: false, error: "La tarea no tiene un enlace válido del aula." };
   }
   try {
-    const bytes = await readFile(input.filePath);
     const session = await loginLms(input.lmsUrl, input.username, input.password);
     if (!session.ok) return session;
-    const editUrl = `${input.taskUrl}${input.taskUrl.includes("?") ? "&" : "?"}action=editsubmission`;
-    const edit = await request(session.jar, editUrl);
-    if (edit.status < 200 || edit.status >= 300) return { ok: false, error: "No pude abrir la entrega del aula." };
-    const manager = fileManagerConfig(edit.text);
-    if (!manager) return { ok: false, error: "No encontré el espacio para subir el archivo." };
+    const edit = await request(session.jar, editUrlFor(input.taskUrl));
+    const rules = rulesFromEditPage(edit.status, edit.text);
+    if (rules.mode === "closed") return { ok: false, error: "El aula ya cerró esta entrega." };
+    const saveForm = formWithAction(edit.text, "savesubmission", edit.finalUrl);
+    if (!saveForm) return { ok: false, error: "No pude abrir la entrega del aula." };
+    const form = hiddenFormFields(saveForm.html);
 
-    const extension = input.fileName.split(".").pop()?.toLowerCase() ?? "";
-    const upload = new FormData();
-    upload.set("repo_id", "3");
-    upload.set("p", "");
-    upload.set("page", "");
-    upload.set("env", "filemanager");
-    upload.set("sesskey", session.sesskey);
-    upload.set("client_id", manager.clientId);
-    upload.set("itemid", manager.itemId);
-    upload.set("maxbytes", "10485760");
-    upload.set("areamaxbytes", "-1");
-    upload.set("ctx_id", manager.contextId);
-    upload.set("savepath", "/");
-    upload.set("title", input.fileName);
-    upload.set("author", "");
-    upload.set("license", "unknown");
-    upload.set("accepted_types[]", `.${extension}`);
-    upload.append("repo_upload_file", new Blob([bytes]), input.fileName);
-    const uploaded = await requestMultipart(session.jar, `${session.root}/repository/repository_ajax.php?action=upload`, upload);
-    if (uploaded.status < 200 || uploaded.status >= 300) return { ok: false, error: "El aula rechazó la subida del archivo." };
-    let uploadData: { error?: unknown; msg?: string };
-    try {
-      uploadData = JSON.parse(uploaded.text) as { error?: unknown; msg?: string };
-    } catch {
-      return { ok: false, error: "El aula no confirmó la subida del archivo." };
+    if (input.text !== undefined) {
+      if (rules.mode !== "text") return { ok: false, error: "Esta entrega pide un archivo, no un texto." };
+      const escaped = input.text
+        .trim()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .split(/\n+/)
+        .map((line) => `<p>${line.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</p>`)
+        .join("");
+      form.set("onlinetext_editor[text]", escaped);
+    } else {
+      if (rules.mode !== "file") {
+        return { ok: false, error: rules.mode === "text" ? "Esta entrega se hace con un texto o un enlace." : "No encontré el espacio para subir el archivo." };
+      }
+      if (!input.filePath || !input.fileName) return { ok: false, error: "Primero subí un archivo." };
+      const manager = fileManagerConfig(edit.text)!;
+      const bytes = await readFile(input.filePath);
+      if (rules.maxBytes && bytes.length > rules.maxBytes) {
+        return { ok: false, error: `El aula acepta archivos de hasta ${Math.floor(rules.maxBytes / 1024 / 1024)} MB.` };
+      }
+      const extension = input.fileName.split(".").pop()?.toLowerCase() ?? "";
+      const upload = new FormData();
+      upload.set("repo_id", /\{"id":"?(\d+)"?,"name":"[^"]*","type":"upload"/.exec(edit.text)?.[1] ?? "3");
+      upload.set("p", "");
+      upload.set("page", "");
+      upload.set("env", "filemanager");
+      upload.set("sesskey", session.sesskey);
+      upload.set("client_id", manager.clientId);
+      upload.set("itemid", manager.itemId);
+      upload.set("maxbytes", String(rules.maxBytes ?? -1));
+      upload.set("areamaxbytes", "-1");
+      upload.set("ctx_id", manager.contextId);
+      upload.set("savepath", "/");
+      upload.set("title", input.fileName);
+      upload.set("author", "");
+      upload.set("license", "unknown");
+      for (const type of rules.acceptedTypes.length ? rules.acceptedTypes : [`.${extension}`]) upload.append("accepted_types[]", type);
+      upload.append("repo_upload_file", new Blob([bytes]), input.fileName);
+      const uploaded = await requestMultipart(session.jar, `${session.root}/repository/repository_ajax.php?action=upload`, upload);
+      if (uploaded.status < 200 || uploaded.status >= 300) return { ok: false, error: "El aula rechazó la subida del archivo." };
+      type Stored = { filename?: string; filepath?: string };
+      let uploadData: { error?: unknown; msg?: string; event?: string; existingfile?: Stored; newfile?: Stored };
+      try {
+        uploadData = JSON.parse(uploaded.text) as typeof uploadData;
+      } catch {
+        return { ok: false, error: "El aula no confirmó la subida del archivo." };
+      }
+      if (uploadData.error) {
+        return { ok: false, error: htmlToText(String(uploadData.error)) || uploadData.msg || "El aula rechazó la subida del archivo." };
+      }
+      if (uploadData.event === "fileexists" && uploadData.existingfile?.filename && uploadData.newfile?.filename) {
+        const replace = new URLSearchParams({
+          sesskey: session.sesskey,
+          client_id: manager.clientId,
+          itemid: manager.itemId,
+          existingfilename: uploadData.existingfile.filename,
+          existingfilepath: uploadData.existingfile.filepath ?? "/",
+          newfilename: uploadData.newfile.filename,
+          newfilepath: uploadData.newfile.filepath ?? "/",
+        });
+        await request(session.jar, `${session.root}/repository/repository_ajax.php?action=overwrite`, "POST", replace.toString());
+      }
+      form.set("files_filemanager", manager.itemId);
     }
-    if (uploadData.error) return { ok: false, error: uploadData.msg || "El aula rechazó la subida del archivo." };
 
-    const form = hiddenFormFields(edit.text);
-    form.set("files_filemanager", manager.itemId);
     form.set("submitbutton", "Guardar cambios");
-    const saved = await request(session.jar, edit.finalUrl, "POST", form.toString());
+    const saved = await request(session.jar, saveForm.url, "POST", form.toString());
     if (saved.status < 200 || saved.status >= 300) return { ok: false, error: "El aula no guardó la entrega." };
-    const validation = /id=["']id_error_files_filemanager["'][^>]*>([\s\S]*?)<\/div>/i.exec(saved.text)?.[1] ?? "";
+    const validation =
+      /id=["']id_error_(?:files_filemanager|onlinetext_editor)["'][^>]*>([\s\S]*?)<\/div>/i.exec(saved.text)?.[1] ?? "";
     const validationText = htmlToText(validation);
     if (validationText) return { ok: false, error: validationText };
-    if (/Todavía no se han realizado envíos/i.test(saved.text) || /name=["']action["'][^>]*value=["']savesubmission["']/i.test(saved.text)) {
-      return { ok: false, error: "El aula no confirmó la entrega." };
-    }
-    return { ok: true };
+    if (formWithAction(saved.text, "savesubmission", saved.finalUrl)) return { ok: false, error: "El aula no aceptó la entrega." };
+    return await sendForGrading(session.jar, input.taskUrl);
   } catch {
-    return { ok: false, error: "No se pudo enviar el archivo al aula." };
+    return { ok: false, error: "No se pudo enviar la entrega al aula." };
   }
 }
 

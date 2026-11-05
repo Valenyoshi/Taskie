@@ -28,16 +28,22 @@ function configure(): void {
   configured = true;
 }
 
-export async function sendPush(sub: PushSub, payload: { title: string; body: string; url?: string }): Promise<void> {
+/** "gone" cuando el servicio de avisos ya no reconoce esa suscripción: se borra y hay que volver a activarlos. */
+export async function sendPush(sub: PushSub, payload: { title: string; body: string; url?: string; tag?: string }): Promise<"sent" | "gone"> {
   configure();
   try {
     await webpush.sendNotification(
       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-      JSON.stringify({ title: payload.title, body: payload.body, url: payload.url ?? "/inicio" }),
+      JSON.stringify({ title: payload.title, body: payload.body, url: payload.url ?? "/inicio", tag: payload.tag }),
+      { TTL: 6 * 60 * 60, urgency: "high" },
     );
+    return "sent";
   } catch (error) {
     const status = (error as { statusCode?: number }).statusCode;
-    if (status === 404 || status === 410) deletePush(sub.endpoint);
-    else throw error;
+    if (status === 403 || status === 404 || status === 410) {
+      deletePush(sub.endpoint);
+      return "gone";
+    }
+    throw error;
   }
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import { NavBar } from "@/components/nav-bar";
+import { PushRefresh } from "@/components/push-refresh";
 import { RewardPopup } from "@/components/reward-popup";
 import { SectionTitle } from "@/components/section-title";
 import { SectionWash } from "@/components/section-wash";
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </div>
       <NavBar />
+      <PushRefresh enabled={user.notificationsEnabled && !user.isDemo} />
       <RewardPopup
         open={openedStreak}
         title="¡Racha iniciada!"

@@ -1,6 +1,6 @@
 import { classroomLogin } from "@/lib/credentials";
 import { getTask } from "@/lib/db";
-import { fetchTaskAcceptedTypes } from "@/lib/educamos";
+import { fetchSubmissionRules, type SubmissionRules } from "@/lib/educamos";
 import { isUser, json, requireUser } from "@/lib/http";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -9,12 +9,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   const task = getTask(id);
   if (!task || task.userId !== user.id) return json({ error: "No encontré esa tarea." }, 404);
+  const unknown: SubmissionRules = { mode: "unknown", acceptedTypes: [], maxBytes: null };
   const login = task.source === "lms" ? classroomLogin(user) : null;
-  if (!login) return json({ ok: true, acceptedTypes: [] });
-  try {
-    const acceptedTypes = await fetchTaskAcceptedTypes({ ...login, taskUrl: task.educamosUrl });
-    return json({ ok: true, acceptedTypes });
-  } catch {
-    return json({ ok: true, acceptedTypes: [] });
-  }
+  if (!login) return json({ ok: true, ...unknown });
+  const rules = await fetchSubmissionRules({ ...login, taskUrl: task.educamosUrl }).catch(() => unknown);
+  return json({ ok: true, ...rules });
 }
