@@ -3,6 +3,7 @@ import { plainChatText } from "./plain-text";
 import { classroomLogin } from "./credentials";
 import { visibleTasks } from "./courses";
 import { type Task, type User } from "./db";
+import { freeLlmConfigured, freeLlmReply } from "./free-llm";
 import { asksForLesson, fetchTaskInstructions, notesForSubject, previousClassNotes } from "./educamos";
 import { selectedCourseKeys } from "./courses";
 import { blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
@@ -214,7 +215,7 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
   return [
     "Si te piden que expliques cómo hacer una tarea, qué hay que hacer o de qué se trata, explicalo. No te niegues.",
     "Solo negá cuando pidan la entrega ya escrita, los ejercicios resueltos o las respuestas para copiar.",
-    "Sos un compañero de estudio. Hablás de vos, en español claro y corto.",
+    "Te llamás Taskie y sos un compañero de estudio. Si te presentás, decí que sos Taskie. Hablás de vos, en español claro y corto.",
     "Respondé con frases cortas. Si listás, usá un renglón por idea, sin markdown, sin asteriscos, sin numeral de título y sin código.",
     "No pases de 8 renglones salvo que pidan más detalle. No copies la consigna entera: resumila en pasos de un renglón.",
     "Usá los nombres de materia y las fechas tal como están en el resumen. Si una tarea está atrasada, decilo.",
@@ -229,7 +230,7 @@ function studySystem(user: User, tasks: Task[], classes = ""): string {
           "Si te piden que expliques un tema, hacé de profesor de esa materia.",
           "Usá solo el bloque Clases: el mismo orden, las mismas palabras y los mismos ejemplos.",
           "Enseñá lo que la clase enseña. No adelantes lo que no aparece.",
-          "Si el tema no está en las clases, decilo. No lo presentes como si el profesor lo hubiera dado.",
+          "Si el tema no está en las clases, decí en un renglón que no está en el apunte y explicalo igual de forma general, corta y con un ejemplo. No lo presentes como si el profesor lo hubiera dado.",
           "Clases:",
           classes,
         ].join("\n")
@@ -589,27 +590,15 @@ async function answerWithFreeLlm(
   history: { role: "user" | "assistant"; content: string }[],
   system: string,
 ): Promise<string | null> {
-  const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
-  const key = process.env.FREELLMAPI_API_KEY;
-  if (!base || !key) return null;
-  const model = process.env.FREELLMAPI_MODEL || "kilo-auto/free";
-  const messages = [
-    { role: "system", content: system },
-    ...history.slice(-10).map((item) => ({ role: item.role, content: item.content })),
-    { role: "user", content: message },
-  ];
-  const res = await aiFetch(`${base}/chat/completions`, {
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${key}`,
-    },
-    timeoutMs: 25000,
-    body: { model, messages },
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = data.choices?.[0]?.message?.content?.trim();
-  return text || null;
+  const reply = await freeLlmReply(
+    [
+      { role: "system", content: system },
+      ...history.slice(-10).map((item) => ({ role: item.role, content: item.content })),
+      { role: "user", content: message },
+    ],
+    { timeoutMs: 30000 },
+  );
+  return reply?.content || null;
 }
 
 export function answerWithModel(
@@ -700,7 +689,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
   }
 
   const key = process.env.GEMINI_API_KEY;
-  const triedFree = Boolean(process.env.FREELLMAPI_API_KEY && process.env.FREELLMAPI_BASE_URL);
+  const triedFree = freeLlmConfigured();
   if (!triedFree && !key) return fallback();
   if (!key) {
     if (isGreeting(safeMessage)) return greetingReply(safeMessage);

@@ -1,4 +1,5 @@
-import { aiFetch, withAiShield } from "./ai-shield";
+import { withAiShield } from "./ai-shield";
+import { freeLlmReply } from "./free-llm";
 import { classroomLogin } from "./credentials";
 import type { User } from "./db";
 import { listEnrolledSubjectNames, notesForSubject, recentClassTopics } from "./educamos";
@@ -111,28 +112,18 @@ function parseLesson(raw: string, subject: string): Lesson | null {
 }
 
 async function modelJson(prompt: string): Promise<string | null> {
-  const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
-  const key = process.env.FREELLMAPI_API_KEY;
-  if (!base || !key) return null;
-  const res = await aiFetch(`${base}/chat/completions`, {
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    timeoutMs: 22000,
-    body: {
-      model: process.env.FREELLMAPI_MODEL || "kilo-auto/free",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Respondé solo con JSON válido, sin markdown. El repaso dura menos de 3 minutos. No escribas la tarea del alumno ni las respuestas de una entrega.",
-        },
-        { role: "user", content: prompt },
-      ],
-    },
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { choices?: { message?: { content?: string; reasoning?: string } }[] };
-  const message = data.choices?.[0]?.message;
-  return message?.content?.trim() || message?.reasoning?.trim() || null;
+  const reply = await freeLlmReply(
+    [
+      {
+        role: "system",
+        content:
+          "Respondé solo con JSON válido, sin markdown. El repaso dura menos de 3 minutos. No escribas la tarea del alumno ni las respuestas de una entrega.",
+      },
+      { role: "user", content: prompt },
+    ],
+    { timeoutMs: 22000 },
+  );
+  return reply?.content || reply?.reasoning || null;
 }
 
 function withDeadline<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
