@@ -38,7 +38,7 @@ export function SectionTitle({ username }: { username: string }) {
           />
           <p className="gradient-text font-display text-6xl leading-none">{title}</p>
         </div>
-        <p className="gradient-text mt-2 font-display text-4xl leading-none">Hola {username}</p>
+        <p className="mt-2 font-display text-4xl leading-none">Hola {username}</p>
       </>
     );
   }
@@ -54,7 +54,7 @@ export function SectionTitle({ username }: { username: string }) {
             ? "section-title-eventos"
             : "";
   return (
-    <p className={`gradient-text ${toneClass} font-display leading-none ${title.length > 12 ? "text-4xl sm:text-5xl" : "text-5xl"}`}>
+    <p className={`${toneClass} font-display leading-none ${title.length > 12 ? "text-4xl sm:text-5xl" : "text-5xl"}`}>
       {title}
     </p>
   );

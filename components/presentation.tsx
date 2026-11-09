@@ -13,14 +13,16 @@ export function Presentation() {
   return (
     <main className="present">
       <header className="present-nav">
-        <Link href="/">Taskie</Link>
+        <Link href="/" className="gradient-text">
+          Taskie
+        </Link>
         <Link href="/entrar" className="present-cta">
           Crear cuenta
         </Link>
       </header>
 
       <section className="present-hero">
-        <h1>Taskie</h1>
+        <h1 className="gradient-text">Taskie</h1>
         <p>Las tareas del colegio, en un solo lugar. Las ves, las marcás cuando están listas y seguís.</p>
         <Link href="/entrar" className="present-cta">
           Crear cuenta
