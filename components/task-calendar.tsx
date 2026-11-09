@@ -3,10 +3,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { weekdayIndex } from "@/lib/time";
 import type { CalendarTask } from "@/lib/view";
 import { cn } from "cn";
 
 const WEEKDAYS = ["L", "M", "Mi", "J", "V", "S", "D"];
+
+const WEEKDAY_LOGOS = [
+  { name: "Lunes", short: "Lu", color: "#e8a317" },
+  { name: "Martes", short: "Ma", color: "#e25b45" },
+  { name: "Miércoles", short: "Mi", color: "#2f7d1f" },
+  { name: "Jueves", short: "Ju", color: "#2f6fdb" },
+  { name: "Viernes", short: "Vi", color: "#7c3aed" },
+  { name: "Sábado", short: "Sá", color: "#db3e8a" },
+  { name: "Domingo", short: "Do", color: "#0e7490" },
+];
+
+function WeekdayLogo({ day }: { day: string }) {
+  const logo = WEEKDAY_LOGOS[weekdayIndex(day)];
+  return (
+    <span
+      className="grid size-9 shrink-0 place-items-center rounded-full font-display text-sm leading-none text-white"
+      style={{ background: logo.color }}
+      title={logo.name}
+      aria-hidden
+    >
+      {logo.short}
+    </span>
+  );
+}
 
 function parts(day: string): [number, number, number] {
   const [y, m, d] = day.split("-").map(Number);
@@ -22,11 +47,15 @@ function monthTitle(y: number, m: number): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function dayTitle(day: string, today: string): string {
-  if (day === today) return "Hoy";
+function dateOnly(day: string): string {
   const [y, m, d] = parts(day);
-  const text = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+function dayTitle(day: string, today: string): string {
+  const logo = WEEKDAY_LOGOS[weekdayIndex(day)];
+  const date = dateOnly(day);
+  return day === today ? `Hoy, ${logo.name} ${date}` : `${logo.name}, ${date}`;
 }
 
 function dayName(day: string): string {
@@ -43,8 +72,9 @@ function DayTasks({ day, today, tasks }: { day: string; today: string; tasks: Ca
   const done = tasks.filter((task) => task.status === "done");
   return (
     <>
-      <h3 id={`day-${day}`} className="font-display text-2xl leading-none">
-        {dayTitle(day, today)}
+      <h3 id={`day-${day}`} className="flex items-center gap-2 font-display text-2xl leading-none" aria-label={dayTitle(day, today)}>
+        <WeekdayLogo day={day} />
+        <span>{day === today ? "Hoy" : dateOnly(day)}</span>
       </h3>
       <ul className="mt-3 flex flex-col gap-2">
         {pending.map((task) => (
