@@ -46,7 +46,6 @@ function DayTasks({ day, today, tasks }: { day: string; today: string; tasks: Ca
       <h3 id={`day-${day}`} className="font-display text-2xl leading-none">
         {dayTitle(day, today)}
       </h3>
-      <p className="mt-1 text-xs text-muted-foreground">{pending.length === 1 ? "Hay 1 entrega" : `Hay ${pending.length} entregas`}</p>
       <ul className="mt-3 flex flex-col gap-2">
         {pending.map((task) => (
           <li key={task.id}>
