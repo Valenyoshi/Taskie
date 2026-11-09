@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Copy, ExternalLink, Inbox, LogOut, Mail, Paperclip, RefreshCw, Send } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Inbox, LogOut, Paperclip, RefreshCw, Send } from "lucide-react";
 import { LinkedText } from "@/components/news-board";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,14 +110,9 @@ function ConnectForm({ onLinked, isDemo }: { onLinked: () => void; isDemo: boole
 
   return (
     <div className="rounded-2xl bg-card px-4 py-5 ring-1 ring-foreground/10">
-      <div className="flex items-center gap-3">
-        <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
-          <Mail className="size-5" />
-        </span>
-        <div>
-          <h3 className="font-display text-xl leading-tight">Vinculá tu correo</h3>
-          <p className="text-sm text-muted-foreground">Leé y respondé tus mails sin salir de Taskie.</p>
-        </div>
+      <div>
+        <h3 className="font-display text-xl leading-tight">Vinculá tu correo</h3>
+        <p className="text-sm text-muted-foreground">Leé y respondé tus mails sin salir de Taskie.</p>
       </div>
 
       <form onSubmit={setup ? connect : detect} className="mt-4 flex flex-col gap-3">

@@ -1,287 +1,42 @@
 import Link from "next/link";
-import {
-  HandChevronDown,
-  NavConfigIcon,
-  NavHomeIcon,
-  NavIaIcon,
-  NavMateriasIcon,
-} from "@/components/hand-drawn-icons";
-import { SubjectMark } from "@/components/subject-mark";
+
+const points = [
+  ["Inicio", "Lo de hoy queda arriba, con la materia y la fecha. Si hay que subir un archivo, tiene su propio grupo."],
+  ["El colegio", "Educamos, Teams o Classroom. Taskie entra con tu usuario y trae lo que hay que entregar. La contraseña queda cifrada."],
+  ["Materias", "Cada materia se abre en el mismo lugar y muestra sus tareas."],
+  ["Kitty", "Preguntale qué vieron o cómo empezar una tarea. Te lo cuenta con el material del curso. La entrega la escribís vos."],
+  ["Eventos", "El calendario marca cuándo hay que entregar, y el tablón muestra las noticias del colegio."],
+  ["Avisos", "Taskie avisa si hoy queda algo por entregar o si una tarea vence pronto."],
+];
 
 export function Presentation() {
   return (
     <main className="present">
       <header className="present-nav">
-        <Link href="/" className="gradient-text text-[17px] font-semibold tracking-tight">
-          Taskie
-        </Link>
+        <Link href="/">Taskie</Link>
         <Link href="/entrar" className="present-cta">
           Crear cuenta
         </Link>
       </header>
 
       <section className="present-hero">
-        <h1>
-          <span className="gradient-text font-display present-name">Taskie</span>
-          <span className="gradient-text font-display present-slogan">tu compañero de clases, que conecta con todo</span>
-        </h1>
-      </section>
-
-      <section className="present-about" aria-label="Sobre Taskie">
-        <h2>Las tareas ordenadas.</h2>
-        <p>
-          Taskie junta las tareas del colegio en un solo lugar. Ves lo pendiente, lo marcás cuando está listo y seguís.
-        </p>
-      </section>
-
-      <section id="inicio" className="present-feature present-feature-shot">
-        <HomeShot />
-        <div>
-          <p className="present-kicker">Inicio</p>
-          <h2>Lo de hoy, primero.</h2>
-          <p>
-            Cada tarjeta trae la materia, el título y la fecha. Lo de hoy queda arriba. Si hay que subir un archivo, tiene su propio grupo.
-          </p>
-        </div>
-      </section>
-
-      <section id="colegio" className="present-feature dark">
-        <div>
-          <p className="present-kicker">El colegio</p>
-          <h2>Educamos, Teams o Classroom.</h2>
-          <p>
-            Al crear la cuenta elegís de dónde salen las tareas. Taskie entra con tu usuario y trae lo que hay que entregar. La contraseña queda cifrada.
-          </p>
-        </div>
-        <div className="present-logos">
-          <img src="/educamos.png" alt="Educamos" />
-          <img src="/teams.svg" alt="Microsoft Teams" />
-          <img src="/classroom.svg" alt="Google Classroom" />
-        </div>
-      </section>
-
-      <section id="materias" className="present-feature">
-        <div>
-          <p className="present-kicker">Materias</p>
-          <h2>Una flecha y aparecen.</h2>
-          <p>Biología, Matemática e Historia. Cada materia se abre en el mismo lugar y muestra sus tareas, sin cambiar de pantalla.</p>
-        </div>
-        <div className="present-phone">
-          <div className="flex items-center justify-between text-left">
-            <strong className="text-xl tracking-tight">Matemática</strong>
-            <span className="text-sm text-[#6e6e73]">2 por hacer</span>
-          </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#ececee]">
-            <div className="h-full w-1/3 rounded-full bg-[#e8a317]" />
-          </div>
-          <Task title="Ecuaciones de primer grado" meta="Hoy" stripe="#e8a317" />
-          <Task title="Problemas de proporcionalidad" meta="Hoy" stripe="#e8a317" />
-        </div>
-      </section>
-
-      <section id="ia" className="present-feature dark">
-        <div>
-          <p className="present-kicker">IA</p>
-          <h2>Kitty explica la clase.</h2>
-          <p>
-            Preguntale qué vieron o cómo empezar una tarea. Te lo cuenta con el material del curso. La entrega la escribís vos.
-          </p>
-        </div>
-        <div className="present-chat">
-          <p className="present-bubble me">¿Qué vimos en la última clase de Matemática?</p>
-          <div className="present-bubble kitty">
-            <img src="/kitty-head.png" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
-            <p>Repasaron gráficos. El práctico de funciones está en la fotocopia.</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="listo" className="present-feature">
-        <div>
-          <p className="present-kicker">Al terminar</p>
-          <h2>El check es blanco.</h2>
-          <p>Cuando marcás una tarea, el círculo se completa y aparece el check en blanco. En las que ya están hechas, el check usa el color de la materia.</p>
-        </div>
-        <div className="present-check" aria-hidden>
-          ✓
-        </div>
-      </section>
-
-      <section id="ritmo" className="present-feature dark">
-        <div>
-          <p className="present-kicker">El ritmo</p>
-          <h2>Hoy y esta semana.</h2>
-          <p>Dos barras muestran cómo venís con lo que vence. La racha suma cuando entrás un día nuevo.</p>
-        </div>
-        <div className="present-bars">
-          <div className="present-bar" style={{ background: "linear-gradient(165deg, #f3c04a, #e8a317)" }}>
-            <span className="text-sm font-bold">Hoy</span>
-            <b>3/5</b>
-            <div className="present-meter">
-              <span style={{ width: "60%" }} />
-            </div>
-          </div>
-          <div className="present-bar" style={{ background: "linear-gradient(165deg, #1c7c6e, #146b22)" }}>
-            <span className="text-sm font-bold">Semana</span>
-            <b>8/11</b>
-            <div className="present-meter">
-              <span style={{ width: "72%" }} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="extras" className="present-extras">
-        <h2>Y un poco más.</h2>
-        <div className="present-bento">
-          <article className="present-tile">
-            <h3>Temas</h3>
-            <p>Cuaderno, Bosque, Pizarra, Noche, Oro o el check retro. Se eligen en Configuración.</p>
-            <div className="present-swatches" aria-hidden>
-              <i style={{ background: "#f3eee4", boxShadow: "inset 0 0 0 1px #e7e1d6" }} />
-              <i style={{ background: "#1f7a4a" }} />
-              <i style={{ background: "#234640" }} />
-              <i style={{ background: "#2a2144" }} />
-              <i style={{ background: "#b8860b" }} />
-            </div>
-          </article>
-          <article className="present-tile">
-            <h3>Avisos</h3>
-            <p>Taskie te avisa si hoy queda algo por entregar o si una tarea vence pronto.</p>
-          </article>
-          <article className="present-tile">
-            <h3>En el celular y en la computadora</h3>
-            <p>El mismo Taskie en el navegador. También se puede dejar en la pantalla de inicio.</p>
-          </article>
-          <article className="present-tile">
-            <h3>Contraseñas cifradas</h3>
-            <p>El usuario y la contraseña del colegio se guardan cifrados y solo se usan para entrar a esa plataforma.</p>
-          </article>
-          <article className="present-tile wide">
-            <h3>Para probar</h3>
-            <p>Si todavía no conectás el colegio, podés entrar con tareas de ejemplo y ver la lista, las materias y la IA.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="present-close">
-        <h2>Empezá con Taskie.</h2>
-        <p>Creá la cuenta, elegí el colegio y traé las tareas.</p>
-        <Link href="/entrar" className="present-cta mt-8">
+        <h1>Taskie</h1>
+        <p>Las tareas del colegio, en un solo lugar. Las ves, las marcás cuando están listas y seguís.</p>
+        <Link href="/entrar" className="present-cta">
           Crear cuenta
         </Link>
       </section>
+
+      <section className="present-list" aria-label="Qué tiene Taskie">
+        <h2>Qué podés hacer</h2>
+        <ul>
+          {points.map(([title, text]) => (
+            <li key={title}>
+              <strong>{title}.</strong> {text}
+            </li>
+          ))}
+        </ul>
+      </section>
     </main>
-  );
-}
-
-function Task({ title, meta, stripe }: { title: string; meta: string; stripe: string }) {
-  return (
-    <div className="present-task" style={{ ["--stripe" as string]: stripe }}>
-      <span style={{ color: stripe }}>{meta}</span>
-      <strong>{title}</strong>
-    </div>
-  );
-}
-
-function HomeShot() {
-  return (
-    <figure className="present-device" aria-label="Inicio de Taskie con tareas del día">
-      <div className="present-island" aria-hidden />
-      <div className="present-device-screen">
-        <div className="present-status" aria-hidden>
-          <span>9:41</span>
-          <span className="present-status-dots">●●● ●</span>
-        </div>
-        <div className="present-home-brand">
-          <img src="/kitty.png" alt="" width={42} height={70} />
-          <span className="gradient-text font-display">Taskie</span>
-        </div>
-        <div className="present-home-bars" aria-hidden>
-          <div className="present-home-bar day">
-            <span>
-              Hoy <b>3/5</b>
-            </span>
-            <i>
-              <em style={{ width: "60%" }} />
-            </i>
-          </div>
-          <div className="present-home-bar week">
-            <span>
-              Semana <b>8/11</b>
-            </span>
-            <i>
-              <em style={{ width: "72%" }} />
-            </i>
-          </div>
-        </div>
-        <div className="present-home-heading">Por hacer</div>
-        <div className="present-home-stack">
-          <HomeTask subject="Historia" title="Causas de la revolución" due="Hoy" color="#c2410c" />
-        </div>
-        <div className="present-home-done">
-          <div className="present-home-done-label">
-            Hechas · 2
-            <HandChevronDown className="size-3.5 rotate-180" />
-          </div>
-          <HomeTask subject="Inglés" title="Irregular verbs" due="Hoy" color="#db3e8a" done />
-          <HomeTask subject="Matemática" title="Ecuaciones de primer grado" due="Hoy" color="#e8a317" done />
-        </div>
-        <nav className="present-home-nav" aria-hidden>
-          <span className="on">
-            <NavHomeIcon className="size-5" />
-            Inicio
-          </span>
-          <span>
-            <NavMateriasIcon className="size-5" />
-            Materias
-          </span>
-          <span>
-            <NavIaIcon className="size-5" />
-            IA
-          </span>
-          <span>
-            <NavConfigIcon className="size-5" />
-            Configuración
-          </span>
-        </nav>
-      </div>
-    </figure>
-  );
-}
-
-function HomeTask({
-  subject,
-  title,
-  due,
-  color,
-  done = false,
-}: {
-  subject: string;
-  title: string;
-  due: string;
-  color: string;
-  done?: boolean;
-}) {
-  return (
-    <div className={`present-home-task${done ? " is-done" : ""}`} style={{ boxShadow: `inset 6px 0 0 ${color}` }}>
-      <div>
-        <div className="present-home-meta">
-          <span style={{ color }}>
-            <SubjectMark subject={subject} size={16} />
-            {subject}
-          </span>
-          <em>{due}</em>
-        </div>
-        <strong style={{ color }}>{title}</strong>
-      </div>
-      {done ? (
-        <span className="present-home-check" style={{ color }} aria-label="Lista">
-          ✓
-        </span>
-      ) : (
-        <span className="present-home-ring" style={{ color }} />
-      )}
-    </div>
   );
 }

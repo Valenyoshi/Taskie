@@ -48,19 +48,12 @@ export function RewardPopup({
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-foreground/40 p-5" role="presentation">
       <div
-        className="reward-popup w-full max-w-sm rounded-[2rem] bg-card p-6 text-center shadow-2xl ring-1 ring-foreground/10"
+        className="reward-popup w-full max-w-sm rounded-xl border border-[rgba(60,42,28,0.16)] bg-card p-6 text-center"
         role="dialog"
         aria-modal="true"
         aria-labelledby="reward-popup-title"
       >
-        <div className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-secondary text-coral" aria-hidden>
-          <svg className="size-8" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M16 3l3.5 8.5L28 15l-6.5 6 1.8 9L16 25.5 8.7 30l1.8-9L4 15l8.5-3.5L16 3z" fill="#f6c445" fillOpacity="0.3" />
-            <circle cx="25" cy="7" r="1.5" fill="currentColor" />
-          </svg>
-        </div>
-        <p className="text-sm font-semibold text-muted-foreground">Recompensa</p>
-        <h2 id="reward-popup-title" className="mt-1 font-display text-3xl">
+        <h2 id="reward-popup-title" className="font-display text-3xl">
           {title}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 function toneFor(pathname: string) {
@@ -15,16 +14,7 @@ function toneFor(pathname: string) {
 }
 
 export function SectionWash() {
-  const pathname = usePathname();
-  const tone = toneFor(pathname);
-  const [variant, setVariant] = useState(1);
-
-  useLayoutEffect(() => {
-    if (!tone) return;
-    setVariant(1 + Math.floor(Math.random() * 4));
-  }, [tone]);
-
+  const tone = toneFor(usePathname());
   if (!tone) return null;
-
-  return <div className={`section-wash ${tone} v${variant}`} aria-hidden />;
+  return <div className={`section-wash ${tone}`} aria-hidden />;
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { GeminiMark } from "@/components/gemini-mark";
+import { KittyMark } from "@/components/kitty-mark";
 import { plainChatText } from "@/lib/plain-text";
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
@@ -58,13 +58,13 @@ export function ChatBox({
   }
 
   return (
-    <div className="gemini-chat">
-      <div className="gemini-thread">
+    <div className="chat-panel">
+      <div className="chat-thread">
         {messages.length === 0 ? (
-          <div className="gemini-empty">
-            <GeminiMark size={56} />
-            <p className="font-display text-3xl text-[#3d4fd4]">¿Qué querés saber de tus tareas?</p>
-            <div className="gemini-chips">
+          <div className="chat-empty">
+            <KittyMark size={56} />
+            <p className="font-display text-3xl">¿Qué querés saber de tus tareas?</p>
+            <div className="chat-suggestions">
               {suggestions.map((item) => (
                 <button key={item} type="button" onClick={() => void send(item)}>
                   {item}
@@ -75,27 +75,27 @@ export function ChatBox({
         ) : (
           messages.map((message) =>
             message.role === "user" ? (
-              <p key={message.id} className="gemini-user">
+              <p key={message.id} className="chat-user">
                 {message.content}
               </p>
             ) : (
-              <div key={message.id} className="gemini-reply">
-                <GeminiMark size={22} />
+              <div key={message.id} className="chat-reply">
+                <KittyMark size={22} />
                 <p>{plainChatText(message.content)}</p>
               </div>
             ),
           )
         )}
         {busy ? (
-          <div className="gemini-reply">
-            <GeminiMark size={22} />
+          <div className="chat-reply">
+            <KittyMark size={22} />
             <p className="text-muted-foreground">Estoy mirando…</p>
           </div>
         ) : null}
         {error ? <p className="text-sm font-semibold text-coral">{error}</p> : null}
       </div>
       <form
-        className="gemini-compose"
+        className="chat-compose"
         onSubmit={(event) => {
           event.preventDefault();
           void send(text);
