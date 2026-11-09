@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { CalendarTask } from "@/lib/view";
 import { cn } from "cn";
 
-const WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
+const WEEKDAYS = ["L", "M", "Mi", "J", "V", "S", "D"];
 
 function parts(day: string): [number, number, number] {
   const [y, m, d] = day.split("-").map(Number);
