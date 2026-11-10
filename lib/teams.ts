@@ -1,9 +1,10 @@
+import { createHash, randomBytes } from "node:crypto";
 import { courseGroup } from "./courses";
 import type { RemoteTask } from "./educamos";
 
-const TEAMS_CLIENT = "1fec8e78-bce4-4aaf-ab1b-5451cc387264";
-const TEAMS_REDIRECT = "https://teams.microsoft.com/go";
-const TEAMS_SCOPE = "openid profile offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/EduAssignments.Read https://graph.microsoft.com/EduRoster.ReadBasic";
+const TEAMS_CLIENT = "5e3ce6c0-2b1f-4285-8d4b-75ee78787346";
+const TEAMS_REDIRECT = "https://teams.microsoft.com";
+const TEAMS_SCOPE = "openid profile offline_access https://api.spaces.skype.com/user_impersonation";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
 type SignInConfig = {
@@ -21,79 +22,216 @@ export async function loginTeams(
 ): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
   try {
     const jar = new CookieJar();
-    const opened = await openSignIn(jar);
+    const proof = pkce();
+    const opened = await openSignIn(jar, proof.challenge);
     if (!opened.ok) return opened;
     const found = await lookupAccount(jar, opened.config, username);
     if (!found.ok) return found;
     const posted = await postPassword(jar, found.config, username, password);
     if (!posted.ok) return posted;
-    return exchangeCode(posted.code);
+    return exchangeCode(posted.code, proof.verifier);
   } catch {
     return { ok: false, error: "No pude entrar a Microsoft Teams." };
   }
 }
 
+const ASSIGNMENTS_APP = "66aeee93-507d-479a-a3ef-8f494af43945";
+const MONTHS: Record<string, number> = {
+  ene: 1, enero: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, abr: 4, abril: 4, may: 5, mayo: 5,
+  jun: 6, junio: 6, jul: 7, julio: 7, ago: 8, agosto: 8, sep: 9, sept: 9, septiembre: 9,
+  oct: 10, octubre: 10, nov: 11, noviembre: 11, dic: 12, diciembre: 12,
+};
+
 export async function fetchTeamsTasks(accessToken: string): Promise<
   { ok: true; tasks: RemoteTask[]; courses: { id: string; label: string }[] } | { ok: false; error: string }
 > {
-  const classes = await graphGet<{ value?: { id?: string; displayName?: string }[] }>(
-    accessToken,
-    "https://graph.microsoft.com/v1.0/education/me/classes?$select=id,displayName&$top=40",
-  );
+  const session = await openTeamsSession(accessToken);
+  if (!session.ok) return session;
+  const classes = await listClassTeams(session.chat, session.headers);
   if (!classes.ok) return classes;
-  const rooms = (classes.data.value ?? []).filter((room) => room.id && room.displayName);
-  if (rooms.length === 0) return { ok: false, error: "Esta cuenta de Microsoft no tiene clases de Teams." };
+  if (classes.teams.length === 0) return { ok: false, error: "Esta cuenta de Microsoft no tiene clases de Teams." };
 
-  const tasks: RemoteTask[] = [];
-  for (const room of rooms) {
-    const listed = await graphGet<{ value?: TeamsAssignment[] }>(
-      accessToken,
-      `https://graph.microsoft.com/v1.0/education/classes/${room.id}/assignments?$top=30`,
-    );
-    if (!listed.ok) return listed;
-    const published = (listed.data.value ?? []).filter((item) => item.id && item.status !== "draft");
-    const submissions = await mapLimit(published, 4, async (item) => {
-      const submission = await graphGet<{ value?: { status?: string }[] }>(
-        accessToken,
-        `https://graph.microsoft.com/v1.0/education/classes/${room.id}/assignments/${item.id}/submissions?$top=1`,
-      );
-      return submission.ok ? submission.data.value?.[0]?.status ?? "" : "";
-    });
-    tasks.push(...published.map((item, index) => assignmentTask(room.displayName ?? "Teams", item, submissions[index] ?? "")));
+  const found = new Map<string, { task: RemoteTask; posted: number }>();
+  for (const room of classes.teams) {
+    const messages = await listMessages(session.chat, session.headers, room.threadId);
+    if (!messages.ok) return messages;
+    for (const message of messages.messages) {
+      const task = taskFromAssignmentCard(room.subject, message);
+      if (!task) continue;
+      const posted = Date.parse(message.originalarrivaltime ?? "") || 0;
+      const current = found.get(task.externalId);
+      if (!current || posted >= current.posted) found.set(task.externalId, { task, posted });
+    }
   }
-  const courses = rooms
-    .map((room) => courseGroup(room.displayName ?? ""))
+  const cutoff = Date.now() - 120 * 86400000;
+  const tasks = [...found.values()].map((item) => item.task).filter((task) => Date.parse(task.dueAt) >= cutoff);
+  const courses = tasks
+    .map((task) => courseGroup(task.subject))
     .filter((group): group is { key: string; label: string } => Boolean(group))
     .filter((group, index, all) => all.findIndex((item) => item.key === group.key) === index)
     .map((group) => ({ id: group.key, label: group.label }));
   return { ok: true, tasks, courses };
 }
 
-type TeamsAssignment = {
-  id?: string;
-  displayName?: string;
-  dueDateTime?: string | null;
-  closeDateTime?: string | null;
-  instructions?: { content?: string };
-  status?: string;
-  webUrl?: string;
-};
+type ClassTeam = { threadId: string; subject: string };
+type TeamsMessage = { content?: string; imdisplayname?: string; originalarrivaltime?: string };
 
-export function assignmentTask(subject: string, item: TeamsAssignment, submissionStatus: string): RemoteTask {
-  const due = item.dueDateTime || item.closeDateTime || new Date(Date.now() + 7 * 86400000).toISOString();
-  const turnedIn = /submitted|returned/i.test(submissionStatus);
-  const instructions = htmlToPlain(item.instructions?.content ?? "");
+async function openTeamsSession(accessToken: string): Promise<
+  { ok: true; chat: string; headers: Record<string, string> } | { ok: false; error: string }
+> {
+  const response = await fetch("https://teams.microsoft.com/api/authsvc/v1.0/authz", {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
+    signal: AbortSignal.timeout(20000),
+  });
+  const data = (await response.json().catch(() => null)) as {
+    tokens?: { skypeToken?: string };
+    regionGtms?: { chatService?: string };
+  } | null;
+  const skype = data?.tokens?.skypeToken;
+  const chat = data?.regionGtms?.chatService;
+  if (!response.ok || !skype || !chat || !microsoftHost(chat)) {
+    return { ok: false, error: "No pude abrir la sesión de Teams." };
+  }
   return {
-    externalId: `teams-${item.id}`,
+    ok: true,
+    chat,
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      authentication: `skypetoken=${skype}`,
+      "x-skypetoken": skype,
+      accept: "application/json",
+    },
+  };
+}
+
+async function listClassTeams(
+  chat: string,
+  headers: Record<string, string>,
+): Promise<{ ok: true; teams: ClassTeam[] } | { ok: false; error: string }> {
+  const response = await fetch(`${chat}/v1/users/ME/conversations?view=msnp24Equivalent&pageSize=100`, {
+    headers,
+    signal: AbortSignal.timeout(20000),
+  });
+  const data = (await response.json().catch(() => null)) as {
+    conversations?: { id?: string; threadProperties?: { spaceType?: string; spaceThreadTopic?: string } }[];
+  } | null;
+  if (!response.ok || !data) return { ok: false, error: "No pude leer las clases de Teams." };
+  const teams = (data.conversations ?? [])
+    .filter((item) => item.id && /^(class|edu)$/i.test(item.threadProperties?.spaceType ?? ""))
+    .map((item) => ({
+      threadId: item.id ?? "",
+      subject: (item.threadProperties?.spaceThreadTopic || "Teams").trim(),
+    }));
+  return { ok: true, teams };
+}
+
+async function listMessages(
+  chat: string,
+  headers: Record<string, string>,
+  threadId: string,
+): Promise<{ ok: true; messages: TeamsMessage[] } | { ok: false; error: string }> {
+  const messages: TeamsMessage[] = [];
+  let url = `${chat}/v1/users/ME/conversations/${encodeURIComponent(threadId)}/messages?view=msnp24Equivalent&pageSize=100`;
+  for (let page = 0; page < 4 && url; page++) {
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
+    const data = (await response.json().catch(() => null)) as {
+      messages?: TeamsMessage[];
+      _metadata?: { backwardLink?: string };
+    } | null;
+    if (response.status === 404) break;
+    if (!response.ok || !data) return { ok: false, error: "No pude leer las tareas de una clase de Teams." };
+    messages.push(...(data.messages ?? []));
+    const next = data._metadata?.backwardLink;
+    url = next && microsoftHost(next) ? next : "";
+  }
+  return { ok: true, messages };
+}
+
+function taskFromAssignmentCard(subject: string, message: TeamsMessage): RemoteTask | null {
+  const encoded = message.content?.match(/<Swift\b[^>]*\sb64="([^"]+)"/)?.[1];
+  if (!encoded) return null;
+  let card: unknown;
+  try {
+    card = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+  const texts: string[] = [];
+  const urls: string[] = [];
+  collectCard(card, texts, urls);
+  const url = urls.find((item) => item.includes(ASSIGNMENTS_APP));
+  if (!url) return null;
+  const assignmentId = assignmentIdFromUrl(url);
+  if (!assignmentId) return null;
+  const title = texts.find((text) => !/vencimiento|\bdue\b/i.test(text));
+  if (!title) return null;
+  const dueText = texts.find((text) => /vencimiento|\bdue\b/i.test(text)) ?? "";
+  const postedAt = message.originalarrivaltime || new Date().toISOString();
+  return {
+    externalId: `teams-${assignmentId}`,
     subject,
-    title: (item.displayName || "Tarea de Teams").trim(),
-    description: instructions || "Tarea publicada en Microsoft Teams.",
-    dueAt: due,
-    status: turnedIn ? "done" : "pending",
+    title: title.slice(0, 180),
+    description: "Tarea publicada en Microsoft Teams.",
+    dueAt: dueAtFromText(dueText, postedAt),
+    status: "pending",
     needsFile: false,
-    url: item.webUrl || "https://teams.microsoft.com",
+    url,
     courseKey: courseGroup(subject)?.key ?? null,
   };
+}
+
+function collectCard(node: unknown, texts: string[], urls: string[]) {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) collectCard(item, texts, urls);
+    return;
+  }
+  const record = node as Record<string, unknown>;
+  if (typeof record.text === "string" && record.text.trim()) texts.push(record.text.trim());
+  if (typeof record.url === "string" && record.url.startsWith("https://")) urls.push(record.url);
+  for (const value of Object.values(record)) {
+    if (value && typeof value === "object") collectCard(value, texts, urls);
+  }
+}
+
+function assignmentIdFromUrl(url: string): string | null {
+  let current = url;
+  for (let hop = 0; hop < 3; hop++) {
+    try {
+      const next = decodeURIComponent(current);
+      if (next === current) break;
+      current = next;
+    } catch {
+      break;
+    }
+  }
+  return current.replace(/\\"/g, '"').match(/"assignmentIds"\s*:\s*\[\s*"([0-9a-f-]{36})"/i)?.[1] ?? null;
+}
+
+function dueAtFromText(dueText: string, postedAt: string): string {
+  const posted = new Date(postedAt);
+  const plain = dueText.normalize("NFD").replace(/\p{M}/gu, "");
+  const written = plain.match(/(\d{1,2})\s+de\s+([a-z]+)/i);
+  const numeric = plain.match(/(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/);
+  if (Number.isNaN(posted.getTime()) || (!written && !numeric)) return posted.toISOString();
+  const day = Number((written ?? numeric)?.[1]);
+  const month = written ? MONTHS[(written[2] ?? "").toLowerCase()] ?? 0 : Number(numeric?.[2]);
+  let year = numeric?.[3] ? Number(numeric[3]) : posted.getUTCFullYear();
+  if (year < 100) year += 2000;
+  if (!month || day < 1 || day > 31) return posted.toISOString();
+  let due = new Date(Date.UTC(year, month - 1, day, 15, 0, 0));
+  if (due.getTime() < posted.getTime() - 30 * 86400000) due = new Date(Date.UTC(year + 1, month - 1, day, 15, 0, 0));
+  return due.toISOString();
+}
+
+function microsoftHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "teams.microsoft.com" || host.endsWith(".teams.microsoft.com") || host.endsWith(".skype.com");
+  } catch {
+    return false;
+  }
 }
 
 class CookieJar {
@@ -113,13 +251,24 @@ class CookieJar {
   }
 }
 
-async function openSignIn(jar: CookieJar): Promise<{ ok: true; config: SignInConfig } | { ok: false; error: string }> {
+function pkce(): { verifier: string; challenge: string } {
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
+
+async function openSignIn(
+  jar: CookieJar,
+  challenge: string,
+): Promise<{ ok: true; config: SignInConfig } | { ok: false; error: string }> {
   const params = new URLSearchParams({
     client_id: TEAMS_CLIENT,
     response_type: "code",
     redirect_uri: TEAMS_REDIRECT,
     scope: TEAMS_SCOPE,
     response_mode: "query",
+    code_challenge: challenge,
+    code_challenge_method: "S256",
   });
   let url = `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?${params}`;
   for (let hop = 0; hop < 4; hop++) {
@@ -247,8 +396,9 @@ async function followLogin(
     const location = response.headers.get("location");
     if (response.status >= 300 && response.status < 400 && location) {
       const next = new URL(location, current);
-      const code = next.searchParams.get("code");
+      const code = next.searchParams.get("code") || new URLSearchParams(next.hash.replace(/^#/, "")).get("code");
       if (code) return { ok: true, code };
+      if (next.searchParams.get("error")) return { ok: false, error: "No pude terminar la entrada a Teams." };
       current = next.href;
       payload = undefined;
       continue;
@@ -258,16 +408,23 @@ async function followLogin(
     if (code) return { ok: true, code };
     const problem = loginProblem(html);
     if (problem) return { ok: false, error: problem };
+    const posted = readPostParams(html, current);
+    if (posted && microsoftLogin(posted.url)) {
+      current = posted.url;
+      payload = posted.body;
+      continue;
+    }
     const config = readSignIn(html, current);
     if (config && /kmsi|stay signed in|mantener la sesión/i.test(html)) {
       current = config.postUrl;
       payload = new URLSearchParams({
-        LoginOptions: "3",
+        LoginOptions: "1",
         type: "28",
         ctx: config.ctx,
         flowToken: config.flowToken,
         canary: config.canary,
         hpgrequestid: config.requestId,
+        i19: "2403",
       });
       continue;
     }
@@ -281,6 +438,19 @@ async function followLogin(
     break;
   }
   return { ok: false, error: "No pude terminar la entrada a Teams." };
+}
+
+function readPostParams(html: string, pageUrl: string): { url: string; body: URLSearchParams } | null {
+  const raw = html.match(/\$Config=(\{[\s\S]*?\});/)?.[1];
+  if (!raw) return null;
+  const data = JSON.parse(raw) as { urlPost?: string; oPostParams?: Record<string, string | number> };
+  if (!data.urlPost || !data.oPostParams) return null;
+  const body = new URLSearchParams();
+  for (const [key, value] of Object.entries(data.oPostParams)) {
+    if (value !== undefined && value !== null) body.set(key, String(value));
+  }
+  if ([...body.keys()].length === 0) return null;
+  return { url: new URL(data.urlPost, pageUrl).href, body };
 }
 
 function readSignIn(html: string, pageUrl: string): SignInConfig | null {
@@ -329,17 +499,24 @@ function microsoftLogin(url: string): boolean {
   }
 }
 
-async function exchangeCode(code: string): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
+async function exchangeCode(
+  code: string,
+  verifier: string,
+): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
   const body = new URLSearchParams({
     client_id: TEAMS_CLIENT,
     grant_type: "authorization_code",
     code,
     redirect_uri: TEAMS_REDIRECT,
     scope: TEAMS_SCOPE,
+    code_verifier: verifier,
   });
   const response = await fetch("https://login.microsoftonline.com/organizations/oauth2/v2.0/token", {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: TEAMS_REDIRECT,
+    },
     body,
     signal: AbortSignal.timeout(20000),
   });
@@ -348,53 +525,8 @@ async function exchangeCode(code: string): Promise<{ ok: true; accessToken: stri
   return { ok: true, accessToken: data.access_token };
 }
 
-async function graphGet<T>(accessToken: string, url: string): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
-  const response = await fetch(url, {
-    headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
-    signal: AbortSignal.timeout(20000),
-  });
-  if (response.status === 401) return { ok: false, error: "Microsoft no aceptó la sesión. Volvé a conectar Teams." };
-  if (response.status === 403) {
-    return { ok: false, error: "El colegio todavía no dejó que Taskie lea las tareas de Teams." };
-  }
-  const data = (await response.json().catch(() => null)) as (T & { error?: { message?: string } }) | null;
-  if (!response.ok || !data) return { ok: false, error: cleanMicrosoftError(data?.error?.message) };
-  return { ok: true, data };
-}
-
 function cleanMicrosoftError(value: string | undefined): string {
   const text = (value ?? "").replace(/\s+/g, " ").trim();
   if (!text) return "No pude entrar a Microsoft Teams.";
   return text.length > 180 ? `${text.slice(0, 176)}…` : text;
-}
-
-function htmlToPlain(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<\/p>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#(\d+);/g, (_, number: string) => String.fromCharCode(Number(number)))
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 800);
-}
-
-async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  async function worker() {
-    while (next < items.length) {
-      const index = next;
-      next += 1;
-      results[index] = await run(items[index]);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
-  return results;
 }
