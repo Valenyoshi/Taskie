@@ -271,6 +271,12 @@ async function followLogin(
       });
       continue;
     }
+    // Microsoft responde la contraseña con una página intermedia que solo acepta POST.
+    // Si se abre con GET, Teams corta la entrada con AADSTS900561.
+    if (config?.postUrl && /sso_reload=true/i.test(config.postUrl) && payload) {
+      current = config.postUrl;
+      continue;
+    }
     if (config?.flowToken && !payload) return { ok: false, error: "Teams no aceptó el usuario o la contraseña." };
     break;
   }
@@ -301,10 +307,12 @@ function readSignIn(html: string, pageUrl: string): SignInConfig | null {
 }
 
 function loginProblem(html: string): string | null {
-  if (/AADSTS50076|AADSTS50079|AADSTS50158|idDiv_SAOTCS_Proofs|ConvergedProofUp/i.test(html)) {
+  const code = html.match(/"sErrorCode"\s*:\s*"(\d+)"/)?.[1] ?? html.match(/AADSTS(\d+)/)?.[1] ?? "";
+  if (["50076", "50079", "50158"].includes(code) || /idDiv_SAOTCS_Proofs|ConvergedProofUp/i.test(html)) {
     return "Microsoft pide un código extra. Taskie entra solo con usuario y contraseña.";
   }
-  if (/AADSTS50126|AADSTS50034|AADSTS50053|AADSTS50055/i.test(html)) {
+  if (code === "50128") return "Teams no reconoció ese usuario. Tiene que ser el correo del colegio.";
+  if (["50126", "50034", "50053", "50055", "50057"].includes(code)) {
     return "Teams no aceptó el usuario o la contraseña.";
   }
   const text = html.match(/"sErrTxt":"([^"]+)"/)?.[1];
