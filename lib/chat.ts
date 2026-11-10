@@ -835,7 +835,7 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
     const free = await answerWithFreeLlm(safeMessage, safePrevious, system);
     if (free) return keep(free);
   } catch {
-    // Si FreeLLMAPI no responde, seguimos con el otro modelo o con los datos locales.
+    // Si el servicio gratuito no responde, seguimos con Gemini o con los datos locales.
   }
 
   const key = process.env.GEMINI_API_KEY;

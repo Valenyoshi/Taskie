@@ -59,27 +59,22 @@ Educamos no publica una API para alumnos. Taskie entra a la web del colegio con 
 
 ## IA
 
-El chat habla con [FreeLLMAPI](https://freellmapi.co), un enrutador local de modelos gratuitos. En este entorno corre en `http://127.0.0.1:43124`. La cuenta del tablero es `valen@taskie.local` y la clave unificada va en `.env.local`:
+El chat habla con [Pollinations](https://pollinations.ai), un servicio gratuito que no pide cuenta ni clave. El modelo es GPT-OSS 20B (`openai-fast`). Si ese servicio no responde, Taskie prueba Dots (`dots-studio/dots-3-note-preview:free`) en Kilo Gateway, también sin clave.
 
-```bash
-FREELLMAPI_BASE_URL=http://127.0.0.1:43124/v1
-FREELLMAPI_API_KEY=freellmapi-tu-clave
-```
+Nemotron y `kilo-auto` quedaron afuera: a menudo dejaban la respuesta vacía o inventaban datos del libro. Si un modelo solo devuelve su razonamiento interno y no un texto, Taskie lo saltea y prueba el siguiente.
 
 ### Modelos
 
-Taskie usa Kilo Gateway dentro de FreeLLMAPI, que no pide cuenta ni clave. En el tablero de FreeLLMAPI, Kilo se agrega en **Keys** sin clave.
+- Chat, Paper Quiz y el clasificador que frena los pedidos de "haceme la tarea": `openai-fast` en Pollinations.
+- Respaldo: `dots-studio/dots-3-note-preview:free` en Kilo.
 
-- Chat, Paper Quiz y el clasificador que frena los pedidos de "haceme la tarea": `nvidia/nemotron-3-ultra-550b-a55b:free`.
-- Respaldo: `kilo-auto/free`. Cambia de modelo en cada consulta, por eso no va primero.
+Para usar otro enrutador compatible con OpenAI, poné `FREELLMAPI_BASE_URL` y `FREELLMAPI_API_KEY` en `.env.local`. `FREELLMAPI_MODEL`, `FREELLMAPI_LIGHT_MODEL` y `FREELLMAPI_BACKUP_MODEL` cambian los modelos y aceptan varios separados por comas.
 
 Cuando le preguntás por una tarea, Taskie lee la consigna desde el aula, junto con los archivos adjuntos en Word (`.docx`) o PDF. También lee los apuntes de clase que vienen en esos formatos. Del archivo saca la indicación, las preguntas, la forma de entrega y la fecha, y avisa si esa fecha no coincide con la del aula. Los `.doc` viejos de Word no se leen.
 
 Además entra a la clase del aula donde está la tarea y lee lo que dice: la explicación, las preguntas, los apuntes o archivos de esa clase y un resumen de la clase anterior. Así puede contestar «¿de qué trata la tarea del video?» aunque la entrega solo diga «subí el video». Si la tarea viene de Educamos sin enlace al aula, busca en el curso de esa materia la actividad con el nombre más parecido.
 
 Las preguntas de datos no pasan por el modelo: qué vence hoy, mañana o esta semana, qué está pendiente o atrasado, lo más urgente, cuándo vence una tarea, qué materias hay y la racha. Taskie las contesta al instante con lo cargado de Educamos, así las fechas y los números siempre coinciden.
-
-Para cambiar los modelos, usá `FREELLMAPI_MODEL` (chat), `FREELLMAPI_LIGHT_MODEL` (clasificador) y `FREELLMAPI_BACKUP_MODEL`. Cada una acepta varios modelos separados por comas.
 
 Si le pedís cómo hacer una tarea, mira solo el título y busca el apunte de esa clase. Si le pedís que te explique un tema, usa ese mismo material. Si le pedís la tarea hecha o las respuestas para entregar, se niega. Las respuestas son breves, ordenadas y no inventan información. Sin ese servicio, el chat responde con tus tareas, materias, fechas y misiones. Gemini sigue como respaldo opcional con `GEMINI_API_KEY`. El ejemplo está en `.env.example`.
 

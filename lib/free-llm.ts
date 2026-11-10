@@ -3,57 +3,87 @@ import { aiFetch } from "./ai-shield";
 type Message = { role: "system" | "user" | "assistant"; content: string };
 export type FreeLlmReply = { model: string; content: string; reasoning: string };
 
-// Modelos de Kilo Gateway, que no piden cuenta ni clave. kilo-auto/free cambia
-// de modelo en cada consulta, así que queda solo como respaldo.
-const CHAT_MODELS = ["nvidia/nemotron-3-ultra-550b-a55b:free"];
-const LIGHT_MODELS = CHAT_MODELS;
-const BACKUP_MODEL = "kilo-auto/free";
+/**
+ * Pollinations sirve GPT-OSS 20B sin cuenta ni clave, y responde en español
+ * mejor que Nemotron. El respaldo es Dots en Kilo, que también devuelve texto.
+ * Los modelos que solo llenan el razonamiento y dejan el mensaje vacío se saltean:
+ * ese era el fallo de Nemotron y de kilo-auto.
+ */
+const POLLINATIONS = "https://text.pollinations.ai/openai";
+const KILO = "https://api.kilo.ai/api/gateway/chat/completions";
+const CHAT_MODEL = "openai-fast";
+const BACKUP_MODEL = "dots-studio/dots-3-note-preview:free";
 
-function modelList(value: string | undefined, defaults: string[]): string[] {
+type Route = { url: string; model: string; key?: string };
+
+function modelList(value: string | undefined, fallback: string): string[] {
   const picked = value
     ?.split(",")
     .map((model) => model.trim())
     .filter(Boolean);
-  return picked?.length ? picked : defaults;
+  return picked?.length ? picked : [fallback];
+}
+
+function routes(light: boolean): Route[] {
+  const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
+  const key = process.env.FREELLMAPI_API_KEY;
+  if (base && key) {
+    const models = modelList(
+      light ? process.env.FREELLMAPI_LIGHT_MODEL : process.env.FREELLMAPI_MODEL,
+      light ? CHAT_MODEL : CHAT_MODEL,
+    );
+    const backup = modelList(process.env.FREELLMAPI_BACKUP_MODEL, BACKUP_MODEL);
+    return [...new Set([...models, ...backup])].map((model) => ({
+      url: `${base}/chat/completions`,
+      model,
+      key,
+    }));
+  }
+  const main = modelList(light ? process.env.FREELLMAPI_LIGHT_MODEL : process.env.FREELLMAPI_MODEL, CHAT_MODEL);
+  const backup = modelList(process.env.FREELLMAPI_BACKUP_MODEL, BACKUP_MODEL);
+  const list: Route[] = [];
+  for (const model of main) list.push({ url: POLLINATIONS, model });
+  for (const model of backup) {
+    if (!list.some((route) => route.model === model)) list.push({ url: KILO, model });
+  }
+  return list;
 }
 
 export function freeLlmModels(light = false): string[] {
-  const main = light
-    ? modelList(process.env.FREELLMAPI_LIGHT_MODEL, LIGHT_MODELS)
-    : modelList(process.env.FREELLMAPI_MODEL, CHAT_MODELS);
-  const backup = modelList(process.env.FREELLMAPI_BACKUP_MODEL, [BACKUP_MODEL]);
-  return [...new Set([...main, ...backup])];
+  return routes(light).map((route) => route.model);
 }
 
 export function freeLlmConfigured(): boolean {
-  return Boolean(process.env.FREELLMAPI_BASE_URL && process.env.FREELLMAPI_API_KEY);
+  return routes(false).length > 0;
 }
 
 export async function freeLlmReply(
   messages: Message[],
   options: { timeoutMs: number; light?: boolean; perModelMs?: number },
 ): Promise<FreeLlmReply | null> {
-  const base = process.env.FREELLMAPI_BASE_URL?.replace(/\/$/, "");
-  const key = process.env.FREELLMAPI_API_KEY;
-  if (!base || !key) return null;
   const deadline = Date.now() + options.timeoutMs;
-  for (const model of freeLlmModels(options.light)) {
+  for (const route of routes(Boolean(options.light))) {
     const left = deadline - Date.now();
     if (left < 2000) break;
     try {
-      const res = await aiFetch(`${base}/chat/completions`, {
-        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (route.key) headers.authorization = `Bearer ${route.key}`;
+      const res = await aiFetch(route.url, {
+        headers,
         timeoutMs: Math.min(left, options.perModelMs ?? left),
-        body: { model, messages },
+        body: { model: route.model, messages },
       });
       if (!res.ok) continue;
       const data = (await res.json()) as {
-        choices?: { message?: { content?: string | null; reasoning?: string | null } }[];
+        model?: string;
+        choices?: { message?: { content?: string | null; reasoning?: string | null; reasoning_content?: string | null } }[];
       };
       const message = data.choices?.[0]?.message;
       const content = message?.content?.trim() ?? "";
-      const reasoning = message?.reasoning?.trim() ?? "";
-      if (content || reasoning) return { model, content, reasoning };
+      const reasoning = (message?.reasoning ?? message?.reasoning_content ?? "").trim();
+      // Sin texto visible no hay respuesta: el razonamiento interno no se muestra.
+      if (!content) continue;
+      return { model: data.model || route.model, content, reasoning };
     } catch {
       // Un modelo que tarda o se cae no corta la cadena: probamos el siguiente.
     }
