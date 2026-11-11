@@ -101,6 +101,43 @@ export async function teamsReadingReady(
   return { ok: true, ready: turnedIn(subs.data.value), refreshToken: token.refreshToken };
 }
 
+export async function teamsReadingText(
+  refreshToken: string,
+  classId: string,
+  assignmentId: string,
+): Promise<{ ok: true; text: string; refreshToken: string } | { ok: false; error: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(classId) || !/^[0-9a-f-]{36}$/i.test(assignmentId)) {
+    return { ok: false, error: "No pude abrir esa lectura." };
+  }
+  const token = await redeemAssignments(refreshToken);
+  if (!token.ok) return { ok: false, error: "No pude abrir esa lectura." };
+  const assignment = await assignmentsGet<{ instructions?: { content?: string } }>(
+    token.accessToken,
+    `${ASSIGNMENTS_API}/classes/${classId}/assignments/${assignmentId}`,
+  );
+  if (!assignment.ok) return { ok: false, error: "No pude abrir esa lectura." };
+  const text = htmlToText(assignment.data.instructions?.content ?? "");
+  return { ok: true, text, refreshToken: token.refreshToken };
+}
+
+function htmlToText(value: string): string {
+  return value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, number: string) => String.fromCharCode(Number(number)))
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim()
+    .slice(0, 4000);
+}
+
 async function fetchFromAssignments(refreshToken: string): Promise<
   | { ok: true; tasks: RemoteTask[]; courses: { id: string; label: string }[]; refreshToken: string }
   | { ok: false }

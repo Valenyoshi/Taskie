@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HandChevronDown } from "@/components/hand-drawn-icons";
 import { PixelCheck } from "@/components/pixel-check";
-import { openTeamsReading } from "@/components/reading-window";
+import { ReadingDialog } from "@/components/reading-window";
 import { SubjectMark } from "@/components/subject-mark";
 import { shortSubject, subjectColor } from "@/lib/subject-color";
 import type { TaskView } from "@/lib/view";
@@ -39,8 +39,7 @@ export function TaskCard({ task }: { task: TaskView }) {
   const [answer, setAnswer] = useState("");
   const [open, setOpen] = useState(task.kind === "archivo");
   const [refused, setRefused] = useState(false);
-  const [watching, setWatching] = useState(false);
-  const watchingRef = useRef(false);
+  const [readingOpen, setReadingOpen] = useState(false);
   const needsUpload = task.kind === "archivo";
   const isReading = task.kind === "lectura";
   const [lineTop, setLineTop] = useState(36);
@@ -161,28 +160,17 @@ export function TaskCard({ task }: { task: TaskView }) {
     );
   }
 
-  function deliverReading() {
-    if (watchingRef.current) return;
-    if (!task.educamosUrl) {
-      setError("Esta lectura no tiene la página de Teams.");
-      return;
-    }
-    watchingRef.current = true;
+  function showReading() {
+    setOpen(true);
     setError(null);
-    setWatching(true);
-    const blocked = openTeamsReading(task.educamosUrl, task.id, () => {
-      watchingRef.current = false;
-      setWatching(false);
-      setPhase("strike");
-      window.dispatchEvent(
-        new CustomEvent("racha-task-done", { detail: { daily: task.countsDaily, weekly: task.countsWeekly } }),
-      );
-    });
-    if (blocked) {
-      watchingRef.current = false;
-      setWatching(false);
-      setError(blocked);
-    }
+  }
+
+  function finishReading() {
+    setReadingOpen(false);
+    setPhase("strike");
+    window.dispatchEvent(
+      new CustomEvent("racha-task-done", { detail: { daily: task.countsDaily, weekly: task.countsWeekly } }),
+    );
   }
 
   async function upload(file: File) {
@@ -267,9 +255,9 @@ export function TaskCard({ task }: { task: TaskView }) {
             ) : null}
             <button
               type="button"
-              aria-label={isReading ? "Entregar lectura" : "Marcar como hecha"}
-              disabled={busy || watching}
-              onClick={() => (isReading ? deliverReading() : void complete())}
+              aria-label={isReading ? "Ver cómo hacer la lectura" : "Marcar como hecha"}
+              disabled={busy}
+              onClick={() => (isReading ? showReading() : void complete())}
               className="done-ring"
               style={{ color }}
             />
@@ -290,16 +278,13 @@ export function TaskCard({ task }: { task: TaskView }) {
           </span>
         </div>
       ) : null}
-      {watching ? (
-        <p className="px-3 pb-3 text-xs font-semibold">Abrí Teams. Cuando entregues la lectura, se marca sola.</p>
-      ) : null}
       {open || task.kind === "archivo" ? (
         <div className="space-y-2 px-3 pb-3 text-sm">
           {task.description ? <p>{task.description}</p> : null}
-          {isReading && task.pending ? (
-            <p className="rounded-xl bg-gold/15 px-3 py-2 text-xs font-semibold text-foreground/80">
-              Tocá el círculo para abrir Teams y grabar la lectura. Cuando la entregues, Taskie la marca sola.
-            </p>
+          {isReading && task.pending && task.educamosUrl ? (
+            <button type="button" className="lesson-next w-full" onClick={() => setReadingOpen(true)}>
+              Hacer la lectura
+            </button>
           ) : null}
           {needsUpload && task.pending ? (
             <p className="rounded-xl bg-gold/15 px-3 py-2 text-xs font-semibold text-foreground/80">
@@ -351,7 +336,7 @@ export function TaskCard({ task }: { task: TaskView }) {
               {fileName}
             </a>
           ) : null}
-          {task.educamosUrl ? (
+          {task.educamosUrl && !isReading ? (
             <a className="block text-sm font-semibold" style={{ color }} href={task.educamosUrl} target="_blank" rel="noreferrer">
               {/classroom\.google/.test(task.educamosUrl)
                 ? "Classroom"
@@ -365,6 +350,16 @@ export function TaskCard({ task }: { task: TaskView }) {
         </div>
       ) : null}
       {error ? <p className="px-3 pb-3 text-sm text-destructive">{error}</p> : null}
+      {isReading && task.educamosUrl ? (
+        <ReadingDialog
+          open={readingOpen}
+          url={task.educamosUrl}
+          title={task.title}
+          taskId={task.id}
+          onClose={() => setReadingOpen(false)}
+          onReady={finishReading}
+        />
+      ) : null}
     </article>
   );
 }

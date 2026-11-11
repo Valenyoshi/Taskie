@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { openTeamsReading } from "@/components/reading-window";
+import { ReadingDialog } from "@/components/reading-window";
 import { weekdayIndex } from "@/lib/time";
 import type { CalendarTask } from "@/lib/view";
 import { cn } from "cn";
@@ -96,7 +96,7 @@ function DayTasks({ day, today, tasks }: { day: string; today: string; tasks: Ca
 
 function TaskLine({ task }: { task: CalendarTask }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [readingOpen, setReadingOpen] = useState(false);
   const text = (
     <>
       <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: task.color }} aria-hidden />
@@ -112,17 +112,20 @@ function TaskLine({ task }: { task: CalendarTask }) {
   if (task.reading && task.url && task.status === "pending") {
     return (
       <div>
-        <button
-          type="button"
-          className={cn(className, "w-full text-left hover:underline")}
-          onClick={() => {
-            const blocked = openTeamsReading(task.url!, task.id, () => router.refresh());
-            setError(blocked);
-          }}
-        >
+        <button type="button" className={cn(className, "w-full text-left hover:underline")} onClick={() => setReadingOpen(true)}>
           {text}
         </button>
-        {error ? <p className="pl-5 text-xs text-destructive">{error}</p> : null}
+        <ReadingDialog
+          open={readingOpen}
+          url={task.url}
+          title={task.title}
+          taskId={task.id}
+          onClose={() => setReadingOpen(false)}
+          onReady={() => {
+            setReadingOpen(false);
+            router.refresh();
+          }}
+        />
       </div>
     );
   }

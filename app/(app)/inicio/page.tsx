@@ -49,7 +49,7 @@ export default async function InicioPage() {
         <>
           {homework.length > 0 ? <h2 className="font-display text-2xl">Lecturas</h2> : null}
           <p className="text-sm text-muted-foreground">
-            Tocá el círculo para abrir Teams y grabar la lectura. Cuando la entregues, se marca sola.
+            Abrí la tarjeta y tocá Hacer la lectura. Se abre acá, y cuando la entregues se marca sola.
           </p>
           <div className="task-stack flex flex-col gap-3">
             {readings.map((task) => (
