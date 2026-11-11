@@ -40,7 +40,7 @@ export type TaskView = {
   status: "pending" | "done";
   onTime: boolean | null;
   needsFile: boolean;
-  kind: "tarea" | "archivo";
+  kind: "tarea" | "archivo" | "lectura";
     countsDaily: boolean;
     countsWeekly: boolean;
   fileName: string | null;
@@ -107,7 +107,7 @@ export function toTask(task: Task, timeZone: string): TaskView {
     status: task.status,
     onTime: task.onTime,
     needsFile: task.needsFile,
-    kind: task.source === "lms" ? "archivo" : "tarea",
+    kind: task.source === "lms" ? "archivo" : task.reading ? "lectura" : "tarea",
     countsDaily: (() => {
       const due = localDateString(new Date(task.dueAt), timeZone);
       const today = localDateString(new Date(), timeZone);
@@ -275,6 +275,7 @@ export type CalendarTask = {
   status: "pending" | "done";
   late: boolean;
   url: string | null;
+  reading: boolean;
 };
 
 /** Todas las entregas, también las atrasadas, ubicadas en el día en que vencen según tu zona horaria. */
@@ -296,6 +297,7 @@ export function calendarData(userId: string) {
       status: task.status,
       late: task.status === "pending" && new Date(task.dueAt).getTime() < now.getTime(),
       url: task.educamosUrl && /^https:\/\//i.test(task.educamosUrl) ? task.educamosUrl : null,
+      reading: task.reading,
     }))
     .sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time));
   return { user: toPublic(user), today, tasks, platform: user.platform };

@@ -63,6 +63,7 @@ export type Task = {
   fileName: string | null;
   filePath: string | null;
   needsFile: boolean;
+  reading: boolean;
   createdAt: string;
   courseKey: string | null;
 };
@@ -133,6 +134,7 @@ type TaskRow = {
   file_name: string | null;
   file_path: string | null;
   needs_file: number;
+  reading?: number;
   created_at: string;
   course_key: string | null;
 };
@@ -235,6 +237,7 @@ function mapTask(row: TaskRow): Task {
     fileName: row.file_name,
     filePath: row.file_path,
     needsFile: row.needs_file === 1,
+    reading: row.reading === 1,
     createdAt: row.created_at,
     courseKey: row.course_key ?? null,
   };
@@ -366,6 +369,9 @@ export function getDb(): Database.Database {
   }
   if (!columns.some((column) => column.name === "course_key")) {
     globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN course_key TEXT");
+  }
+  if (!columns.some((column) => column.name === "reading")) {
+    globalForDb.rachaDb.exec("ALTER TABLE tasks ADD COLUMN reading INTEGER NOT NULL DEFAULT 0");
   }
   const userColumns = globalForDb.rachaDb.prepare("PRAGMA table_info(users)").all() as { name: string }[];
   if (!userColumns.some((column) => column.name === "lms_url")) {
@@ -715,9 +721,10 @@ export function deleteSession(token: string): void {
 }
 
 export function insertTask(
-  task: Omit<Task, "fileName" | "filePath" | "completedAt" | "onTime" | "status" | "courseKey"> & {
+  task: Omit<Task, "fileName" | "filePath" | "completedAt" | "onTime" | "status" | "courseKey" | "reading"> & {
     status?: Task["status"];
     courseKey?: string | null;
+    reading?: boolean;
   },
 ): void {
   const status = task.status ?? "pending";
@@ -726,8 +733,8 @@ export function insertTask(
   getDb()
     .prepare(
       `INSERT INTO tasks (
-        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, completed_at, on_time, created_at, tracked, course_key
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        id, user_id, external_id, subject, title, description, due_at, status, source, educamos_url, needs_file, completed_at, on_time, created_at, tracked, reading, course_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
       ON CONFLICT(user_id, external_id) DO UPDATE SET
         subject = excluded.subject,
         title = excluded.title,
@@ -735,6 +742,7 @@ export function insertTask(
         due_at = excluded.due_at,
         educamos_url = excluded.educamos_url,
         needs_file = excluded.needs_file,
+        reading = excluded.reading,
         course_key = COALESCE(excluded.course_key, tasks.course_key),
         tracked = 1,
         status = CASE WHEN tasks.status = 'pending' THEN excluded.status ELSE tasks.status END,
@@ -763,6 +771,7 @@ export function insertTask(
       completedAt,
       onTime,
       task.createdAt,
+      task.reading ? 1 : 0,
       task.courseKey ?? null,
     );
 }

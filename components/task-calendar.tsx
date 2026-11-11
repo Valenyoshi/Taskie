@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { openTeamsReading } from "@/components/reading-window";
 import { weekdayIndex } from "@/lib/time";
 import type { CalendarTask } from "@/lib/view";
 import { cn } from "cn";
@@ -93,17 +95,37 @@ function DayTasks({ day, today, tasks }: { day: string; today: string; tasks: Ca
 }
 
 function TaskLine({ task }: { task: CalendarTask }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const text = (
     <>
       <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: task.color }} aria-hidden />
       <span className={cn("min-w-0 text-sm", task.status === "done" && "text-muted-foreground line-through")}>
-        <b className="font-semibold">{task.subjectLabel}.</b> {task.title}
+        <b className="font-semibold">{task.subjectLabel}.</b> {task.reading ? "Lectura. " : ""}
+        {task.title}
         {task.status === "pending" ? hour(task) : ""}
         {task.late ? <span className="font-semibold text-destructive"> · atrasada</span> : null}
       </span>
     </>
   );
   const className = "flex items-start gap-2 rounded-lg";
+  if (task.reading && task.url && task.status === "pending") {
+    return (
+      <div>
+        <button
+          type="button"
+          className={cn(className, "w-full text-left hover:underline")}
+          onClick={() => {
+            const blocked = openTeamsReading(task.url!, task.id, () => router.refresh());
+            setError(blocked);
+          }}
+        >
+          {text}
+        </button>
+        {error ? <p className="pl-5 text-xs text-destructive">{error}</p> : null}
+      </div>
+    );
+  }
   return task.url && task.status === "pending" ? (
     <a href={task.url} target="_blank" rel="noopener noreferrer" className={cn(className, "hover:underline")}>
       {text}

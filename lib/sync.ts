@@ -1,6 +1,6 @@
 import { courseGroup, courseIdForName, courseKeyFromTitle, coursesFromNames, type SchoolCourse } from "./courses";
 import { educamosLogin, hasEducamosLogin } from "./credentials";
-import { dropOldUntracked, findUserById, insertTask, listTasks, openEducamosLogin, saveCourseDiscovery, setSyncResult, tagTaskCourse, type User } from "./db";
+import { dropOldUntracked, findUserById, insertTask, listTasks, openEducamosLogin, saveCourseDiscovery, saveTeamsConnection, setSyncResult, tagTaskCourse, type User } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
 import { fetchClassroomTasks } from "./classroom";
 import { fetchTeamsTasks, loginTeams } from "./teams";
@@ -142,7 +142,13 @@ async function syncTeams(user: User): Promise<{ ok: boolean; error?: string; cou
     setSyncResult(user.id, access.error);
     return access;
   }
-  const result = await fetchTeamsTasks(access.accessToken);
+  const result = await fetchTeamsTasks({ accessToken: access.accessToken, refreshToken: access.refreshToken });
+  if (access.refreshToken || (result.ok && result.refreshToken)) {
+    saveTeamsConnection(user.id, {
+      refreshToken: (result.ok && result.refreshToken) || access.refreshToken || "",
+      account: login.username,
+    });
+  }
   if (!result.ok) {
     setSyncResult(user.id, result.error);
     return result;
@@ -161,6 +167,7 @@ async function syncTeams(user: User): Promise<{ ok: boolean; error?: string; cou
       source: "teams",
       educamosUrl: task.url,
       needsFile: false,
+      reading: task.reading === true,
       courseKey: task.courseKey ?? courseGroup(task.subject)?.key ?? null,
       createdAt: now,
     });

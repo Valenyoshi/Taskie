@@ -17,6 +17,7 @@ export type RemoteTask = {
   needsFile: boolean;
   url: string | null;
   courseKey?: string | null;
+  reading?: boolean;
 };
 
 export type SyncResult = { ok: true; tasks: RemoteTask[]; courses?: SchoolCourse[] } | { ok: false; error: string };

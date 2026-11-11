@@ -31,7 +31,7 @@ Para ver el juego sin el colegio, en la portada usá **Probar con tareas de ejem
 Al crear la cuenta se elige de dónde salen las tareas.
 
 - **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola con esa dirección.
-- **Microsoft Teams.** Van el usuario y la contraseña de Microsoft del colegio, igual que en Educamos. Taskie entra a Teams con esos datos y trae las tareas de cada clase. La contraseña queda cifrada en el cofre del alumno y solo se envía a Microsoft.
+- **Microsoft Teams.** Van el usuario y la contraseña de Microsoft del colegio, igual que en Educamos. Taskie entra a Teams con esos datos y trae las tareas de cada clase. Si una tarea es una lectura, se abre la página de Teams para grabarla y, cuando Teams la marca entregada, Taskie la tilda sola. La contraseña queda cifrada en el cofre del alumno y solo se envía a Microsoft.
 - **Google Classroom.** Van el correo y la contraseña de Google del colegio. Taskie abre Classroom con esos datos y trae las tareas de cada clase. La contraseña queda cifrada y solo se escribe en la página de Google. Si Google pide un código extra, hay que entrar sin ese código o desactivarlo para esa cuenta. En el servidor hace falta Chrome.
 
 ## Educamos

@@ -14,6 +14,7 @@ export default async function InicioPage() {
   if (!data) redirect("/entrar");
   const { user, missions, pending, done, courses, courseChoice } = data;
   const homework = pending.filter((task) => task.kind === "tarea");
+  const readings = pending.filter((task) => task.kind === "lectura");
   const uploads = pending.filter((task) => task.kind === "archivo");
 
   return (
@@ -29,20 +30,34 @@ export default async function InicioPage() {
       />
 
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl">Por hacer</h2>
+        <h2 className="font-display text-2xl">{homework.length === 0 && readings.length > 0 ? "Lecturas" : "Por hacer"}</h2>
         <SyncButton autoSync={!user.isDemo} />
       </div>
       {user.syncError ? <p className="text-sm text-destructive">{user.syncError}</p> : null}
 
-      {homework.length === 0 ? (
+      {homework.length === 0 && readings.length === 0 ? (
         <p className="rounded-2xl bg-card px-4 py-6 text-center font-display text-xl ring-1 ring-foreground/10">Nada pendiente</p>
-      ) : (
+      ) : homework.length > 0 ? (
         <div className="task-stack flex flex-col gap-3">
           {homework.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
         </div>
-      )}
+      ) : null}
+
+      {readings.length > 0 ? (
+        <>
+          {homework.length > 0 ? <h2 className="font-display text-2xl">Lecturas</h2> : null}
+          <p className="text-sm text-muted-foreground">
+            Tocá el círculo para abrir Teams y grabar la lectura. Cuando la entregues, se marca sola.
+          </p>
+          <div className="task-stack flex flex-col gap-3">
+            {readings.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {uploads.length > 0 ? (
         <>

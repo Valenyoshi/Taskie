@@ -19,7 +19,7 @@ type SignInConfig = {
 export async function loginTeams(
   username: string,
   password: string,
-): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; accessToken: string; refreshToken: string | null } | { ok: false; error: string }> {
   try {
     const jar = new CookieJar();
     const proof = pkce();
@@ -29,7 +29,9 @@ export async function loginTeams(
     if (!found.ok) return found;
     const posted = await postPassword(jar, found.config, username, password);
     if (!posted.ok) return posted;
-    return exchangeCode(posted.code, proof.verifier);
+    const exchanged = await exchangeCode(posted.code, proof.verifier);
+    if (!exchanged.ok) return exchanged;
+    return { ok: true, accessToken: exchanged.accessToken, refreshToken: exchanged.refreshToken };
   } catch {
     return { ok: false, error: "No pude entrar a Microsoft Teams." };
   }
@@ -42,7 +44,216 @@ const MONTHS: Record<string, number> = {
   oct: 10, octubre: 10, nov: 11, noviembre: 11, dic: 12, diciembre: 12,
 };
 
-export async function fetchTeamsTasks(accessToken: string): Promise<
+const ASSIGNMENTS_API = "https://assignments.onenote.com/api/v1.0/edu";
+const assignmentTokens = new Map<string, { token: string; refresh: string; until: number }>();
+
+export async function fetchTeamsTasks(input: { accessToken: string; refreshToken: string | null }): Promise<
+  | { ok: true; tasks: RemoteTask[]; courses: { id: string; label: string }[]; refreshToken: string | null }
+  | { ok: false; error: string }
+> {
+  if (input.refreshToken) {
+    const listed = await fetchFromAssignments(input.refreshToken);
+    if (listed.ok) return listed;
+  }
+  const cards = await fetchFromChannel(input.accessToken);
+  if (!cards.ok) return cards;
+  return { ...cards, refreshToken: input.refreshToken };
+}
+
+export function teamsReadingIds(task: {
+  externalId: string | null;
+  educamosUrl: string | null;
+}): { classId: string; assignmentId: string } | null {
+  const assignmentId = task.externalId?.match(
+    /^teams-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  )?.[1];
+  if (!assignmentId || !task.educamosUrl) return null;
+  let current = task.educamosUrl;
+  for (let hop = 0; hop < 3; hop++) {
+    try {
+      const next = decodeURIComponent(current);
+      if (next === current) break;
+      current = next;
+    } catch {
+      break;
+    }
+  }
+  const classId = current.replace(/\\"/g, '"').match(/"id"\s*:\s*"([0-9a-f-]{36})"/i)?.[1];
+  if (!classId || classId.toLowerCase() === assignmentId.toLowerCase()) return null;
+  return { classId, assignmentId };
+}
+
+export async function teamsReadingReady(
+  refreshToken: string,
+  classId: string,
+  assignmentId: string,
+): Promise<{ ok: true; ready: boolean; refreshToken: string } | { ok: false; error: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(classId) || !/^[0-9a-f-]{36}$/i.test(assignmentId)) {
+    return { ok: false, error: "No pude abrir esa lectura." };
+  }
+  const token = await redeemAssignments(refreshToken);
+  if (!token.ok) return { ok: false, error: "No pude revisar la lectura en Teams." };
+  const subs = await assignmentsGet<{ value?: { status?: string }[] }>(
+    token.accessToken,
+    `${ASSIGNMENTS_API}/classes/${classId}/assignments/${assignmentId}/submissions?$top=5`,
+  );
+  if (!subs.ok) return { ok: false, error: "No pude revisar la lectura en Teams." };
+  return { ok: true, ready: turnedIn(subs.data.value), refreshToken: token.refreshToken };
+}
+
+async function fetchFromAssignments(refreshToken: string): Promise<
+  | { ok: true; tasks: RemoteTask[]; courses: { id: string; label: string }[]; refreshToken: string }
+  | { ok: false }
+> {
+  const token = await redeemAssignments(refreshToken);
+  if (!token.ok) return { ok: false };
+  const classes = await assignmentsGet<{ value?: { id?: string; name?: string }[] }>(
+    token.accessToken,
+    `${ASSIGNMENTS_API}/me/classes`,
+  );
+  if (!classes.ok) return { ok: false };
+  const rooms = (classes.data.value ?? []).filter((room) => room.id && room.name);
+  if (rooms.length === 0) return { ok: false };
+  const cutoff = Date.now() - 120 * 86400000;
+  const tasks: RemoteTask[] = [];
+  for (const room of rooms) {
+    let url = `${ASSIGNMENTS_API}/classes/${room.id}/assignments?$top=50&$expand=resources,submissions`;
+    for (let page = 0; page < 4 && url; page++) {
+      let listed = await assignmentsGet<{
+        value?: AssignmentItem[];
+        "@odata.nextLink"?: string;
+      }>(token.accessToken, url);
+      if (!listed.ok && page === 0) {
+        url = `${ASSIGNMENTS_API}/classes/${room.id}/assignments?$top=50`;
+        listed = await assignmentsGet<{ value?: AssignmentItem[]; "@odata.nextLink"?: string }>(token.accessToken, url);
+      }
+      if (!listed.ok) break;
+      for (const item of listed.data.value ?? []) {
+        const task = assignmentFromApi(room.name ?? "Teams", room.id ?? "", item);
+        if (!task) continue;
+        if (Date.parse(task.dueAt) < cutoff) continue;
+        if (task.reading && !item.submissions) {
+          const subs = await assignmentsGet<{ value?: { status?: string }[] }>(
+            token.accessToken,
+            `${ASSIGNMENTS_API}/classes/${room.id}/assignments/${item.id}/submissions?$top=5`,
+          );
+          if (subs.ok && turnedIn(subs.data.value)) task.status = "done";
+        }
+        tasks.push(task);
+      }
+      const next = listed.data["@odata.nextLink"];
+      url = next && next.startsWith("https://assignments.onenote.com/") ? next : "";
+    }
+  }
+  return { ok: true, tasks, courses: coursesFromTasks(tasks), refreshToken: token.refreshToken };
+}
+
+type AssignmentItem = {
+  id?: string;
+  displayName?: string;
+  dueDateTime?: string | null;
+  closeDateTime?: string | null;
+  status?: string;
+  resources?: { resource?: { "@odata.type"?: string }; "@odata.type"?: string }[];
+  submissions?: { status?: string }[];
+};
+
+function assignmentFromApi(subject: string, classId: string, item: AssignmentItem): RemoteTask | null {
+  if (!item.id || !item.displayName || /^draft$/i.test(item.status ?? "")) return null;
+  const due = item.dueDateTime || item.closeDateTime;
+  if (!due || Number.isNaN(Date.parse(due))) return null;
+  const reading = resourceReading(item.resources) || looksLikeReading(item.displayName);
+  return {
+    externalId: `teams-${item.id}`,
+    subject: subject.trim(),
+    title: item.displayName.trim().slice(0, 180),
+    description: reading
+      ? "Lectura de Teams. Se graba y se entrega en la página de la clase."
+      : "Tarea publicada en Microsoft Teams.",
+    dueAt: new Date(due).toISOString(),
+    status: reading && turnedIn(item.submissions) ? "done" : "pending",
+    needsFile: false,
+    url: assignmentLink(classId, item.id),
+    courseKey: courseGroup(subject)?.key ?? null,
+    reading,
+  };
+}
+
+function resourceReading(resources: AssignmentItem["resources"]): boolean {
+  return (resources ?? []).some((item) =>
+    /readingprogress|speakerprogress/i.test(item.resource?.["@odata.type"] || item["@odata.type"] || ""),
+  );
+}
+
+function looksLikeReading(title: string): boolean {
+  const plain = title.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  return /lectura|fluidez|\breading\b|^fl\b/.test(plain);
+}
+
+function turnedIn(submissions: { status?: string }[] | undefined): boolean {
+  return (submissions ?? []).some((item) => /^(submitted|returned|excused)$/i.test(item.status ?? ""));
+}
+
+function assignmentLink(classId: string, assignmentId: string): string {
+  const sub = JSON.stringify({
+    version: "1.0",
+    config: { classes: [{ id: classId, assignmentIds: [assignmentId] }] },
+    action: "navigate",
+    view: "assignment-viewer",
+    deeplinkType: 0,
+  });
+  const context = JSON.stringify({ subEntityId: sub });
+  return `https://teams.microsoft.com/l/entity/${ASSIGNMENTS_APP}/classroom?context=${encodeURIComponent(context)}`;
+}
+
+function coursesFromTasks(tasks: RemoteTask[]): { id: string; label: string }[] {
+  return tasks
+    .map((task) => courseGroup(task.subject))
+    .filter((group): group is { key: string; label: string } => Boolean(group))
+    .filter((group, index, all) => all.findIndex((item) => item.key === group.key) === index)
+    .map((group) => ({ id: group.key, label: group.label }));
+}
+
+async function redeemAssignments(refreshToken: string): Promise<
+  { ok: true; accessToken: string; refreshToken: string } | { ok: false }
+> {
+  const key = createHash("sha256").update(refreshToken).digest("hex");
+  const cached = assignmentTokens.get(key);
+  if (cached && cached.until > Date.now()) return { ok: true, accessToken: cached.token, refreshToken: cached.refresh };
+  const response = await fetch("https://login.microsoftonline.com/organizations/oauth2/v2.0/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", origin: TEAMS_REDIRECT },
+    body: new URLSearchParams({
+      client_id: TEAMS_CLIENT,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      scope: "https://assignments.onenote.com/.default",
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  const data = (await response.json().catch(() => null)) as {
+    access_token?: string;
+    refresh_token?: string;
+  } | null;
+  if (!response.ok || !data?.access_token) return { ok: false };
+  const refresh = data.refresh_token || refreshToken;
+  const nextKey = createHash("sha256").update(refresh).digest("hex");
+  assignmentTokens.set(nextKey, { token: data.access_token, refresh, until: Date.now() + 45 * 60 * 1000 });
+  return { ok: true, accessToken: data.access_token, refreshToken: refresh };
+}
+
+async function assignmentsGet<T>(token: string, url: string): Promise<{ ok: true; data: T } | { ok: false }> {
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!response.ok) return { ok: false };
+  const data = (await response.json().catch(() => null)) as T | null;
+  if (!data) return { ok: false };
+  return { ok: true, data };
+}
+
+async function fetchFromChannel(accessToken: string): Promise<
   { ok: true; tasks: RemoteTask[]; courses: { id: string; label: string }[] } | { ok: false; error: string }
 > {
   const session = await openTeamsSession(accessToken);
@@ -65,12 +276,7 @@ export async function fetchTeamsTasks(accessToken: string): Promise<
   }
   const cutoff = Date.now() - 120 * 86400000;
   const tasks = [...found.values()].map((item) => item.task).filter((task) => Date.parse(task.dueAt) >= cutoff);
-  const courses = tasks
-    .map((task) => courseGroup(task.subject))
-    .filter((group): group is { key: string; label: string } => Boolean(group))
-    .filter((group, index, all) => all.findIndex((item) => item.key === group.key) === index)
-    .map((group) => ({ id: group.key, label: group.label }));
-  return { ok: true, tasks, courses };
+  return { ok: true, tasks, courses: coursesFromTasks(tasks) };
 }
 
 type ClassTeam = { threadId: string; subject: string };
@@ -168,16 +374,20 @@ function taskFromAssignmentCard(subject: string, message: TeamsMessage): RemoteT
   if (!title) return null;
   const dueText = texts.find((text) => /vencimiento|\bdue\b/i.test(text)) ?? "";
   const postedAt = message.originalarrivaltime || new Date().toISOString();
+  const reading = looksLikeReading(title);
   return {
     externalId: `teams-${assignmentId}`,
     subject,
     title: title.slice(0, 180),
-    description: "Tarea publicada en Microsoft Teams.",
+    description: reading
+      ? "Lectura de Teams. Se graba y se entrega en la página de la clase."
+      : "Tarea publicada en Microsoft Teams.",
     dueAt: dueAtFromText(dueText, postedAt),
     status: "pending",
     needsFile: false,
     url,
     courseKey: courseGroup(subject)?.key ?? null,
+    reading,
   };
 }
 
@@ -502,7 +712,7 @@ function microsoftLogin(url: string): boolean {
 async function exchangeCode(
   code: string,
   verifier: string,
-): Promise<{ ok: true; accessToken: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; accessToken: string; refreshToken: string | null } | { ok: false; error: string }> {
   const body = new URLSearchParams({
     client_id: TEAMS_CLIENT,
     grant_type: "authorization_code",
@@ -520,9 +730,13 @@ async function exchangeCode(
     body,
     signal: AbortSignal.timeout(20000),
   });
-  const data = (await response.json().catch(() => null)) as { access_token?: string; error_description?: string } | null;
+  const data = (await response.json().catch(() => null)) as {
+    access_token?: string;
+    refresh_token?: string;
+    error_description?: string;
+  } | null;
   if (!response.ok || !data?.access_token) return { ok: false, error: cleanMicrosoftError(data?.error_description) };
-  return { ok: true, accessToken: data.access_token };
+  return { ok: true, accessToken: data.access_token, refreshToken: data.refresh_token ?? null };
 }
 
 function cleanMicrosoftError(value: string | undefined): string {
