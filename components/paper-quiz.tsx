@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SubjectMark } from "@/components/subject-mark";
 
 type QuizQuestion = { prompt: string; options: string[]; answer: number; why: string };
-type Quiz = { subject: string; topic: string; topics: string[]; questions: QuizQuestion[] };
+type Quiz = { subject: string; topic: string; summary: string; topics: string[]; questions: QuizQuestion[] };
 type Result = { picked: number | null; correct: boolean; points: number };
-type Phase = "lobby" | "topics" | "loading" | "countdown" | "question" | "reveal" | "final";
+type Phase = "lobby" | "topics" | "loading" | "countdown" | "brief" | "question" | "reveal" | "final";
 
 const LIMIT_MS = 20000;
 const TILES = [
@@ -119,8 +119,12 @@ export function PaperQuiz() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== "countdown") return;
+    if (phase !== "countdown" || !quiz) return;
     if (count === 0) {
+      if (quiz.summary) {
+        setPhase("brief");
+        return;
+      }
       startedAt.current = performance.now();
       setLeft(LIMIT_MS);
       setPhase("question");
@@ -128,7 +132,13 @@ export function PaperQuiz() {
     }
     const timer = window.setTimeout(() => setCount((value) => value - 1), 750);
     return () => window.clearTimeout(timer);
-  }, [phase, count]);
+  }, [phase, count, quiz]);
+
+  function beginQuestions() {
+    startedAt.current = performance.now();
+    setLeft(LIMIT_MS);
+    setPhase("question");
+  }
 
   const choose = useCallback(
     (option: number | null) => {
@@ -213,6 +223,21 @@ export function PaperQuiz() {
           </div>
           <p className="pq-title-sm">{quiz.questions.length} preguntas · 20 segundos cada una</p>
         </div>
+      </div>
+    );
+  }
+
+  if (phase === "brief" && quiz) {
+    return (
+      <div className="pq">
+        <div className="pq-sheet">
+          <p className="pq-muted">{quiz.topic || quiz.subject}</p>
+          <h3 className="pq-title-sm">Lo más importante</h3>
+          <p className="mt-3 text-base leading-relaxed">{quiz.summary}</p>
+        </div>
+        <button type="button" className="pq-button" onClick={beginQuestions}>
+          A las preguntas
+        </button>
       </div>
     );
   }
