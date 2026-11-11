@@ -2158,6 +2158,24 @@
   padding-top: 6px;
 }
 
+.pq-topics {
+  grid-template-columns: 1fr;
+}
+
+.pq-card.wide {
+  grid-column: 1 / -1;
+  min-height: 76px;
+  flex-direction: row;
+  align-items: center;
+  font-size: 1.4rem;
+}
+
+.pq-card.topic {
+  min-height: 76px;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+
 .pq-card {
   position: relative;
   display: flex;
@@ -2241,6 +2259,11 @@
   font-size: 1.1rem;
   text-decoration: underline wavy;
   text-underline-offset: 4px;
+}
+
+.pq-back {
+  align-self: flex-start;
+  margin-bottom: 4px;
 }
 
 .pq-question {
@@ -2445,6 +2468,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.pq-actions .pq-button:first-child {
+  grid-column: 1 / -1;
 }
 
 .pq-scribble {

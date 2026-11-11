@@ -7,7 +7,7 @@ import { freeLlmReply } from "./free-llm";
 import { dedupeSubjects, subjectKey } from "./subject-color";
 
 export type QuizQuestion = { prompt: string; options: string[]; answer: number; why: string };
-export type PaperQuiz = { subject: string; topics: string[]; questions: QuizQuestion[] };
+export type PaperQuiz = { subject: string; topic: string; topics: string[]; questions: QuizQuestion[] };
 
 const QUESTIONS = 6;
 const ADMIN_TITLE =
@@ -50,7 +50,7 @@ export async function quizSubjects(user: User): Promise<string[]> {
   return dedupeSubjects(names).filter((name) => !ADMIN_SUBJECT.test(name));
 }
 
-type Material = { topics: string[]; text: string; year: string; asks: string[] };
+type Material = { topics: string[]; text: string; year: string; asks: string[]; focused: boolean };
 
 const ASK_LINE = /[¿?]|^\s*(?:\d+[.)-]\s*)?(?:mencion|explic|describ|nombr|indic|defin|respond|enumer|investig|compar|justific|realiz|elabor|cont[aá]|identific)/i;
 
@@ -82,28 +82,68 @@ function copiesHomework(question: QuizQuestion, asks: string[]): boolean {
   });
 }
 
-async function quizMaterial(user: User, subject: string): Promise<Material> {
+function foldTopic(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9ñ]+/g, " ")
+    .trim();
+}
+
+export async function quizTopics(user: User, subject: string): Promise<string[]> {
+  const name = subject.trim();
+  const tasks = visibleTasks(user).filter((task) => sameSubject(task.subject, name));
+  const fromTasks = tasks.map((task) => clean(task.title));
+  const login = classroomLogin(user);
+  const fromClass = login ? await withDeadline(recentClassTopics({ ...login, subject: name }), 12000, [] as string[]) : [];
+  const seen = new Set<string>();
+  const subjectFold = foldTopic(name);
+  const out: string[] = [];
+  for (const raw of [...fromClass].reverse().concat(fromTasks)) {
+    const topic = clean(raw);
+    const key = foldTopic(topic);
+    if (key.length < 3 || key === subjectFold || seen.has(key) || ADMIN_TITLE.test(topic) || topic.length > 90) continue;
+    seen.add(key);
+    out.push(topic);
+    if (out.length === 10) break;
+  }
+  return out;
+}
+
+async function quizMaterial(user: User, subject: string, topic = ""): Promise<Material> {
+  const focus = clean(topic).slice(0, 120);
+  const focusKey = foldTopic(focus);
+  const aboutFocus = (value: string) => {
+    if (!focusKey) return true;
+    const key = foldTopic(value);
+    return key.includes(focusKey) || focusKey.includes(key);
+  };
   const tasks = visibleTasks(user)
     .filter((task) => sameSubject(task.subject, subject))
     .sort((a, b) => new Date(b.dueAt).getTime() - new Date(a.dueAt).getTime());
-  const fromTasks = tasks
+  const ordered = focus ? [...tasks.filter((task) => aboutFocus(task.title)), ...tasks.filter((task) => !aboutFocus(task.title))] : tasks;
+  const fromTasks = (focus ? ordered.filter((task) => aboutFocus(task.title)) : ordered)
     .slice(0, 6)
     .map((task) => clean(`${task.title}. ${task.description}`))
     .filter((line) => line.length > 3);
   const year = tasks.map((task) => task.subject.match(/\b(\d)\s*[º°]/)?.[1]).find(Boolean) ?? "";
-  const pendingText = tasks.filter((task) => task.status === "pending").map((task) => task.description);
+  const pendingText = (focus ? ordered.filter((task) => aboutFocus(task.title)) : tasks)
+    .filter((task) => task.status === "pending")
+    .map((task) => task.description);
   const login = classroomLogin(user);
   if (!login) {
-    return { topics: tasks.slice(0, 6).map((task) => clean(task.title)), text: fromTasks.join("\n"), year, asks: pendingText.flatMap(asksIn) };
+    const titles = (focus ? [focus] : tasks.slice(0, 6).map((task) => clean(task.title))).filter((item) => item.length > 2);
+    return { topics: titles, text: fromTasks.join("\n"), year, asks: pendingText.flatMap(asksIn), focused: Boolean(focus) };
   }
 
   const topics = (await withDeadline(recentClassTopics({ ...login, subject }), 12000, [] as string[]))
     .map(clean)
-    .filter((topic) => topic.length > 2 && !ADMIN_TITLE.test(topic))
-    .slice(-6);
-  const withFiles = tasks.filter((task) => task.educamosUrl).slice(0, 2);
+    .filter((item) => item.length > 2 && !ADMIN_TITLE.test(item));
+  const chosenTopics = focus ? [focus] : topics.slice(-6);
+  const withFiles = (focus ? ordered.filter((task) => aboutFocus(task.title) && task.educamosUrl) : ordered.filter((task) => task.educamosUrl)).slice(0, 2);
   const [notes, ...consignas] = await Promise.all([
-    withDeadline(notesForSubject({ ...login, subject, query: topics.slice(-2).join(" "), requireText: true }), 14000, ""),
+    withDeadline(notesForSubject({ ...login, subject, query: focus || topics.slice(-2).join(" "), requireText: true }), 14000, ""),
     ...withFiles.map((task) =>
       withDeadline(fetchTaskInstructions({ ...login, taskUrl: task.educamosUrl, taskTitle: task.title }), 14000, ""),
     ),
@@ -113,7 +153,7 @@ async function quizMaterial(user: User, subject: string): Promise<Material> {
     ...consignas.filter((_, index) => withFiles[index].status === "pending"),
   ].flatMap(asksIn);
   const pieces = [notes, ...consignas, ...fromTasks].map(clean).filter((piece) => piece.length > 40 && !ADMIN_TEXT.test(piece));
-  return { topics, text: pieces.join("\n\n").slice(0, 7000), year, asks };
+  return { topics: chosenTopics, text: pieces.join("\n\n").slice(0, 7000), year, asks, focused: Boolean(focus) };
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -180,7 +220,11 @@ function splitMaterial(material: Material): [Material, Material] {
 async function modelBatch(subject: string, material: Material, count: number): Promise<QuizQuestion[]> {
   const prompt = [
     `Materia: ${subject}. Alumnos de ${material.year ? `${material.year}° año de ` : ""}secundaria (12 a 14 años si es primer año): preguntas a su nivel, nada universitario.`,
-    material.topics.length ? `Temas recientes de la clase: ${material.topics.join("; ")}.` : "",
+    material.focused && material.topics[0]
+      ? `El alumno eligió solo este tema: ${material.topics[0]}. Todas las preguntas tienen que ser de ese tema, no de otros de la materia.`
+      : material.topics.length
+        ? `Temas recientes de la clase: ${material.topics.join("; ")}.`
+        : "",
     material.text ? `Material del aula:\n${material.text}` : "No hay material escrito, solo los temas.",
     `Armá ${count} preguntas de opción múltiple para un juego tipo Kahoot que repase esos temas.`,
     "Cada pregunta tiene exactamente 4 opciones cortas (menos de 60 caracteres) y una sola correcta.",
@@ -256,15 +300,17 @@ export async function buildPaperQuiz(
   user: User,
   subject: string,
   fresh = false,
+  topic = "",
 ): Promise<{ ok: true; quiz: PaperQuiz } | { ok: false; error: string }> {
   const name = subject.trim().slice(0, 160);
+  const chosen = clean(topic).slice(0, 120);
   if (!name) return { ok: false, error: "Elegí una materia." };
-  const key = `${user.id}|${subjectKey(name)}`;
+  const key = `${user.id}|${subjectKey(name)}|${foldTopic(chosen)}`;
   const cached = quizCache.get(key);
   if (!fresh && cached && Date.now() - cached.at < 20 * 60 * 1000) {
     return { ok: true, quiz: { ...cached.quiz, questions: shuffle(cached.quiz.questions).map(shuffleQuestion) } };
   }
-  const material = await quizMaterial(user, name);
+  const material = await quizMaterial(user, name, chosen);
   if (!material.text && material.topics.length === 0) {
     return { ok: false, error: `Todavía no hay temas de ${name} para armar un quiz.` };
   }
@@ -275,10 +321,16 @@ export async function buildPaperQuiz(
     const extra = clozeQuestions(material).filter((question) => !seen.has(question.prompt) && !copiesHomework(question, material.asks));
     questions = [...questions, ...extra.slice(0, QUESTIONS - questions.length)];
   }
+  const label = chosen || name;
   if (questions.length < 3) {
-    return { ok: false, error: `No pude armar preguntas de ${name} con lo que hay en el aula. Probá con otra materia.` };
+    return { ok: false, error: `No pude armar preguntas de ${label} con lo que hay en el aula. Probá con otro tema.` };
   }
-  const quiz = { subject: name, topics: material.topics, questions: questions.slice(0, QUESTIONS).map(shuffleQuestion) };
+  const quiz = {
+    subject: name,
+    topic: chosen,
+    topics: material.topics,
+    questions: questions.slice(0, QUESTIONS).map(shuffleQuestion),
+  };
   quizCache.set(key, { at: Date.now(), quiz });
   return { ok: true, quiz };
 }
