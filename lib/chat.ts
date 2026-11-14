@@ -7,6 +7,7 @@ import { freeLlmConfigured, freeLlmReply } from "./free-llm";
 import { asksForLesson, fetchTaskInstructions, findTaskInClassroom, notesForSubject, previousClassNotes } from "./educamos";
 import { selectedCourseKeys } from "./courses";
 import { asksToDoHomework, blockedAnswer, explainsHow, homeworkBlock, isGreeting } from "./no-homework";
+import { maybeStudyNote } from "./apuntes";
 import { localDateString, pendingIsCurrent, weekStart, addDays } from "./time";
 
 function currentTasks(user: User): Task[] {
@@ -202,7 +203,7 @@ export function factAnswer(message: string, user: User, tasks: Task[] = currentT
   }
 
   if (/chatbot|para que serv|que podes hacer|que haces|como me ayud/.test(q)) {
-    return "Te digo qué tareas tenés, cuándo vencen y cómo hacerlas. No te escribo la entrega.";
+    return "Te digo qué tareas tenés, cuándo vencen y cómo hacerlas. También te armo un resumen, un esquema o un mapa mental y lo guardo en Apuntes. No te escribo la entrega.";
   }
 
   if (/\bnivel\b|\bxp\b|\bexperiencia\b/.test(q)) {
@@ -759,6 +760,8 @@ async function shieldedAnswer(message: string, history: { role: "user" | "assist
   const safeMessage = sanitizeChatText(message);
   const safePrevious = safeHistory(history);
   const tasks = currentTasks(user);
+  const note = await maybeStudyNote(safeMessage, user, tasks);
+  if (note) return note;
   if (!asksToDoHomework(safeMessage) && !wantsClassRecap(safeMessage)) {
     const fact = factAnswer(safeMessage, user, tasks);
     if (fact) return fact;

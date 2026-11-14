@@ -334,6 +334,15 @@ export function getDb(): Database.Database {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS apuntes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        subject TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -1117,4 +1126,62 @@ export function openMailSecret(user: User): string | null {
 
 export function deleteMailAccount(userId: string): void {
   getDb().prepare("DELETE FROM mail_accounts WHERE user_id = ?").run(userId);
+}
+
+export type ApunteKind = "resumen" | "esquema" | "mapa";
+
+export type Apunte = {
+  id: string;
+  kind: ApunteKind;
+  subject: string;
+  title: string;
+  body: string;
+  createdAt: string;
+};
+
+const apunteField = (id: string, part: "title" | "body" | "subject") => `apunte.${part}|${id}`;
+
+export function saveApunte(userId: string, input: { kind: ApunteKind; subject: string; title: string; body: string }): Apunte {
+  const note: Apunte = {
+    id: crypto.randomUUID(),
+    kind: input.kind,
+    subject: input.subject.trim().slice(0, 80),
+    title: input.title.trim().slice(0, 140) || "Apunte",
+    body: input.body.trim().slice(0, 6000),
+    createdAt: new Date().toISOString(),
+  };
+  getDb()
+    .prepare("INSERT INTO apuntes (id, user_id, kind, subject, title, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(
+      note.id,
+      userId,
+      note.kind,
+      withUserKey(userId, userKey(userId), (box) => box.seal(apunteField(note.id, "subject"), note.subject)),
+      withUserKey(userId, userKey(userId), (box) => box.seal(apunteField(note.id, "title"), note.title)),
+      withUserKey(userId, userKey(userId), (box) => box.seal(apunteField(note.id, "body"), note.body)),
+      note.createdAt,
+    );
+  return note;
+}
+
+export function listApuntes(userId: string): Apunte[] {
+  const rows = getDb()
+    .prepare("SELECT id, kind, subject, title, body, created_at FROM apuntes WHERE user_id = ? ORDER BY created_at DESC")
+    .all(userId) as { id: string; kind: string; subject: string; title: string; body: string; created_at: string }[];
+  if (rows.length === 0) return [];
+  return withUserKey(userId, userKey(userId), (box) =>
+    rows.map((row) => ({
+      id: row.id,
+      kind: row.kind === "esquema" || row.kind === "mapa" ? row.kind : "resumen",
+      subject: isSealed(row.subject) ? box.open(apunteField(row.id, "subject"), row.subject) : row.subject,
+      title: isSealed(row.title) ? box.open(apunteField(row.id, "title"), row.title) : row.title,
+      body: isSealed(row.body) ? box.open(apunteField(row.id, "body"), row.body) : row.body,
+      createdAt: row.created_at,
+    })),
+  );
+}
+
+export function deleteApunte(userId: string, id: string): boolean {
+  const result = getDb().prepare("DELETE FROM apuntes WHERE user_id = ? AND id = ?").run(userId, id);
+  return result.changes === 1;
 }

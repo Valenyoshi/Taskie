@@ -43,6 +43,17 @@ export function NavTemasIcon({ className = "size-5" }: { className?: string }) {
   );
 }
 
+export function NavApuntesIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6.2 3.4h8.2l3.6 3.6v13.2c0 .7-.6 1.3-1.3 1.3H6.2c-.7 0-1.3-.6-1.3-1.3V4.7c0-.7.6-1.3 1.3-1.3Z" strokeWidth="2" fill="currentColor" fillOpacity="0.15" />
+      <path d="M14.2 3.6v3.4h3.4" strokeWidth="1.8" />
+      <path d="M8 11.2h7.2M8 14.4h5.2" strokeWidth="1.8" />
+      <circle cx="16.6" cy="16.2" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function NavEventosIcon({ className = "size-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

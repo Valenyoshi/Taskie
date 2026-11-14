@@ -1472,6 +1472,7 @@
 .section-title-tienda,
 .section-title-chat,
 .section-title-eventos,
+.section-title-apuntes,
 .section-title-configuracion {
   width: fit-content;
   margin-inline: auto;
@@ -1482,6 +1483,7 @@
 .section-title-chat { color: #3d4fd4; }
 .section-title-configuracion { color: #0f7a68; }
 .section-title-eventos { color: #b4530d; }
+.section-title-apuntes { color: #9a6412; }
 
 .bobby-shop {
   display: flex;
@@ -1717,6 +1719,26 @@
   background:
     radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.75) 0 22%, transparent 50%),
     linear-gradient(180deg, #b9ccff 0%, #efe6ff 70%, #fffdf8 100%);
+}
+
+.section-wash.apuntes.v1 {
+  background: linear-gradient(180deg, #ffe7b0 0%, #fff4d8 46%, #fffaf3 100%);
+}
+
+.section-wash.apuntes.v2 {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(255, 255, 255, 0.8) 0 14%, transparent 34%),
+    linear-gradient(160deg, #f8d48a 0%, #fff1cc 55%, #fffaf3 100%);
+}
+
+.section-wash.apuntes.v3 {
+  background:
+    radial-gradient(circle at 88% 10%, rgba(255, 214, 140, 0.7) 0 16%, transparent 40%),
+    linear-gradient(200deg, #fffaf0 0%, #ffe2a8 100%);
+}
+
+.section-wash.apuntes.v4 {
+  background: linear-gradient(120deg, #fff6e4 0%, #f3d7a2 48%, #fffdf8 100%);
 }
 
 .section-wash.concentracion.v1 {
@@ -3104,6 +3126,7 @@ button:disabled {
 .present-notes .lilac { background: #ece4ff; }
 .present-notes .orange { background: #ffe6c2; }
 .present-notes .teal { background: #d7f3ee; }
+.present-notes .gold { background: #ffe8b0; }
 
 @media (min-width: 720px) {
   .present-slips {
@@ -3300,4 +3323,57 @@ button:disabled {
   border: 1px solid rgba(60, 42, 28, 0.16);
   border-radius: 10px;
   box-shadow: none;
+}
+
+.apunte-outline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apunte-outline li.sub {
+  margin-left: 16px;
+  color: #5c534c;
+}
+
+.mind {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mind-center {
+  align-self: center;
+  border-radius: 999px;
+  background: #ffe08a;
+  padding: 8px 14px;
+  font-weight: 800;
+}
+
+.mind-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mind-branches > li {
+  border-radius: 14px;
+  background: #fff6e0;
+  padding: 10px 12px;
+}
+
+.mind-branches strong {
+  display: block;
+}
+
+.mind-branches ul {
+  margin-top: 4px;
+  padding-left: 14px;
+}
+
+@media (min-width: 640px) {
+  .mind-branches {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 }

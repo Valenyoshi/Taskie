@@ -8,7 +8,7 @@ import { plainChatText } from "@/lib/plain-text";
 type Message = { id: string; role: "user" | "assistant"; content: string };
 type Conversation = { id: string; title: string; createdAt: string; updatedAt: string };
 
-const suggestions = ["¿Qué tengo hoy?", "Explicame cómo hacer una tarea"];
+const suggestions = ["¿Qué tengo hoy?", "Haceme un resumen de un tema", "Armame un mapa mental"];
 
 export function ChatBox({
   initial,

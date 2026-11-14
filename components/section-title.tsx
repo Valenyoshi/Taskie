@@ -15,6 +15,9 @@ export function SectionTitle({ username }: { username: string }) {
   } else if (pathname.startsWith("/chat")) {
     title = "IA";
     tone = "chat";
+  } else if (pathname.startsWith("/apuntes")) {
+    title = "Apuntes";
+    tone = "apuntes";
   } else if (pathname.startsWith("/eventos")) {
     title = "Eventos";
     tone = "eventos";
@@ -52,7 +55,9 @@ export function SectionTitle({ username }: { username: string }) {
           ? "section-title-configuracion"
           : tone === "eventos"
             ? "section-title-eventos"
-            : "";
+            : tone === "apuntes"
+              ? "section-title-apuntes"
+              : "";
   return (
     <p className={`${toneClass} font-display leading-none ${title.length > 12 ? "text-4xl sm:text-5xl" : "text-5xl"}`}>
       {title}
