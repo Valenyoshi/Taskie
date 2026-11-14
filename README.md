@@ -6,14 +6,13 @@ Web para ver las tareas de Educamos y entregarlas. Se usa en el navegador de la 
 
 - Cuenta de Taskie y vínculo con la web del colegio (`https://tucolegio.educamos.com`).
 - Puntos para subir archivos del aula. El enlace se arma solo con la dirección del colegio (`tucolegio.educamos.com` pasa a `https://lms.educamos.com/tucolegio`).
-- Inicio con las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
+- Inicio con el calendario de entregas, las tareas pendientes, la materia, la fecha y las barras del día y de la semana.
 - Materias, con las tareas de cada una.
 - Temas en Configuración: el aspecto de la app, sin tienda.
 - Logros, racha por entrar y la sección IA: chat y Paper Quiz.
 - Barras diarias y semanales.
 - Paper Quiz: un juego de preguntas al estilo Kahoot, dibujado a mano, con los temas de cada materia.
 - Avisos en el dispositivo si hoy quedan tareas o si alguna vence en las próximas horas.
-- Eventos: las noticias del tablón de Educamos, un calendario con las fechas de entrega y tu correo para leer y responder mails.
 
 ## Cómo correrla
 
@@ -92,21 +91,9 @@ En Configuración, el interruptor de **Notificaciones** activa los avisos en ese
 
 Taskie avisa lo que vence hoy (desde las 8), lo que vence mañana (desde las 18) y cada tarea en sus últimas 3 horas. Nunca avisa entre las 22 y las 8. Antes de avisar, trae las tareas nuevas de Educamos cada 3 horas, aunque no abras la app. En Android Chrome funcionan en la web y en la app instalada. En iPhone hay que agregar Taskie a la pantalla de inicio y activarlos desde ahí.
 
-## Eventos
+## Calendario
 
-**Eventos** es una sola pantalla, de arriba hacia abajo:
-
-- **Calendario:** el mes, con un punto del color de la materia en cada día que hay que entregar. Arriba dice cuál es la próxima. Si pasás el mouse por un día con entregas, o lo tocás, se abre una ventana con lo que hay que hacer. El número del día atrasado va en rojo.
-- **Tablón de eventos:** las noticias de Educamos de este ciclo lectivo, prendidas como notas en un corcho. La flecha **Leer más** abre el texto, los enlaces, las imágenes y el adjunto (imagen o PDF). Taskie las lee sin marcarlas como leídas en Educamos y las guarda 15 minutos en memoria.
-- **Correo:** vinculás un correo y ves la bandeja de entrada, abrís cada mail y lo respondés. La respuesta sale desde tu correo, con el mensaje original citado.
-
-Cómo se vincula el correo:
-
-- **Gmail, Google Workspace, Yahoo e iCloud:** con una contraseña de aplicación (Google, por ejemplo, la da en `myaccount.google.com/apppasswords` cuando tenés la verificación en 2 pasos). Taskie reconoce el proveedor solo, también por el registro MX de dominios propios.
-- **Otros proveedores:** completás los servidores IMAP (puerto 993) y SMTP (465 o 587). Solo se aceptan servidores públicos y conexiones cifradas.
-- **Microsoft 365 y Outlook** (como el correo del colegio): Microsoft no deja entrar con contraseña. Taskie usa el inicio de sesión por código de Microsoft, que necesita una app registrada en Microsoft Entra: poné su id en `MICROSOFT_CLIENT_ID` (app pública con permisos delegados `Mail.ReadWrite`, `Mail.Send` y `User.Read`, y «Allow public client flows» activado). Algunos colegios no permiten apps externas en el correo; en ese caso lo tiene que aprobar el administrador.
-
-La contraseña o el permiso de Microsoft se guardan cifrados con la clave de tu cuenta y se borran al desvincular el correo.
+En **Inicio**, arriba de las tareas, está el mes. Un punto del color de la materia marca cada día con entregas. Arriba dice cuál es la próxima. Si pasás el mouse por un día con entregas, o lo tocás, se abre una ventana con lo que hay que hacer. El número del día atrasado va en rojo.
 
 ## Entregas del aula
 

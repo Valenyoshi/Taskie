@@ -8,7 +8,6 @@ function toneFor(pathname: string) {
   if (pathname.startsWith("/materias")) return "materias";
   if (pathname.startsWith("/chat")) return "chat";
   if (pathname.startsWith("/apuntes")) return "apuntes";
-  if (pathname.startsWith("/eventos")) return "eventos";
   if (pathname.startsWith("/configuracion")) return "configuracion";
   if (pathname.startsWith("/ranking")) return "ranking";
   if (pathname.startsWith("/concentracion")) return "concentracion";

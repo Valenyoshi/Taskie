@@ -6,7 +6,6 @@ import { useEffect, useRef } from "react";
 import {
   NavApuntesIcon,
   NavConfigIcon,
-  NavEventosIcon,
   NavHomeIcon,
   NavIaIcon,
   NavMateriasIcon,
@@ -16,7 +15,6 @@ import { cn } from "cn";
 const items = [
   { href: "/inicio", label: "Inicio", icon: NavHomeIcon, motion: "home" },
   { href: "/materias", label: "Materias", icon: NavMateriasIcon, motion: "subjects" },
-  { href: "/eventos", label: "Eventos", icon: NavEventosIcon, motion: "events" },
   { href: "/chat", label: "IA", icon: NavIaIcon, motion: "ia" },
   { href: "/apuntes", label: "Apuntes", icon: NavApuntesIcon, motion: "notes" },
   { href: "/configuracion", label: "Configuración", icon: NavConfigIcon, motion: "settings" },

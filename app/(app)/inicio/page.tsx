@@ -2,9 +2,10 @@ import { CoursePicker } from "@/components/course-picker";
 import { GoalBars } from "@/components/goal-bars";
 import { StreakFlame } from "@/components/streak-flame";
 import { SyncButton } from "@/components/sync-button";
+import { TaskCalendar } from "@/components/task-calendar";
 import { TaskCard } from "@/components/task-card";
 import { getCurrentUser } from "@/lib/session";
-import { homeData } from "@/lib/view";
+import { calendarData, homeData } from "@/lib/view";
 import { redirect } from "next/navigation";
 
 export default async function InicioPage() {
@@ -13,6 +14,7 @@ export default async function InicioPage() {
   const data = homeData(session.id);
   if (!data) redirect("/entrar");
   const { user, missions, pending, done, courses, courseChoice } = data;
+  const calendar = calendarData(session.id);
   const homework = pending.filter((task) => task.kind === "tarea");
   const readings = pending.filter((task) => task.kind === "lectura");
   const uploads = pending.filter((task) => task.kind === "archivo");
@@ -21,6 +23,8 @@ export default async function InicioPage() {
     <div className="flex flex-col gap-4">
       <CoursePicker courses={courses} selected={courseChoice} />
       <StreakFlame days={user.streak} />
+
+      {calendar ? <TaskCalendar tasks={calendar.tasks} today={calendar.today} /> : null}
 
       <GoalBars
         dailyClosed={missions.dailyClosed}
