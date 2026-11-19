@@ -1,0 +1,26 @@
+name: Classroom authorization
+on:
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'app/api/auth/**'
+      - 'app/(app)/configuracion/**'
+      - 'components/auth-panel.tsx'
+      - 'tests/classroom.test.cjs'
+      - '.github/workflows/classroom.yml'
+permissions:
+  contents: read
+jobs:
+  classroom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx eslint lib/classroom.ts lib/db.ts lib/sync.ts app/api/auth/google app/api/auth/register/route.ts components/auth-panel.tsx 'app/(app)/configuracion/page.tsx'
+      - run: node --test tests/classroom.test.cjs

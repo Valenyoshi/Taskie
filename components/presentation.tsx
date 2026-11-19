@@ -8,7 +8,7 @@ const slips = [
 
 const notes = [
   { title: "Inicio", tone: "pink", text: "El calendario marca cuándo entregar. Abajo quedan las tareas de hoy, con la materia y la fecha." },
-  { title: "El colegio", tone: "coral", text: "Educamos, Teams o Classroom. Taskie entra con tu usuario y trae las entregas. La contraseña queda cifrada." },
+  { title: "El colegio", tone: "coral", text: "Educamos, Teams o Classroom. Taskie trae las entregas del colegio. Classroom se conecta con tu autorización en Google." },
   { title: "Materias", tone: "green", text: "Cada materia se abre en el mismo lugar y muestra solo sus tareas." },
   { title: "Kitty", tone: "lilac", text: "Preguntale qué vieron o cómo empezar. Te lo cuenta con el material del curso. La entrega la escribís vos." },
   { title: "Apuntes", tone: "gold", text: "Pedile un resumen, un esquema o un mapa mental. Queda guardado para repasarlo después." },

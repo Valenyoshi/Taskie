@@ -1,8 +1,8 @@
 import { courseGroup, courseIdForName, courseKeyFromTitle, coursesFromNames, type SchoolCourse } from "./courses";
 import { educamosLogin, hasEducamosLogin } from "./credentials";
-import { dropOldUntracked, findUserById, insertTask, listTasks, openEducamosLogin, saveCourseDiscovery, saveTeamsConnection, setSyncResult, tagTaskCourse, type User } from "./db";
+import { dropOldUntracked, findUserById, insertTask, listTasks, openEducamosLogin, openClassroomRefresh, saveClassroomConnection, saveCourseDiscovery, saveTeamsConnection, setSyncResult, tagTaskCourse, type User } from "./db";
 import { fetchEducamosTasks, fetchLmsAssignmentStatuses, fetchLmsUploads, lmsBase } from "./educamos";
-import { fetchClassroomTasks } from "./classroom";
+import { fetchClassroomTasks, googleTokens } from "./classroom";
 import { fetchTeamsTasks, loginTeams } from "./teams";
 import { localDateString, zonedTimeToUtc } from "./time";
 
@@ -180,17 +180,23 @@ async function syncTeams(user: User): Promise<{ ok: boolean; error?: string; cou
 }
 
 async function syncClassroom(user: User): Promise<{ ok: boolean; error?: string; count?: number }> {
-  const login = openEducamosLogin(user);
-  if (!login) {
-    const error = "Falta el correo o la contraseña de Google. Volvé a crear la cuenta.";
+  const refreshToken = openClassroomRefresh(user);
+  if (!refreshToken) {
+    const error = "Conectá Google Classroom desde Configuración para autorizar la lectura de tareas.";
     setSyncResult(user.id, error);
     return { ok: false, error };
   }
-  const result = await fetchClassroomTasks({
-    username: login.username,
-    password: login.password,
-    timeZone: user.timezone,
-  });
+  let accessToken: string;
+  try {
+    const tokens = await googleTokens({ grant_type: "refresh_token", refresh_token: refreshToken });
+    accessToken = tokens.accessToken;
+    if (tokens.refreshToken) saveClassroomConnection(user.id, tokens.refreshToken);
+  } catch (cause) {
+    const error = cause instanceof Error && cause.name === "Error" ? cause.message : "No pude renovar la conexión con Google. Probá de nuevo.";
+    setSyncResult(user.id, error);
+    return { ok: false, error };
+  }
+  const result = await fetchClassroomTasks({ accessToken, timeZone: user.timezone });
   if (!result.ok) {
     setSyncResult(user.id, result.error);
     return result;

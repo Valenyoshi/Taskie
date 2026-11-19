@@ -26,13 +26,17 @@ export function AuthPanel() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...payload, timezone }),
     });
-    const data = (await res.json()) as { error?: string; syncError?: string | null };
+    const data = (await res.json()) as { error?: string; syncError?: string | null; redirectUrl?: string };
     setBusy(false);
     if (!res.ok) {
       setError(data.error ?? "No pude entrar.");
       return;
     }
     if (data.syncError) setSyncNote(data.syncError);
+    if (data.redirectUrl) {
+      window.location.assign(data.redirectUrl);
+      return;
+    }
     router.push("/inicio");
     router.refresh();
   }
@@ -125,10 +129,8 @@ export function AuthPanel() {
               </>
             ) : school === "classroom" ? (
               <>
-                <Field label="Correo de Google" name="classroomUsername" placeholder="alumno@colegio.edu" autoComplete="off" />
-                <Field label="Contraseña de Google" name="classroomPassword" type="password" autoComplete="off" />
                 <p className="text-xs text-muted-foreground">
-                  Es el correo y la contraseña de Google del colegio. Taskie los usa solo para entrar a Classroom y traer las tareas.
+                  Al crear tu cuenta vas a Google para autorizar la lectura de tus clases y tareas. Tu contraseña de Google se escribe únicamente en Google. Podés usar la verificación en dos pasos.
                 </p>
               </>
             ) : null}
@@ -142,7 +144,7 @@ export function AuthPanel() {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {syncNote ? <p className="text-sm">{syncNote}</p> : null}
         <Button className="h-11" type="submit" disabled={busy || (mode === "crear" && !school)}>
-          {mode === "crear" ? "Crear cuenta" : "Entrar"}
+          {mode === "crear" ? school === "classroom" ? "Crear cuenta y conectar con Google" : "Crear cuenta" : "Entrar"}
         </Button>
       </form>
       <Button className="mt-3 h-11 w-full" variant="outline" disabled={busy} onClick={() => void demo()}>
