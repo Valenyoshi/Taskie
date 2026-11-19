@@ -4,6 +4,7 @@ import { schoolBase } from "@/lib/educamos";
 import { json } from "@/lib/http";
 import { startSession } from "@/lib/session";
 import { syncUser } from "@/lib/sync";
+import { googleConfig } from "@/lib/classroom";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
@@ -15,8 +16,6 @@ export async function POST(request: Request) {
     educamosPassword?: string;
     teamsUsername?: string;
     teamsPassword?: string;
-    classroomUsername?: string;
-    classroomPassword?: string;
     timezone?: string;
     platform?: string;
   } | null;
@@ -30,8 +29,6 @@ export async function POST(request: Request) {
   const educamosPassword = body.educamosPassword ?? "";
   const teamsUsername = body.teamsUsername?.trim() ?? "";
   const teamsPassword = body.teamsPassword ?? "";
-  const classroomUsername = body.classroomUsername?.trim() ?? "";
-  const classroomPassword = body.classroomPassword ?? "";
   const timezone = body.timezone?.trim() || "America/Argentina/Buenos_Aires";
   const platform =
     body.platform === "teams" ? "teams" : body.platform === "classroom" ? "classroom" : body.platform === "educamos" ? "educamos" : "";
@@ -49,8 +46,12 @@ export async function POST(request: Request) {
   if (platform === "teams" && (!teamsUsername || !teamsPassword)) {
     return json({ error: "Completá el usuario y la contraseña de Teams." }, 400);
   }
-  if (platform === "classroom" && (!classroomUsername || !classroomPassword)) {
-    return json({ error: "Completá el correo y la contraseña de Google." }, 400);
+  if (platform === "classroom") {
+    try {
+      googleConfig();
+    } catch (cause) {
+      return json({ error: cause instanceof Error ? cause.message : "Falta configurar Google Classroom." }, 503);
+    }
   }
 
   if (findUserByUsername(username)) return json({ error: "Ese nombre ya tiene una cuenta." }, 400);
@@ -66,15 +67,16 @@ export async function POST(request: Request) {
       platform === "teams"
         ? { username: teamsUsername, password: teamsPassword }
         : platform === "classroom"
-          ? { username: classroomUsername, password: classroomPassword }
+          ? null
           : { username: educamosUsername, password: educamosPassword },
     lmsUrl: null,
     timezone,
     isDemo: false,
     platform,
-    teamsAccount: platform === "teams" ? teamsUsername : platform === "classroom" ? classroomUsername : null,
+    teamsAccount: platform === "teams" ? teamsUsername : null,
   });
   await startSession(id);
+  if (platform === "classroom") return json({ ok: true, redirectUrl: "/api/auth/google" });
   const sync = await syncUser(id);
   return json({ ok: true, syncError: sync.ok ? null : sync.error ?? null });
 }

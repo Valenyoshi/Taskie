@@ -31,7 +31,19 @@ Al crear la cuenta se elige de dónde salen las tareas.
 
 - **Educamos y Moodle.** Van la dirección del colegio, el usuario y la contraseña. El aula de Moodle se arma sola con esa dirección.
 - **Microsoft Teams.** Van el usuario y la contraseña de Microsoft del colegio, igual que en Educamos. Taskie entra a Teams con esos datos y trae las tareas de cada clase. Si una tarea es una lectura, se abre la página de Teams para grabarla y, cuando Teams la marca entregada, Taskie la tilda sola. La contraseña queda cifrada en el cofre del alumno y solo se envía a Microsoft.
-- **Google Classroom.** Van el correo y la contraseña de Google del colegio. Taskie abre Classroom con esos datos y trae las tareas de cada clase. La contraseña queda cifrada y solo se escribe en la página de Google. Si Google pide un código extra, hay que entrar sin ese código o desactivarlo para esa cuenta. En el servidor hace falta Chrome.
+- **Google Classroom.** Se autoriza en la página de Google mediante OAuth y se leen las clases y tareas con la API oficial. Taskie no solicita ni guarda la contraseña de Google. La verificación en dos pasos sigue funcionando. Las cuentas existentes se reconectan desde **Configuración → Conectar con Google**.
+
+## Configurar Google Classroom
+
+1. En [Google Cloud Console](https://console.cloud.google.com/) creá o elegí un proyecto y habilitá **Google Classroom API**.
+2. Configurá la pantalla de consentimiento de Google Auth Platform. Agregá los permisos `classroom.courses.readonly` y `classroom.coursework.me.readonly`. Si la app está en pruebas, agregá tu cuenta como usuario de prueba. Un colegio puede requerir que su administrador autorice Taskie.
+3. Creá un cliente OAuth de tipo **Aplicación web**. Registrá como URI de redirección `http://127.0.0.1:43123/api/auth/google/callback` para desarrollo. En producción, usá `https://TU-DOMINIO/api/auth/google/callback`.
+4. Copiá las tres variables de Google de `.env.example` a `.env.local`, completalas y reiniciá el servidor. `GOOGLE_REDIRECT_URI` debe coincidir exactamente con el URI registrado y con el dominio desde el que abrís Taskie (localhost y 127.0.0.1 no son intercambiables para las cookies). No publiques el secreto.
+5. Creá una cuenta con Classroom o entrá con tu nombre y contraseña de Taskie y usá **Configuración → Conectar con Google**. Elegí la cuenta del colegio y aceptá los dos permisos.
+
+Las clases vacías son válidas. Si Google revoca o vence el permiso, Taskie pide reconectar desde Configuración sin recrear la cuenta. En modo de pruebas de Google, los permisos pueden vencer a los siete días. Para acceso público, completá la verificación que solicite Google.
+
+Verificación del cambio: `npm ci`, `npx tsc --noEmit`, `node --test tests/classroom.test.cjs`. Las pruebas simulan Google: no usan cuentas ni credenciales reales. Para la prueba real hacen falta las credenciales anteriores y una cuenta de alumno con acceso a Classroom.
 
 ## Educamos
 
@@ -47,7 +59,7 @@ Cada colegio tiene su propia dirección. En el alta van esa URL, el usuario y la
 - **Inicio de sesión.** Las comparaciones son de tiempo constante, el error es genérico y hay un límite de 8 intentos cada 15 minutos por usuario.
 - **IA.** Toda consulta pasa por `lib/ai-shield.ts`. Ahí se tachan la contraseña y el usuario de Educamos, los tokens, las sesiones y las claves de API, y el nombre del alumno se cambia por "el alumno". Si después de eso queda una credencial, la consulta no se envía. Solo se aceptan servicios HTTPS (o `localhost`), sin redirecciones.
 - **Educamos.** Solo por HTTPS. La contraseña se envía únicamente al mismo sitio del formulario o a un dominio `educamos.com`.
-- **Google Classroom.** La contraseña se escribe solo en `accounts.google.com`. No se manda a la IA ni se muestra en la app.
+- **Google Classroom.** Solo pide permisos de lectura de clases y del trabajo propio del alumno. El token de renovación se guarda cifrado en el cofre del alumno; los tokens de acceso quedan en memoria. El flujo valida estado, sesión, vencimiento y PKCE. Al conectar una cuenta antigua se elimina su contraseña de Google guardada.
 - **Disco.** `data/` queda con permisos `700` y los archivos con `600`.
 
 La clave maestra se crea sola en `data/master.key`. En producción conviene ponerla en `TASKIE_MASTER_KEY` (32 bytes en hex o base64) y no dejarla en el disco junto a la base. Si se pierde la clave maestra, no se pueden recuperar las credenciales guardadas.

@@ -1,0 +1,95 @@
+name: Temporary Taskie preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/taskie-preview.yml'
+permissions:
+  contents: read
+concurrency:
+  group: taskie-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/classroom.test.cjs
+      - name: Build Taskie
+        run: npm run build -- --no-lint
+      - name: Start temporary Cloudflare preview
+        id: preview
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .preview
+          curl -fsSL --retry 3 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o .preview/cloudflared
+          chmod +x .preview/cloudflared
+          nohup .preview/cloudflared tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:43123 > .preview/tunnel.log 2>&1 &
+          echo "$!" > .preview/tunnel.pid
+          preview_url=""
+          for attempt in $(seq 1 60); do
+            preview_url=$(grep -oE 'https://[a-z0-9-]+[.]trycloudflare[.]com' .preview/tunnel.log | head -n 1 || true)
+            if [ -n "$preview_url" ]; then break; fi
+            sleep 1
+          done
+          if [ -z "$preview_url" ]; then cat .preview/tunnel.log; exit 1; fi
+          export GOOGLE_REDIRECT_URI="$preview_url/api/auth/google/callback"
+          export TASKIE_SECURE_COOKIES=1
+          nohup npm run start -- -p 43123 -H 127.0.0.1 > .preview/server.log 2>&1 &
+          echo "$!" > .preview/server.pid
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:43123/entrar -o /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then cat .preview/server.log; exit 1; fi
+          connected=0
+          for attempt in $(seq 1 60); do
+            if grep -q 'Registered tunnel connection' .preview/tunnel.log; then connected=1; break; fi
+            sleep 1
+          done
+          if [ "$connected" != 1 ]; then tail -n 50 .preview/tunnel.log; exit 1; fi
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "## Taskie temporary preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$preview_url/entrar" >> "$GITHUB_STEP_SUMMARY"
+          echo "Available for 30 minutes; test data is discarded when this job ends." >> "$GITHUB_STEP_SUMMARY"
+          echo "Google OAuth redirect URI: $GOOGLE_REDIRECT_URI" >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "Google Cloud credentials are not configured. UI and demo mode work; real Classroom authorization requires the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET repository secrets and the registered redirect URI." >> "$GITHUB_STEP_SUMMARY"
+            echo "google_configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "google_configured=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Temporary preview ready: $preview_url/entrar"
+      - name: 'Preview Google credentials configured: ${{ steps.preview.outputs.google_configured }}'
+        run: echo "See the job summary for the OAuth callback URI."
+      - name: 'Preview open for 30 minutes: ${{ steps.preview.outputs.url }}/entrar'
+        shell: bash
+        run: |
+          for minute in $(seq 1 30); do
+            kill -0 "$(cat .preview/tunnel.pid)"
+            kill -0 "$(cat .preview/server.pid)"
+            sleep 60
+          done
+      - name: Stop temporary preview
+        if: always()
+        shell: bash
+        run: |
+          for process_file in .preview/server.pid .preview/tunnel.pid; do
+            if [ -f "$process_file" ]; then kill "$(cat "$process_file")" 2>/dev/null || true; fi
+          done

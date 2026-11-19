@@ -39,6 +39,7 @@ export type User = {
   platform: "educamos" | "teams" | "classroom";
   teamsAccount: string | null;
   teamsRefreshEnc: string | null;
+  classroomRefreshEnc: string | null;
   pulled: boolean;
   spins: number;
   foundSuper: boolean;
@@ -116,6 +117,7 @@ type UserRow = {
   platform: string | null;
   teams_account: string | null;
   teams_refresh_enc: string | null;
+  classroom_refresh_enc: string | null;
 };
 
 type TaskRow = {
@@ -182,6 +184,7 @@ function mapUser(row: UserRow): User {
     platform: row.platform === "teams" ? "teams" : row.platform === "classroom" ? "classroom" : "educamos",
     teamsAccount: row.teams_account ?? null,
     teamsRefreshEnc: row.teams_refresh_enc ?? null,
+    classroomRefreshEnc: row.classroom_refresh_enc ?? null,
     pulled: row.pulled === 1,
     spins: row.spins ?? 0,
     foundSuper: row.found_super === 1,
@@ -407,6 +410,12 @@ export function getDb(): Database.Database {
   if (!userColumns.some((column) => column.name === "teams_refresh_enc")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN teams_refresh_enc TEXT");
   }
+  if (!userColumns.some((column) => column.name === "classroom_refresh_enc")) {
+    globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN classroom_refresh_enc TEXT");
+  }
+  globalForDb.rachaDb.exec(`CREATE TABLE IF NOT EXISTS google_oauth_flows (
+    state_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, verifier TEXT NOT NULL, expires_at INTEGER NOT NULL
+  )`);
   if (!userColumns.some((column) => column.name === "spins")) {
     globalForDb.rachaDb.exec("ALTER TABLE users ADD COLUMN spins INTEGER NOT NULL DEFAULT 0");
     globalForDb.rachaDb.exec(
@@ -618,6 +627,36 @@ export function openTeamsRefresh(user: User): string | null {
   } catch {
     return null;
   }
+}
+
+export function saveClassroomConnection(userId: string, refreshToken: string): void {
+  const sealed = withUserKey(userId, userKey(userId), (box) => box.seal("classroom.refresh", refreshToken));
+  getDb().prepare(`UPDATE users SET classroom_refresh_enc = ?, educamos_username = NULL,
+    educamos_password_enc = NULL, educamos_user_index = NULL, teams_account = NULL WHERE id = ? AND platform = 'classroom'`)
+    .run(sealed, userId);
+}
+
+export function openClassroomRefresh(user: User): string | null {
+  if (!user.classroomRefreshEnc || !user.dataKeyEnc) return null;
+  try {
+    return withUserKey(user.id, user.dataKeyEnc, (box) => box.open("classroom.refresh", user.classroomRefreshEnc!));
+  } catch {
+    return null;
+  }
+}
+
+export function createGoogleFlow(userId: string, state: string, verifier: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM google_oauth_flows WHERE expires_at < ? OR user_id = ?").run(Date.now(), userId);
+  db.prepare("INSERT INTO google_oauth_flows (state_hash, user_id, verifier, expires_at) VALUES (?, ?, ?, ?)")
+    .run(hashToken(state), userId, verifier, Date.now() + 10 * 60 * 1000);
+}
+
+export function consumeGoogleFlow(userId: string, state: string): string | null {
+  const row = getDb().prepare(`DELETE FROM google_oauth_flows
+    WHERE state_hash = ? AND user_id = ? RETURNING verifier, expires_at`)
+    .get(hashToken(state), userId) as { verifier: string; expires_at: number } | undefined;
+  return row && row.expires_at > Date.now() ? row.verifier : null;
 }
 
 export function findUserByUsername(username: string): User | null {
