@@ -58,7 +58,11 @@ jobs:
             sleep 1
           done
           if [ "$ready" != 1 ]; then cat .preview/server.log; exit 1; fi
-          curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$preview_url/entrar" -o /dev/null
+          if ! curl -fsS --max-time 15 --retry 20 --retry-delay 2 --retry-all-errors --doh-url https://cloudflare-dns.com/dns-query "$preview_url/entrar" -o /dev/null; then
+            tail -n 50 .preview/tunnel.log
+            tail -n 30 .preview/server.log
+            exit 1
+          fi
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
           echo "## Taskie temporary preview" >> "$GITHUB_STEP_SUMMARY"
           echo "$preview_url/entrar" >> "$GITHUB_STEP_SUMMARY"
